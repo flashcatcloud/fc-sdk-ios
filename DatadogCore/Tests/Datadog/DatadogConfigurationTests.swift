@@ -61,7 +61,7 @@ class DatadogConfigurationTests: XCTestCase {
         let context = core.contextProvider.read()
         XCTAssertEqual(context.clientToken, "abc-123")
         XCTAssertEqual(context.env, "tests")
-        XCTAssertEqual(context.site, .us1)
+        XCTAssertEqual(context.site, .cn)
         XCTAssertEqual(context.service, "test")
         XCTAssertEqual(context.version, "1.0.0")
         XCTAssertEqual(context.sdkVersion, __sdkVersion)
@@ -76,7 +76,7 @@ class DatadogConfigurationTests: XCTestCase {
         var configuration = defaultConfig
 
         configuration.service = "service-name"
-        configuration.site = .eu1
+        configuration.site = .staging
         configuration.batchSize = .small
         configuration.uploadFrequency = .frequent
         configuration.batchProcessingLevel = .high
@@ -129,7 +129,7 @@ class DatadogConfigurationTests: XCTestCase {
         let context = core.contextProvider.read()
         XCTAssertEqual(context.clientToken, "abc-123")
         XCTAssertEqual(context.env, "tests")
-        XCTAssertEqual(context.site, .eu1)
+        XCTAssertEqual(context.site, .staging)
         XCTAssertEqual(context.service, "service-name")
         XCTAssertEqual(context.version, "1.0.0")
         XCTAssertEqual(context.sdkVersion, "cp-version")

@@ -121,13 +121,9 @@ final class FlagAssignmentsFetcherTests: XCTestCase {
     }
 
     func testFlagsEndpointForAllSites() {
-        let flagsEndpoints: [(DatadogSite, String)] = [
-            (.us1, "https://preview.ff-cdn.datadoghq.com"),
-            (.us3, "https://preview.ff-cdn.us3.datadoghq.com"),
-            (.us5, "https://preview.ff-cdn.us5.datadoghq.com"),
-            (.eu1, "https://preview.ff-cdn.datadoghq.eu"),
-            (.ap1, "https://preview.ff-cdn.ap1.datadoghq.com"),
-            (.ap2, "https://preview.ff-cdn.ap2.datadoghq.com"),
+        let flagsEndpoints: [(FlashcatSite, String)] = [
+            (.cn, "https://preview.ff-cdn.flashcat.cloud"),
+            (.staging, "https://preview.ff-cdn-staging.flashcat.cloud"),
         ]
 
         for (site, expectedEndpoint) in flagsEndpoints {

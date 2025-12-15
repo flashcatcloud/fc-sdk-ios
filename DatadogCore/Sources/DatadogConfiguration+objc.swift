@@ -10,28 +10,18 @@ import DatadogInternal
 @objc(DDSite)
 @objcMembers
 @_spi(objc)
-public final class objc_DatadogSite: NSObject {
-    internal let sdkSite: DatadogSite
+public final class objc_FlashcatSite: NSObject {
+    internal let sdkSite: FlashcatSite
 
-    internal init(sdkSite: DatadogSite) {
+    internal init(sdkSite: FlashcatSite) {
         self.sdkSite = sdkSite
     }
 
     // MARK: - Public
 
-    public static func us1() -> objc_DatadogSite { .init(sdkSite: .us1) }
+    public static func cn() -> objc_FlashcatSite { .init(sdkSite: .cn) }
 
-    public static func us3() -> objc_DatadogSite { .init(sdkSite: .us3) }
-
-    public static func us5() -> objc_DatadogSite { .init(sdkSite: .us5) }
-
-    public static func eu1() -> objc_DatadogSite { .init(sdkSite: .eu1) }
-
-    public static func ap1() -> objc_DatadogSite { .init(sdkSite: .ap1) }
-
-    public static func ap2() -> objc_DatadogSite { .init(sdkSite: .ap2) }
-
-    public static func us1_fed() -> objc_DatadogSite { .init(sdkSite: .us1_fed) }
+    public static func staging() -> objc_FlashcatSite { .init(sdkSite: .staging) }
 }
 
 @objc(DDBatchSize)
@@ -175,11 +165,11 @@ public final class objc_Configuration: NSObject {
         set { sdkConfiguration.env = newValue }
     }
 
-    /// The Datadog server site where data is sent.
+    /// The Flashcat server site where data is sent.
     ///
-    /// Default value is `.us1`.
-    public var site: objc_DatadogSite {
-        get { objc_DatadogSite(sdkSite: sdkConfiguration.site) }
+    /// Default value is `.cn`.
+    public var site: objc_FlashcatSite {
+        get { objc_FlashcatSite(sdkSite: sdkConfiguration.site) }
         set { sdkConfiguration.site = newValue.sdkSite }
     }
 
