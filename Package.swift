@@ -29,39 +29,39 @@ let internalSwiftSettings: [SwiftSetting] = ProcessInfo.processInfo.environment[
     [.define("DD_BENCHMARK")] : []
 
 let package = Package(
-    name: "Datadog",
+    name: "Flashcat",
     platforms: platforms,
     products: [
         .library(
-            name: "DatadogCore",
+            name: "FlashcatCore",
             targets: ["DatadogCore"]
         ),
         .library(
-            name: "DatadogLogs",
+            name: "FlashcatLogs",
             targets: ["DatadogLogs"]
         ),
         .library(
-            name: "DatadogTrace",
+            name: "FlashcatTrace",
             targets: ["DatadogTrace"]
         ),
         .library(
-            name: "DatadogRUM",
+            name: "FlashcatRUM",
             targets: ["DatadogRUM"]
         ),
         .library(
-            name: "DatadogSessionReplay",
+            name: "FlashcatSessionReplay",
             targets: ["DatadogSessionReplay"]
         ),
         .library(
-            name: "DatadogCrashReporting",
+            name: "FlashcatCrashReporting",
             targets: ["DatadogCrashReporting"]
         ),
         .library(
-            name: "DatadogWebViewTracking",
+            name: "FlashcatWebViewTracking",
             targets: ["DatadogWebViewTracking"]
         ),
         .library(
-            name: "DatadogFlags",
+            name: "FlashcatFlags",
             targets: ["DatadogFlags"]
         ),
     ],
