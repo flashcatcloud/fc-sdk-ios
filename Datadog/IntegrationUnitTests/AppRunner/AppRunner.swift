@@ -240,7 +240,7 @@ internal class AppRunner {
         sdkSetup(&config)
         do {
             core = DatadogCoreProxy(
-                core: try DatadogCore(configuration: config, trackingConsent: .granted, instanceName: .mockAny())
+                core: try FlashcatCore(configuration: config, trackingConsent: .granted, instanceName: .mockAny())
             )
         } catch {
             preconditionFailure("\(error)")

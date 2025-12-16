@@ -34,7 +34,7 @@ class DatadogCoreTests: XCTestCase {
 
     func testWhenWritingEventsWithDifferentTrackingConsent_itOnlyUploadsAuthorizedEvents() throws {
         // Given
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .mockRandom(),
@@ -80,7 +80,7 @@ class DatadogCoreTests: XCTestCase {
 
     func testWhenWritingEventsWithPendingConsentThenGranted_itUploadsAllEvents() throws {
         // Given
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .mockRandom(),
@@ -139,7 +139,7 @@ class DatadogCoreTests: XCTestCase {
 
     func testWhenWritingEventsWithBypassingConsent_itUploadsAllEvents() throws {
         // Given
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .mockRandom(),
@@ -193,7 +193,7 @@ class DatadogCoreTests: XCTestCase {
 
     func testWhenFeatureAdditionalContextIsUpdated_thenNewValueIsImmediatellyAvailable() throws {
         // Given
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .mockRandom(),
@@ -246,7 +246,7 @@ class DatadogCoreTests: XCTestCase {
 
     func testWhenPerformancePresetOverrideIsProvided_itOverridesPresets() throws {
         // Given
-        let core1 = DatadogCore(
+        let core1 = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: RelativeDateProvider(advancingBySeconds: 0.01),
             initialConsent: .granted,
@@ -258,7 +258,7 @@ class DatadogCoreTests: XCTestCase {
             maxBatchesPerUpload: .mockRandom(min: 1, max: 100),
             backgroundTasksEnabled: .mockAny()
         )
-        let core2 = DatadogCore(
+        let core2 = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: RelativeDateProvider(advancingBySeconds: 0.01),
             initialConsent: .granted,
@@ -304,7 +304,7 @@ class DatadogCoreTests: XCTestCase {
 
     func testWhenStoppingInstance_itDoesNotUploadEvents() throws {
         // Given
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -335,7 +335,7 @@ class DatadogCoreTests: XCTestCase {
     }
 
     func testItAppendsUserDataIfAnonymousIdentifierExists() {
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -364,7 +364,7 @@ class DatadogCoreTests: XCTestCase {
     }
 
     func testItAppendsAnonymousIdentifierIfUserExists() {
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -394,7 +394,7 @@ class DatadogCoreTests: XCTestCase {
     }
 
     func testItAppendsAccountDataAndUpdatesIt() {
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -423,7 +423,7 @@ class DatadogCoreTests: XCTestCase {
     }
 
     func testItUpdatesAccountExtraInfoWhileKeepingOriginalAccountInfo() {
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -452,7 +452,7 @@ class DatadogCoreTests: XCTestCase {
     }
 
     func testItClearsAccountInfo() {
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -479,7 +479,7 @@ class DatadogCoreTests: XCTestCase {
     }
 
     func testItClearUserInfo() {
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -510,7 +510,7 @@ class DatadogCoreTests: XCTestCase {
     }
 
     func testItClearsAnonymousIdentifier() {
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,

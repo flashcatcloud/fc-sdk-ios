@@ -23,12 +23,12 @@ private struct FeatureMock: DatadogFeature {
 }
 
 class DatadogCore_FeatureDirectoriesTests: XCTestCase {
-    private var core: DatadogCore! // swiftlint:disable:this implicitly_unwrapped_optional
+    private var core: FlashcatCore! // swiftlint:disable:this implicitly_unwrapped_optional
 
     override func setUp() {
         super.setUp()
         temporaryCoreDirectory.create()
-        core = DatadogCore(
+        core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .mockRandom(),

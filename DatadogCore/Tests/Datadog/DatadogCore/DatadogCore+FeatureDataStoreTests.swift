@@ -23,7 +23,7 @@ private struct FeatureBMock: DatadogRemoteFeature {
 
 class DatadogCore_FeatureDataStoreTests: XCTestCase {
     func testGivenTwoFeaturesRegistered_whenWritingToTheirDataStore_eachStoreIsUnique() throws {
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory.create(),
             dateProvider: SystemDateProvider(),
             initialConsent: .mockRandom(),
@@ -68,7 +68,7 @@ class DatadogCore_FeatureDataStoreTests: XCTestCase {
     func testGivenFeatureRegisteredToTwoCoreInstances_whenWritingToDataStore_eachInstanceIsUnique() throws {
         let coreDirectory1 = temporaryUniqueCoreDirectory().create()
         let coreDirectory2 = temporaryUniqueCoreDirectory().create()
-        let core1 = DatadogCore(
+        let core1 = FlashcatCore(
             directory: coreDirectory1,
             dateProvider: SystemDateProvider(),
             initialConsent: .mockRandom(),
@@ -80,7 +80,7 @@ class DatadogCore_FeatureDataStoreTests: XCTestCase {
             maxBatchesPerUpload: .mockAny(),
             backgroundTasksEnabled: .mockAny()
         )
-        let core2 = DatadogCore(
+        let core2 = FlashcatCore(
             directory: coreDirectory2,
             dateProvider: SystemDateProvider(),
             initialConsent: .mockRandom(),

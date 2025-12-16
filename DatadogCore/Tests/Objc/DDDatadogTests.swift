@@ -41,7 +41,7 @@ class DDDatadogTests: XCTestCase {
 
         XCTAssertTrue(Datadog.isInitialized())
 
-        let context = try XCTUnwrap(CoreRegistry.default as? DatadogCore).contextProvider.read()
+        let context = try XCTUnwrap(CoreRegistry.default as? FlashcatCore).contextProvider.read()
         XCTAssertEqual(context.applicationName, "app-name")
         XCTAssertEqual(context.env, "tests")
 
@@ -104,7 +104,7 @@ class DDDatadogTests: XCTestCase {
             trackingConsent: initialConsent.objc
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
         XCTAssertEqual(core?.consentPublisher.consent, initialConsent.swift)
 
         objc_Datadog.setTrackingConsent(consent: nextConsent.objc)
@@ -122,7 +122,7 @@ class DDDatadogTests: XCTestCase {
             trackingConsent: randomConsent().objc
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
         let userInfo = try XCTUnwrap(core?.userInfoPublisher)
 
         objc_Datadog.setUserInfo(

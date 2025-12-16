@@ -54,7 +54,7 @@ class DatadogTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let urlSessionClient = try XCTUnwrap(core.httpClient as? URLSessionClient)
         XCTAssertTrue(core.dateProvider is SystemDateProvider)
         XCTAssertNil(urlSessionClient.session.configuration.connectionProxyDictionary)
@@ -114,7 +114,7 @@ class DatadogTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         XCTAssertTrue(core.dateProvider is SystemDateProvider)
         XCTAssertTrue(core.encryption is DataEncryptionMock)
 
@@ -194,7 +194,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: initialConsent
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
         XCTAssertEqual(core?.consentPublisher.consent, initialConsent)
 
         Datadog.set(trackingConsent: nextConsent)
@@ -210,7 +210,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: .mockRandom()
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
 
         XCTAssertNil(core?.userInfoPublisher.current.id)
         XCTAssertNil(core?.userInfoPublisher.current.email)
@@ -248,7 +248,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: .mockRandom()
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
 
         Datadog.setUserInfo(
             id: "foo",
@@ -276,7 +276,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: .mockRandom()
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
 
         Datadog.setUserInfo(
             id: "foo",
@@ -301,7 +301,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: .mockRandom()
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
 
         Datadog.setUserInfo(
             id: "foo",
@@ -326,7 +326,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: .mockRandom()
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
 
         XCTAssertNil(core?.accountInfoPublisher.current)
 
@@ -349,7 +349,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: .mockRandom()
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
 
         Datadog.setAccountInfo(
             id: "foo",
@@ -375,7 +375,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: .mockRandom()
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
 
         Datadog.setAccountInfo(
             id: "foo",
@@ -398,7 +398,7 @@ class DatadogTests: XCTestCase {
             trackingConsent: .mockRandom()
         )
 
-        let core = CoreRegistry.default as? DatadogCore
+        let core = CoreRegistry.default as? FlashcatCore
 
         Datadog.setAccountInfo(
             id: "foo",
@@ -428,7 +428,7 @@ class DatadogTests: XCTestCase {
         Logs.enable()
         Trace.enable()
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
 
         // On SDK init, underlying `ConsentAwareDataWriter` performs data migration for each feature, which includes
         // data removal in `unauthorised` (`.pending`) directory. To not cause test flakiness, we must ensure that
@@ -484,7 +484,7 @@ class DatadogTests: XCTestCase {
         serverDateProvider.offset = -1
 
         // Then
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.serverTimeOffset, -1)
 
@@ -507,7 +507,7 @@ class DatadogTests: XCTestCase {
 
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         // Wait for async deletion
         core.readWriteQueue.sync {}
 
@@ -529,7 +529,7 @@ class DatadogTests: XCTestCase {
 
         // Then
         XCTAssertTrue(CoreRegistry.default is NOPDatadogCore)
-        XCTAssertTrue(CoreRegistry.instance(named: "test") is DatadogCore)
+        XCTAssertTrue(CoreRegistry.instance(named: "test") is FlashcatCore)
     }
 
     func testStopSDKInstance() throws {
@@ -541,7 +541,7 @@ class DatadogTests: XCTestCase {
         )
 
         // Then
-        XCTAssertTrue(CoreRegistry.instance(named: "test") is DatadogCore)
+        XCTAssertTrue(CoreRegistry.instance(named: "test") is FlashcatCore)
 
         // When
         Datadog.stopInstance(named: "test")
@@ -570,7 +570,7 @@ class DatadogTests: XCTestCase {
         defer { Datadog.flushAndDeinitialize(instanceName: "custom-instance") }
 
         // Then
-        XCTAssertTrue(CoreRegistry.default is DatadogCore)
-        XCTAssertTrue(CoreRegistry.instance(named: "custom-instance") is DatadogCore)
+        XCTAssertTrue(CoreRegistry.default is FlashcatCore)
+        XCTAssertTrue(CoreRegistry.instance(named: "custom-instance") is FlashcatCore)
     }
 }

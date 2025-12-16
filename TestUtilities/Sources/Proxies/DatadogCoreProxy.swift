@@ -31,14 +31,14 @@ public final class DatadogCoreProxy: DatadogCoreProtocol {
     public private(set) static var referenceCount = 0
 
     /// The SDK core managed by this proxy.
-    private let core: DatadogCore
+    private let core: FlashcatCore
 
     @ReadWriteLock
     private var featureScopeInterceptors: [String: FeatureScopeInterceptor] = [:]
 
     public convenience init(context: DatadogContext = .mockAny()) {
         self.init(
-            core: DatadogCore(
+            core: FlashcatCore(
                 directory: temporaryCoreDirectory,
                 dateProvider: SystemDateProvider(),
                 initialConsent: context.trackingConsent,
@@ -55,7 +55,7 @@ public final class DatadogCoreProxy: DatadogCoreProtocol {
         )
     }
 
-    public init(core: DatadogCore) {
+    public init(core: FlashcatCore) {
         self.context = core.contextProvider.read()
         self.core = core
 

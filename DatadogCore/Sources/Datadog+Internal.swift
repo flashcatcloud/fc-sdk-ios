@@ -25,7 +25,7 @@ extension InternalExtension where ExtendedType == Datadog {
 
     /// Changes the `version` used for [Unified Service Tagging](https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging).
     public static func set(customVersion: String) {
-        guard let core = CoreRegistry.default as? DatadogCore else {
+        guard let core = CoreRegistry.default as? FlashcatCore else {
             return
         }
 

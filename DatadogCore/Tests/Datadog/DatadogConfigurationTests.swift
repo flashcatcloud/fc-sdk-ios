@@ -52,7 +52,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let urlSessionClient = try XCTUnwrap(core.httpClient as? URLSessionClient)
         XCTAssertTrue(core.dateProvider is SystemDateProvider)
         XCTAssertNil(urlSessionClient.session.configuration.connectionProxyDictionary)
@@ -114,7 +114,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         XCTAssertTrue(core.dateProvider is SystemDateProvider)
         XCTAssertTrue(core.encryption is DataEncryptionMock)
 
@@ -197,7 +197,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.applicationName, "iOSApp")
     }
@@ -216,7 +216,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.applicationName, "iOSAppExtension")
     }
@@ -235,7 +235,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.version, "1.2.3")
     }
@@ -254,7 +254,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.version, "0.0.0")
         XCTAssertEqual(context.buildNumber, "0")
@@ -274,7 +274,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.buildNumber, "FFFFF")
     }
@@ -292,7 +292,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.applicationBundleIdentifier, "unknown")
         XCTAssertEqual(context.service, "ios")
@@ -311,7 +311,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.applicationBundleIdentifier, "unknown")
     }
@@ -326,7 +326,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.applicationBundleType, .iOSApp)
     }
@@ -341,7 +341,7 @@ class DatadogConfigurationTests: XCTestCase {
         )
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
         XCTAssertEqual(context.applicationBundleType, .iOSAppExtension)
     }
@@ -387,7 +387,7 @@ class DatadogConfigurationTests: XCTestCase {
         Datadog.initialize(with: configuration, trackingConsent: .mockRandom())
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
 
         XCTAssertEqual(context.version, "5.23.2")
@@ -403,7 +403,7 @@ class DatadogConfigurationTests: XCTestCase {
         Datadog.initialize(with: configuration, trackingConsent: .mockRandom())
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
 
         XCTAssertEqual(context.version, "my-completely-custom-version")
@@ -419,7 +419,7 @@ class DatadogConfigurationTests: XCTestCase {
         Datadog.initialize(with: configuration, trackingConsent: .mockRandom())
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
 
         XCTAssertEqual(context.version, "1.5.0")
@@ -436,7 +436,7 @@ class DatadogConfigurationTests: XCTestCase {
         Datadog.initialize(with: configuration, trackingConsent: .mockRandom())
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
 
         // Cross-platform override should take precedence
@@ -453,7 +453,7 @@ class DatadogConfigurationTests: XCTestCase {
         Datadog.initialize(with: configuration, trackingConsent: .mockRandom())
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
 
         // Then
@@ -470,7 +470,7 @@ class DatadogConfigurationTests: XCTestCase {
         Datadog.initialize(with: configuration, trackingConsent: .mockRandom())
         defer { Datadog.flushAndDeinitialize() }
 
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let context = core.contextProvider.read()
 
         // Then

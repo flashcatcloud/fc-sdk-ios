@@ -14,7 +14,7 @@ import DatadogInternal
 ///
 /// By complying with `DatadogCoreProtocol`, the core can
 /// provide context and writing scopes to Features for event recording.
-internal final class DatadogCore {
+internal final class FlashcatCore {
     /// The root location for storing Features data in this instance of the SDK.
     /// For each Feature a set of subdirectories is created inside `CoreDirectory` based on their storage configuration.
     let directory: CoreDirectory
@@ -311,7 +311,7 @@ internal final class DatadogCore {
     }
 }
 
-extension DatadogCore: DatadogCoreProtocol {
+extension FlashcatCore: DatadogCoreProtocol {
     /// Registers a Feature instance.
     ///
     /// A Feature collects and transfers data to a Datadog Product (e.g. Logs, RUM, ...). A registered Feature can
@@ -402,10 +402,10 @@ extension DatadogCore: DatadogCoreProtocol {
 }
 
 internal class CoreFeatureScope<Feature>: @unchecked Sendable, FeatureScope where Feature: DatadogFeature {
-    private weak var core: DatadogCore?
+    private weak var core: FlashcatCore?
     private let store: FeatureDataStore
 
-    init(in core: DatadogCore) {
+    init(in core: FlashcatCore) {
         self.core = core
         self.store = FeatureDataStore(
             feature: Feature.name,
@@ -570,7 +570,7 @@ extension DatadogContextProvider {
     }
 }
 
-extension DatadogCore: Flushable {
+extension FlashcatCore: Flushable {
     /// Flushes asynchronous operations related to events write, context and message bus propagation in this instance of the SDK
     /// with **blocking the caller thread** till their completion.
     ///
@@ -609,7 +609,7 @@ extension DatadogCore: Flushable {
     }
 }
 
-extension DatadogCore: Storage {
+extension FlashcatCore: Storage {
     /// Returns the most recent modification date of a file in the core directory.
     /// - Parameter before: The date to compare the last modification date of files.
     /// - Returns: The latest modified file or `nil` if no files were modified before given date.

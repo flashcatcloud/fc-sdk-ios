@@ -12,7 +12,7 @@ import TestUtilities
 class FeatureContextTests: XCTestCase {
     func testFeatureContextSharing() throws {
         // Given
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,

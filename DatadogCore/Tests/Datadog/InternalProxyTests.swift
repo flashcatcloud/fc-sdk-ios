@@ -99,7 +99,7 @@ class InternalProxyTests: XCTestCase {
         Datadog._internal.set(customVersion: randomVersion)
 
         // Then
-        let core = try XCTUnwrap(CoreRegistry.default as? DatadogCore)
+        let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         XCTAssertEqual(core.applicationVersionPublisher.version, randomVersion)
     }
 }

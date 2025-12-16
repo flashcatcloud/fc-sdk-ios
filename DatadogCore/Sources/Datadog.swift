@@ -48,7 +48,7 @@ public enum Datadog {
     ///
     /// - Parameter name: The name of the SDK instance to verify.
     public static func isInitialized(instanceName name: String = CoreRegistry.defaultInstanceName) -> Bool {
-        CoreRegistry.instance(named: name) is DatadogCore
+        CoreRegistry.instance(named: name) is FlashcatCore
     }
 
     /// Returns the Datadog SDK instance for the given name.
@@ -75,7 +75,7 @@ public enum Datadog {
         extraInfo: [AttributeKey: AttributeValue] = [:],
         in core: DatadogCoreProtocol = CoreRegistry.default
     ) {
-        let core = core as? DatadogCore
+        let core = core as? FlashcatCore
         core?.setUserInfo(
             id: id,
             name: name,
@@ -95,7 +95,7 @@ public enum Datadog {
         _ extraInfo: [AttributeKey: AttributeValue?],
         in core: DatadogCoreProtocol = CoreRegistry.default
     ) {
-        let core = core as? DatadogCore
+        let core = core as? FlashcatCore
         core?.addUserExtraInfo(extraInfo)
     }
 
@@ -115,7 +115,7 @@ public enum Datadog {
     public static func clearUserInfo(
         in core: DatadogCoreProtocol = CoreRegistry.default
     ) {
-        let core = core as? DatadogCore
+        let core = core as? FlashcatCore
         core?.clearUserInfo()
     }
 
@@ -133,7 +133,7 @@ public enum Datadog {
         extraInfo: [AttributeKey: AttributeValue] = [:],
         in core: DatadogCoreProtocol = CoreRegistry.default
     ) {
-        let core = core as? DatadogCore
+        let core = core as? FlashcatCore
         core?.setAccountInfo(
             id: id,
             name: name,
@@ -152,7 +152,7 @@ public enum Datadog {
         _ extraInfo: [AttributeKey: AttributeValue?],
         in core: DatadogCoreProtocol = CoreRegistry.default
     ) {
-        let core = core as? DatadogCore
+        let core = core as? FlashcatCore
         core?.addAccountExtraInfo(extraInfo)
     }
 
@@ -172,20 +172,20 @@ public enum Datadog {
     public static func clearAccountInfo(
         in core: DatadogCoreProtocol = CoreRegistry.default
     ) {
-        let core = core as? DatadogCore
+        let core = core as? FlashcatCore
         core?.clearAccountInfo()
     }
 
     /// Sets the tracking consent regarding the data collection for the Datadog SDK.
     /// - Parameter trackingConsent: new consent value, which will be applied for all data collected from now on
     public static func set(trackingConsent: TrackingConsent, in core: DatadogCoreProtocol = CoreRegistry.default) {
-        let core = core as? DatadogCore
+        let core = core as? FlashcatCore
         core?.set(trackingConsent: trackingConsent)
     }
 
     /// Clears all data that has not already been sent to Datadog servers.
     public static func clearAllData(in core: DatadogCoreProtocol = CoreRegistry.default) {
-        let core = core as? DatadogCore
+        let core = core as? FlashcatCore
         core?.clearAllData()
     }
 
@@ -196,7 +196,7 @@ public enum Datadog {
     /// 
     /// - Parameter instanceName: the name of the instance to stop.
     public static func stopInstance(named instanceName: String = CoreRegistry.defaultInstanceName) {
-        let core = CoreRegistry.unregisterInstance(named: instanceName) as? DatadogCore
+        let core = CoreRegistry.unregisterInstance(named: instanceName) as? FlashcatCore
         core?.stop()
     }
 
@@ -292,7 +292,7 @@ public enum Datadog {
         try isValid(clientToken: configuration.clientToken)
         try isValid(env: configuration.env)
 
-        let core = try DatadogCore(
+        let core = try FlashcatCore(
             configuration: configuration,
             trackingConsent: trackingConsent,
             instanceName: instanceName
@@ -313,7 +313,7 @@ public enum Datadog {
         return core
     }
 
-    private static func deleteV1Folders(in core: DatadogCore) {
+    private static func deleteV1Folders(in core: FlashcatCore) {
         let deprecated = ["com.datadoghq.logs", "com.datadoghq.traces", "com.datadoghq.rum"].compactMap {
             try? Directory.cache().subdirectory(path: $0) // ignore errors - deprecated paths likely do not exist
         }
@@ -337,7 +337,7 @@ public enum Datadog {
 
     internal static func internalFlushAndDeinitialize(instanceName: String = CoreRegistry.defaultInstanceName) {
         // Unregister core instance:
-        let core = CoreRegistry.unregisterInstance(named: instanceName) as? DatadogCore
+        let core = CoreRegistry.unregisterInstance(named: instanceName) as? FlashcatCore
         // Flush and tear down SDK core:
         core?.flushAndTearDown()
     }
@@ -359,7 +359,7 @@ private func isValid(clientToken: String) throws {
     }
 }
 
-extension DatadogCore {
+extension FlashcatCore {
     /// The primary entry point for creating a `DatadogCore` instance.
     ///
     /// - Parameters:

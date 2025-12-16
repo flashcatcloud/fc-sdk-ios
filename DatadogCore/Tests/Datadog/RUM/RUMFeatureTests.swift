@@ -43,7 +43,7 @@ class RUMFeatureTests: XCTestCase {
         let server = ServerMock(delivery: .success(response: .mockResponseWith(statusCode: 200)))
         let httpClient = URLSessionClient(session: server.getInterceptedURLSession())
 
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -114,7 +114,7 @@ class RUMFeatureTests: XCTestCase {
         let server = ServerMock(delivery: .success(response: .mockResponseWith(statusCode: 200)))
         let httpClient = URLSessionClient(session: server.getInterceptedURLSession())
 
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
@@ -163,7 +163,7 @@ class RUMFeatureTests: XCTestCase {
         let server = ServerMock(delivery: .success(response: .mockResponseWith(statusCode: 200)))
         let httpClient = URLSessionClient(session: server.getInterceptedURLSession())
 
-        let core = DatadogCore(
+        let core = FlashcatCore(
             directory: temporaryCoreDirectory,
             dateProvider: SystemDateProvider(),
             initialConsent: .granted,
