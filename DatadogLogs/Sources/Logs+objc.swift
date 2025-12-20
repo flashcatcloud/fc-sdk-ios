@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 @objc(DDLogLevel)
 @_spi(objc)

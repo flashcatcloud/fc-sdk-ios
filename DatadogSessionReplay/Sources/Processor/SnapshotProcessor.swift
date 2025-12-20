@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// A type turning succeeding view-tree and touch snapshots into sequence of Mobile Session Replay records.
 ///

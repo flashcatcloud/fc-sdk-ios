@@ -5,10 +5,10 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension RUMUser {
-    init?(context: DatadogContext) {
+    init?(context: FlashcatContext) {
         guard let userInfo = context.userInfo else {
             return nil
         }

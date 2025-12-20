@@ -5,10 +5,10 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension RUMConnectivity {
-    init?(context: DatadogContext) {
+    init?(context: FlashcatContext) {
         self.init(
             networkInfo: context.networkConnectionInfo,
             carrierInfo: context.carrierInfo

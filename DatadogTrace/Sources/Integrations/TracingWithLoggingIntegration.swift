@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Integration between Tracing and Logging Features to allow sending logs for spans (`span.log(fields:timestamp:)`)
 internal struct TracingWithLoggingIntegration {
@@ -19,11 +19,11 @@ internal struct TracingWithLoggingIntegration {
     }
 
     /// `DatadogCore` instance managing this integration.
-    weak var core: DatadogCoreProtocol?
+    weak var core: FlashcatCoreProtocol?
     let service: String?
     let networkInfoEnabled: Bool
 
-    init(core: DatadogCoreProtocol, service: String?, networkInfoEnabled: Bool) {
+    init(core: FlashcatCoreProtocol, service: String?, networkInfoEnabled: Bool) {
         self.core = core
         self.service = service
         self.networkInfoEnabled = networkInfoEnabled

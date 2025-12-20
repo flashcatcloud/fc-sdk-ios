@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Reports Watchdog Termination events to Datadog.
 internal protocol WatchdogTerminationReporting {

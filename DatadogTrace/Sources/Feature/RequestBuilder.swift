@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// The Tracing URL Request Builder for formatting and configuring the `URLRequest`
 /// to upload traces data.
@@ -21,7 +21,7 @@ internal struct TracingRequestBuilder: FeatureRequestBuilder {
 
     func request(
         for events: [Event],
-        with context: DatadogContext,
+        with context: FlashcatContext,
         execution: ExecutionContext
     ) -> URLRequest {
         let builder = URLRequestBuilder(
@@ -47,7 +47,7 @@ internal struct TracingRequestBuilder: FeatureRequestBuilder {
         return builder.uploadRequest(with: data)
     }
 
-    func url(with context: DatadogContext) -> URL {
+    func url(with context: FlashcatContext) -> URL {
         customIntakeURL ?? context.site.endpoint.appendingPathComponent("api/v2/spans")
     }
 }

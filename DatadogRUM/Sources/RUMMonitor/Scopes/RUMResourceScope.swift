@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal class RUMResourceScope: RUMScope {
     // MARK: - Initialization
@@ -94,7 +94,7 @@ internal class RUMResourceScope: RUMScope {
 
     // MARK: - RUMScope
 
-    func process(command: RUMCommand, context: DatadogContext, writer: Writer) -> Bool {
+    func process(command: RUMCommand, context: FlashcatContext, writer: Writer) -> Bool {
         self.attributes = self.attributes.merging(command.attributes, uniquingKeysWith: { $1 })
 
         switch command {
@@ -115,7 +115,7 @@ internal class RUMResourceScope: RUMScope {
 
     // MARK: - Sending RUM Events
 
-    private func sendResourceEvent(on command: RUMStopResourceCommand, context: DatadogContext, writer: Writer) {
+    private func sendResourceEvent(on command: RUMStopResourceCommand, context: FlashcatContext, writer: Writer) {
         let resourceStartTime: Date
         let resourceDuration: TimeInterval
         let size: Int64?
@@ -286,7 +286,7 @@ internal class RUMResourceScope: RUMScope {
         }
     }
 
-    private func sendErrorEvent(on command: RUMStopResourceWithErrorCommand, context: DatadogContext, writer: Writer) {
+    private func sendErrorEvent(on command: RUMStopResourceWithErrorCommand, context: FlashcatContext, writer: Writer) {
         let errorFingerprint: String? = attributes.removeValue(forKey: RUM.Attributes.errorFingerprint)?.dd.decode()
         let timeSinceAppStart = command.time.timeIntervalSince(context.launchInfo.processLaunchDate).dd.toInt64Milliseconds
 

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Monitors the Watchdog Termination events and reports them to Datadog.
 internal final class WatchdogTerminationMonitor {
@@ -160,7 +160,7 @@ extension WatchdogTerminationMonitor: FeatureMessageReceiver {
     ///   - message: The feature message.
     ///   - core: The core instance.
     /// - Returns: Always `false`, because it doesn't block the message propagation.
-    func receive(message: DatadogInternal.FeatureMessage, from core: any DatadogInternal.DatadogCoreProtocol) -> Bool {
+    func receive(message: FlashcatInternal.FeatureMessage, from core: any FlashcatInternal.FlashcatCoreProtocol) -> Bool {
         guard case .context(let context) = message else {
             return false
         }

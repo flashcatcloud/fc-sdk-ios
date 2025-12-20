@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 import Foundation
 
 /// An entry point to Datadog RUM feature.
@@ -18,7 +18,7 @@ public enum RUM {
     ///   - core: The instance of Datadog SDK to enable RUM in (global instance by default).
     public static func enable(
         with configuration: RUM.Configuration,
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         do {
             // To ensure the correct registration order between Core and Features,
@@ -33,7 +33,7 @@ public enum RUM {
 
     internal static func enableOrThrow(
         with configuration: RUM.Configuration,
-        in core: DatadogCoreProtocol
+        in core: FlashcatCoreProtocol
     ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(

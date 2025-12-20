@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 @testable import DatadogRUM
-@testable import DatadogInternal
+@testable import FlashcatInternal
 
 final class RUMViewHitchesMetricIntegrationTests: XCTestCase {
     private let dateProvider = DateProviderMock()

@@ -6,11 +6,11 @@
 
 #if os(iOS)
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
-extension CGRect: DatadogExtended {}
+extension CGRect: FlashcatExtended {}
 
-internal extension DatadogExtension where ExtendedType == CGRect {
+internal extension FlashcatExtension where ExtendedType == CGRect {
     func contentFrame(
         for contentSize: CGSize,
         using contentMode: UIView.ContentMode

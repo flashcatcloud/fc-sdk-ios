@@ -6,11 +6,11 @@
 
 #if os(iOS)
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
-extension CGSize: DatadogExtended {}
+extension CGSize: FlashcatExtended {}
 
-internal extension DatadogExtension where ExtendedType == CGSize {
+internal extension FlashcatExtension where ExtendedType == CGSize {
     var aspectRatio: CGFloat {
         type.width > 0 ? type.height / type.width : 0
     }

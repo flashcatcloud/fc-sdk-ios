@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// A client for evaluating feature flags in your application.
 ///
@@ -92,7 +92,7 @@ public final class FlagsClient {
     @discardableResult
     public static func create(
         name: String = FlagsClient.defaultName,
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) -> FlagsClientProtocol {
         // To ensure the correct registration order between Core and Features,
         // the entire initialization flow is synchronized on the main thread.
@@ -123,7 +123,7 @@ public final class FlagsClient {
     /// - Important: The client must first be created with ``create(name:in:)``.
     public static func shared(
         named name: String = FlagsClient.defaultName,
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) -> FlagsClientProtocol {
         guard
             let clientRegistry = core.get(feature: FlagsFeature.self)?.clientRegistry,
@@ -145,7 +145,7 @@ public final class FlagsClient {
 
     internal static func doCreate(
         name: String,
-        in core: DatadogCoreProtocol
+        in core: FlashcatCoreProtocol
     ) -> FlagsClientProtocol {
         guard let feature = core.get(feature: FlagsFeature.self) else {
             reportIssue(

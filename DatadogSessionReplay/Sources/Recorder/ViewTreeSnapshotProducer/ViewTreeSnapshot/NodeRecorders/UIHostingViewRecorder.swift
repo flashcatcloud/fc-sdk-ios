@@ -9,7 +9,7 @@
 import Foundation
 import UIKit
 import SwiftUI
-import DatadogInternal
+import FlashcatInternal
 
 @available(iOS 13, tvOS 13, *)
 internal class UIHostingViewRecorder: NodeRecorder {

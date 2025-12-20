@@ -13,7 +13,7 @@ import SwiftUI
 import TestUtilities
 @_spi(Internal)
 @testable import DatadogSessionReplay
-@testable import DatadogInternal
+@testable import FlashcatInternal
 
 @available(iOS 13.0, tvOS 13.0, *)
 class SwiftUIWireframesBuilderTests: XCTestCase {

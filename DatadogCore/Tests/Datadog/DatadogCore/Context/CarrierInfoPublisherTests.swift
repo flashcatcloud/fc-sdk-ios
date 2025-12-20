@@ -8,7 +8,7 @@
 
 import XCTest
 import CoreTelephony
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
 
 @testable import DatadogCore

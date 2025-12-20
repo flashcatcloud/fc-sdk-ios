@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Datadog logger.
 public struct Logger {
@@ -117,7 +117,7 @@ public struct Logger {
     /// - Returns: A logger instance.
     public static func create(
         with configuration: Configuration = .init(),
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) -> LoggerProtocol {
         do {
             return try createOrThrow(with: configuration, in: core)
@@ -133,7 +133,7 @@ public struct Logger {
     ///   - configuration: The logger configuration.
     ///   - core: The instance of Datadog SDK to enable Logs in (global instance by default).
     /// - Returns: A logger instance.
-    private static func createOrThrow(with configuration: Configuration, in core: DatadogCoreProtocol) throws -> LoggerProtocol {
+    private static func createOrThrow(with configuration: Configuration, in core: FlashcatCoreProtocol) throws -> LoggerProtocol {
         if core is NOPDatadogCore {
             throw ProgrammerError(
                 description: "`Datadog.initialize()` must be called prior to `Logger.create()`."

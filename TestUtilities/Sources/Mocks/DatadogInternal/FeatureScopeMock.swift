@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 public final class FeatureScopeMock: FeatureScope, @unchecked Sendable {
     private struct EventWriterMock: Writer {
@@ -19,21 +19,21 @@ public final class FeatureScopeMock: FeatureScope, @unchecked Sendable {
     }
 
     @ReadWriteLock
-    public var contextMock: DatadogContext
+    public var contextMock: FlashcatContext
     @ReadWriteLock
     private var events: [(event: Encodable, metadata: Encodable?, bypassConsent: Bool)] = []
     @ReadWriteLock
     private var messages: [FeatureMessage] = []
 
-    public init(context: DatadogContext = .mockAny()) {
+    public init(context: FlashcatContext = .mockAny()) {
         self.contextMock = context
     }
 
-    public func eventWriteContext(bypassConsent: Bool, _ block: @escaping (DatadogContext, Writer) -> Void) {
+    public func eventWriteContext(bypassConsent: Bool, _ block: @escaping (FlashcatContext, Writer) -> Void) {
         block(contextMock, EventWriterMock(scope: self, bypassConsent: bypassConsent))
     }
 
-    public func context(_ block: @escaping (DatadogContext) -> Void) {
+    public func context(_ block: @escaping (FlashcatContext) -> Void) {
         block(contextMock)
     }
 

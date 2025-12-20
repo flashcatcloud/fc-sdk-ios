@@ -1,5 +1,5 @@
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Tracer is the starting point for all OpenTracing instrumentation. Use it
 /// to create OTSpans, inject/extract them between processes, and so on.

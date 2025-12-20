@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogCore
 
 class FileReaderTests: XCTestCase {

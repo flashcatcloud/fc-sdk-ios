@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 
 /// Utility to access the convenience methods defined in `Telemetry` protocol extension while sending telemetry to tested receiver.

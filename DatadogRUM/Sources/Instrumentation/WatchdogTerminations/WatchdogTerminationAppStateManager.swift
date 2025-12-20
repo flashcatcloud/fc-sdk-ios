@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Manages the app state changes observed during application lifecycle events such as application start, resume and termination.
 internal final class WatchdogTerminationAppStateManager {

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import class DatadogInternal.B3HTTPHeadersWriter
+import class FlashcatInternal.B3HTTPHeadersWriter
 
 @objc(DDInjectEncoding)
 @_spi(objc)

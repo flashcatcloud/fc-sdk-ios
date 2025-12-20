@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 
-@testable import DatadogInternal
+@testable import FlashcatInternal
 @testable import DatadogLogs
 @testable import DatadogTrace
 
@@ -216,7 +216,7 @@ class TracingURLSessionHandlerTests: XCTestCase {
     func testGivenAllTracingHeaderTypes_itUsesTheSameIds() throws {
         let request: URLRequest = .mockWith(httpMethod: "GET")
         let fakeSessionId = "8b723a25-e941-47ea-9173-910c866ccf19"
-        let fakeContext: DatadogContext = .mockWith(
+        let fakeContext: FlashcatContext = .mockWith(
             additionalContext: [
                 RUMCoreContext(
                     applicationID: .mockRandom(),

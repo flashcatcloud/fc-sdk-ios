@@ -9,7 +9,7 @@ import Foundation
 import SafariServices
 import SwiftUI
 import WebKit
-import DatadogInternal
+import FlashcatInternal
 
 /// The context of recording subtree hierarchy.
 ///

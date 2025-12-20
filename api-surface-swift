@@ -471,8 +471,8 @@ public extension RUMMonitorProtocol
     func succeedFeatureOperation(name: String,operationKey: String? = nil,attributes: [AttributeKey: AttributeValue] = [:])
     func failFeatureOperation(name: String,operationKey: String? = nil,reason: RUMFeatureOperationFailureReason,attributes: [AttributeKey: AttributeValue] = [:])
 public extension RUMMonitorProtocol
-    var _internal: DatadogInternalInterface?
-public struct DatadogInternalInterface
+    var _internal: FlashcatInternalInterface?
+public struct FlashcatInternalInterface
     public func addLongTask(at time: Date,duration: TimeInterval,attributes: [AttributeKey: AttributeValue] = [:])
     public func updatePerformanceMetric(at time: Date,metric: PerformanceMetric,value: Double,attributes: [AttributeKey: AttributeValue] = [:])
     public func setInternalViewAttribute(at time: Date,key: AttributeKey,value: AttributeValue)

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 public struct UploadPerformanceMock: UploadPerformancePreset {
     public var initialUploadDelay: TimeInterval

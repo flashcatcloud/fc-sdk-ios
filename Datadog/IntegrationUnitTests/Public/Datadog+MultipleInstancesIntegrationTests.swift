@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 @testable import DatadogCore
-import DatadogInternal
+import FlashcatInternal
 import DatadogLogs
 
 class Datadog_MultipleInstancesIntegrationTests: XCTestCase {

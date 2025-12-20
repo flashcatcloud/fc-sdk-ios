@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// The ``ViewCache``  keeps previous view ids in memory.
 ///

@@ -4,12 +4,12 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
-internal struct BacktraceReporter: DatadogInternal.BacktraceReporting {
+internal struct BacktraceReporter: FlashcatInternal.BacktraceReporting {
     let reporter: ThirdPartyCrashReporter
 
-    func generateBacktrace(threadID: ThreadID) throws -> DatadogInternal.BacktraceReport? {
+    func generateBacktrace(threadID: ThreadID) throws -> FlashcatInternal.BacktraceReport? {
         return try reporter.generateBacktrace(threadID: threadID)
     }
 }

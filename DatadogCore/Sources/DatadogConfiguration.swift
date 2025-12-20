@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension Datadog {
     /// Configuration of Datadog SDK.

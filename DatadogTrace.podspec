@@ -22,6 +22,6 @@ Pod::Spec.new do |s|
 
   s.source_files = ["DatadogTrace/Sources/**/*.swift"]
 
-  s.dependency 'DatadogInternal', s.version.to_s
+  s.dependency 'FlashcatInternal', s.version.to_s
   s.dependency 'OpenTelemetrySwiftApi', '1.13.1'
 end

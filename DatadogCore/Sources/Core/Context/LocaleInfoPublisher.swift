@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// The locale publisher will publish an updated ``LocaleInfo`` value with current locale properties
 /// by observing the `NSCurrentLocaleDidChangeNotification` notification on the given

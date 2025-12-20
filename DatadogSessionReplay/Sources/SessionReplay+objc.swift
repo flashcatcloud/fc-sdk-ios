@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 #if os(iOS)
 
@@ -244,7 +244,7 @@ public enum objc_TouchPrivacyLevel: Int {
     }
 }
 
-private extension DatadogExtension where ExtendedType == [String: Bool] {
+private extension FlashcatExtension where ExtendedType == [String: Bool] {
     var featureFlags: SessionReplay.Configuration.FeatureFlags {
         type.reduce(into: [:]) { result, element in
             SessionReplay.Configuration.FeatureFlag(rawValue: element.key).map {
@@ -254,7 +254,7 @@ private extension DatadogExtension where ExtendedType == [String: Bool] {
     }
 }
 
-private extension DatadogExtension where ExtendedType == SessionReplay.Configuration.FeatureFlags {
+private extension FlashcatExtension where ExtendedType == SessionReplay.Configuration.FeatureFlags {
     var featureFlags: [String: Bool] {
         type.reduce(into: [:]) { result, element in
             result[element.key.rawValue] = element.value

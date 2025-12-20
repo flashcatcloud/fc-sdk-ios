@@ -28,6 +28,6 @@ Pod::Spec.new do |s|
     "DatadogCore" => "DatadogCore/Resources/PrivacyInfo.xcprivacy"
   }
 
-  s.dependency 'DatadogInternal', s.version.to_s
+  s.dependency 'FlashcatInternal', s.version.to_s
 
 end

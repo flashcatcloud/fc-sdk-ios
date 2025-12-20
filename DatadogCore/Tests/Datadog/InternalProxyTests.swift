@@ -7,7 +7,7 @@
 import Foundation
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogCore
 
 class InternalProxyTests: XCTestCase {

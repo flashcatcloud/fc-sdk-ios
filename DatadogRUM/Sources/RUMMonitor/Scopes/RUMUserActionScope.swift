@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal class RUMUserActionScope: RUMScope, RUMContextProvider {
     struct Constants {
@@ -104,7 +104,7 @@ internal class RUMUserActionScope: RUMScope, RUMContextProvider {
 
     // MARK: - RUMScope
 
-    func process(command: RUMCommand, context: DatadogContext, writer: Writer) -> Bool {
+    func process(command: RUMCommand, context: FlashcatContext, writer: Writer) -> Bool {
         if let expirationTime = possibleExpirationTime(currentTime: command.time), allResourcesCompletedLoading() {
             // Stop user action due to timeout
             sendActionEvent(completionTime: expirationTime, on: command, context: context, writer: writer)
@@ -141,7 +141,7 @@ internal class RUMUserActionScope: RUMScope, RUMContextProvider {
 
     // MARK: - Sending RUM Events
 
-    private func sendActionEvent(completionTime: Date, on command: RUMCommand, context: DatadogContext, writer: Writer) {
+    private func sendActionEvent(completionTime: Date, on command: RUMCommand, context: FlashcatContext, writer: Writer) {
         if command is RUMUserActionCommand {
             attributes.merge(command.attributes) { $1 }
         }

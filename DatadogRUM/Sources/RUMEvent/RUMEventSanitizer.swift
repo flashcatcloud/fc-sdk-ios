@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Constraint on RUM event types that require sanitization before encoding.
 internal protocol RUMSanitizableEvent {

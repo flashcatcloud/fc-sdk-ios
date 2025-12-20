@@ -5,11 +5,11 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 // MARK: - Extracting SR context from `DatadogContext`
 
-extension DatadogContext {
+extension FlashcatContext {
     /// The value indicating if replay is being performed by Session Replay.
     var hasReplay: Bool? {
         additionalContext(ofType: SessionReplayCoreContext.HasReplay.self)?.value

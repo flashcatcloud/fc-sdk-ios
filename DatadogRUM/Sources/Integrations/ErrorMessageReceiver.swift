@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct ErrorMessageReceiver: FeatureMessageReceiver {
     /// RUM feature scope.
@@ -13,7 +13,7 @@ internal struct ErrorMessageReceiver: FeatureMessageReceiver {
     let monitor: Monitor
 
     /// Adds RUM Error with given message and stack to current RUM View.
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         guard case let .payload(error as RUMErrorMessage) = message else {
             return false
         }

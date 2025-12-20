@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol AnonymousIdentifierManaging {
     func manageAnonymousIdentifier(shouldTrack: Bool)

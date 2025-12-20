@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 import UIKit
 
 /// Defines operations used for reporting memory warnings.

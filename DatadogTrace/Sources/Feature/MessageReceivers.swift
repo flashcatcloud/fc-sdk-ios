@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct CoreContext {
     /// Provides the history of app foreground / background states.
@@ -33,7 +33,7 @@ internal final class ContextMessageReceiver: FeatureMessageReceiver {
     /// - Parameters:
     ///   - message: The Feature message
     ///   - core: The core from which the message is transmitted.
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         switch message {
         case .context(let context):
             return update(context: context, from: core)
@@ -45,7 +45,7 @@ internal final class ContextMessageReceiver: FeatureMessageReceiver {
     /// Updates context of the `DatadogTracer` if available.
     ///
     /// - Parameter context: The updated core context.
-    private func update(context: DatadogContext, from core: DatadogCoreProtocol) -> Bool {
+    private func update(context: FlashcatContext, from core: FlashcatCoreProtocol) -> Bool {
         _context.mutate {
             $0.applicationStateHistory = context.applicationStateHistory
             $0.rumContext = context.additionalContext(ofType: RUMCoreContext.self)

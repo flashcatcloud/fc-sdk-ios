@@ -6,7 +6,7 @@
 
 import SwiftUI
 import DatadogSessionReplay
-import DatadogInternal
+import FlashcatInternal
 import SRFixtures
 
 @available(iOS 16.0, *)

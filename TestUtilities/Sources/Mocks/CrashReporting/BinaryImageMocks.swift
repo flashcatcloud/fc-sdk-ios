@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 extension BinaryImage: AnyMockable, RandomMockable {
     public static func mockAny() -> BinaryImage {

@@ -7,7 +7,7 @@
 import UIKit
 import DatadogRUM
 import DatadogCore
-import DatadogInternal
+import FlashcatInternal
 
 class DebugRUMViewController: UIViewController {
     @IBOutlet weak var rumServiceNameTextField: UITextField!

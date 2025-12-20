@@ -8,7 +8,7 @@
 
 import Foundation
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 import SwiftUI
 
 @available(iOS 13.0, *)

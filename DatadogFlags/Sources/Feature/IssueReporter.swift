@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct IssueReporter {
     let reportIssue: (_ message: String, _ file: StaticString, _ line: UInt) -> Void
@@ -33,7 +33,7 @@ extension IssueReporter {
     }
 
     private static let consolePrint = Self { message, _, _ in
-        DatadogInternal.consolePrint("🔥 Datadog SDK usage error: \(message)", .error)
+        FlashcatInternal.consolePrint("🔥 Datadog SDK usage error: \(message)", .error)
     }
 
     private static let fatalError = Self { message, file, line in
@@ -43,7 +43,7 @@ extension IssueReporter {
 
 internal func reportIssue(
     _ message: @autoclosure () -> String,
-    in core: (any DatadogCoreProtocol)?,
+    in core: (any FlashcatCoreProtocol)?,
     file: StaticString = #file,
     line: UInt = #line
 ) {

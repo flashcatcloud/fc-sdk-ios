@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Receiver to consume a Log message
 internal struct LogMessageReceiver: FeatureMessageReceiver {
@@ -17,7 +17,7 @@ internal struct LogMessageReceiver: FeatureMessageReceiver {
     /// - Parameters:
     ///   - message: The Feature message
     ///   - core: The core from which the message is transmitted.
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         guard case let .payload(log as LogMessage) = message else {
             return false
         }
@@ -68,7 +68,7 @@ internal struct WebViewLogReceiver: FeatureMessageReceiver {
     /// - Parameters:
     ///   - message: The Feature message
     ///   - core: The core from which the message is transmitted.
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         guard case var .webview(.log(event)) = message else {
             return false
         }

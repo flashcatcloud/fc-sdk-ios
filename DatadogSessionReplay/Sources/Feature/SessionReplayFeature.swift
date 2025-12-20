@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal class SessionReplayFeature: SessionReplayConfiguration, DatadogRemoteFeature {
     let requestBuilder: FeatureRequestBuilder
@@ -24,7 +24,7 @@ internal class SessionReplayFeature: SessionReplayConfiguration, DatadogRemoteFe
     // MARK: - Initialization
 
     init(
-        core: DatadogCoreProtocol,
+        core: FlashcatCoreProtocol,
         configuration: SessionReplay.Configuration
     ) throws {
         let processorsQueue = BackgroundAsyncQueue(label: "com.datadoghq.session-replay.processors", qos: .utility)

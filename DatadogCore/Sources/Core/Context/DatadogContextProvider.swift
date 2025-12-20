@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Provides thread-safe access to Datadog Context.
 ///
@@ -40,7 +40,7 @@ internal final class DatadogContextProvider {
     /// The current `context`.
     ///
     /// The value must be accessed from the `queue` only.
-    private var context: DatadogContext
+    private var context: FlashcatContext
 
     /// The queue used to synchronize the access to the `DatadogContext`.
     internal let queue = DispatchQueue(
@@ -49,7 +49,7 @@ internal final class DatadogContextProvider {
     )
 
     /// List of receivers to invoke when the context changes.
-    private var receivers: [ContextValueReceiver<DatadogContext>]
+    private var receivers: [ContextValueReceiver<FlashcatContext>]
 
     /// List of subscription of context values.
     private var subscriptions: [ContextValueSubscription]
@@ -58,7 +58,7 @@ internal final class DatadogContextProvider {
     /// shared Datadog context.
     ///
     /// - Parameter context: The initial context value.
-    init(context: DatadogContext) {
+    init(context: FlashcatContext) {
         self.context = context
         self.receivers = []
         self.subscriptions = []
@@ -71,7 +71,7 @@ internal final class DatadogContextProvider {
     /// Publishes context changes to the given receiver.
     ///
     /// - Parameter receiver: The receiver closure.
-    func publish(to receiver: @escaping ContextValueReceiver<DatadogContext>) {
+    func publish(to receiver: @escaping ContextValueReceiver<FlashcatContext>) {
         queue.async { self.receivers.append(receiver) }
     }
 
@@ -81,21 +81,21 @@ internal final class DatadogContextProvider {
     /// synchronously on a concurrent queue.
     /// 
     /// - Returns: The current context.
-    func read() -> DatadogContext {
+    func read() -> FlashcatContext {
         queue.sync { context }
     }
 
     /// Reads to the `context` asynchronously, without blocking the caller thread.
     ///
     /// - Parameter block: The block closure called with the current context.
-    func read(block: @escaping (DatadogContext) -> Void) {
+    func read(block: @escaping (FlashcatContext) -> Void) {
         queue.async { block(self.context) }
     }
 
     /// Writes to the `context` asynchronously, without blocking the caller thread.
     ///
     /// - Parameter block: The block closure called with the current context.
-    func write(block: @escaping (inout DatadogContext) -> Void) {
+    func write(block: @escaping (inout FlashcatContext) -> Void) {
         queue.async {
             block(&self.context)
             self.receivers.forEach { receiver in
@@ -115,7 +115,7 @@ internal final class DatadogContextProvider {
     /// - Parameters:
     ///   - keyPath: A context's key path that supports reading from and writing to the resulting value.
     ///   - publisher: The context value publisher.
-    func subscribe<Publisher>(_ keyPath: WritableKeyPath<DatadogContext, Publisher.Value>, to publisher: Publisher) where Publisher: ContextValuePublisher {
+    func subscribe<Publisher>(_ keyPath: WritableKeyPath<FlashcatContext, Publisher.Value>, to publisher: Publisher) where Publisher: ContextValuePublisher {
         let subscription = publisher.subscribe { [weak self] value in
             self?.write { $0[keyPath: keyPath] = value }
         }
@@ -127,7 +127,7 @@ internal final class DatadogContextProvider {
     }
 
 #if DD_SDK_COMPILED_FOR_TESTING
-    func replace(context newContext: DatadogContext) {
+    func replace(context newContext: FlashcatContext) {
         queue.async {
             self.context = newContext
         }

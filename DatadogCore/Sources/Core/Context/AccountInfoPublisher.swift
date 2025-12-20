@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Publishes the current `AccountInfo` value to receiver.
 internal final class AccountInfoPublisher: ContextValuePublisher {

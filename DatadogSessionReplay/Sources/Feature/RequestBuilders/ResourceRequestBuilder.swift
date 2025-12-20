@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct ResourceRequestBuilder: FeatureRequestBuilder {
     /// Custom URL for uploading data to.
@@ -28,7 +28,7 @@ internal struct ResourceRequestBuilder: FeatureRequestBuilder {
 
     func request(
         for events: [Event],
-        with context: DatadogContext,
+        with context: FlashcatContext,
         execution: ExecutionContext
     ) throws -> URLRequest {
         var tags = [
@@ -46,7 +46,7 @@ internal struct ResourceRequestBuilder: FeatureRequestBuilder {
         return try createRequest(resources: resources, context: context, tags: tags)
     }
 
-    private func createRequest(resources: [EnrichedResource], context: DatadogContext, tags: [String]) throws -> URLRequest {
+    private func createRequest(resources: [EnrichedResource], context: FlashcatContext, tags: [String]) throws -> URLRequest {
         var multipart = multipartBuilder
 
         let builder = URLRequestBuilder(
@@ -91,7 +91,7 @@ internal struct ResourceRequestBuilder: FeatureRequestBuilder {
         return builder.uploadRequest(with: multipart.build(), compress: true)
     }
 
-    private func url(with context: DatadogContext) -> URL {
+    private func url(with context: FlashcatContext) -> URL {
         customUploadURL ?? context.site.endpoint.appendingPathComponent("api/v2/replay")
     }
 }

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Receiver to consume crash reports as RUM events.
 internal struct CrashReportReceiver: FeatureMessageReceiver {
@@ -57,7 +57,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         self.eventsMapper = eventsMapper
     }
 
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         guard case let .payload(crash as Crash) = message else {
             return false
         }
@@ -274,7 +274,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
 
     // MARK: - Building RUM events
 
-    private func createFatalErrorBuilder(context: DatadogContext, crash: DDCrashReport, crashDate: Date, timeSinceAppStart: TimeInterval?) -> FatalErrorBuilder {
+    private func createFatalErrorBuilder(context: FlashcatContext, crash: DDCrashReport, crashDate: Date, timeSinceAppStart: TimeInterval?) -> FatalErrorBuilder {
         return FatalErrorBuilder(
             context: context,
             error: .crash,

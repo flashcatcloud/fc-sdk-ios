@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// A type writing Session Replay records to `DatadogCore`.
 internal protocol RecordWriting {
@@ -16,9 +16,9 @@ internal protocol RecordWriting {
 
 internal class RecordWriter: RecordWriting {
     /// An instance of SDK core the SR feature is registered to.
-    private weak var core: DatadogCoreProtocol?
+    private weak var core: FlashcatCoreProtocol?
 
-    init(core: DatadogCoreProtocol) {
+    init(core: FlashcatCoreProtocol) {
         self.core = core
     }
 

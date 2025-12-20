@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Object is responsible for getting the RUM context, randomising the sampling rate,
 /// managing the recording state, starting/stopping the recording scheduler as needed,

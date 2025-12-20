@@ -6,9 +6,9 @@
 
 #if os(iOS)
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
-extension UIView: DatadogExtended { }
+extension UIView: FlashcatExtended { }
 
 /// Sensitive text content types as defined in Session Replay.
 private let UITextContentSensitiveTypes: Set<UITextContentType> = [
@@ -23,7 +23,7 @@ private let UITextContentSensitiveTypes: Set<UITextContentType> = [
 
 private var UITextInputTraitsIsSensitiveTextKey: UInt8 = 0
 
-internal extension DatadogExtension where ExtendedType: UITextInputTraits {
+internal extension FlashcatExtension where ExtendedType: UITextInputTraits {
     /// Sensitive text content types as defined in Session Replay.
     static var sensitiveTypes: Set<UITextContentType> {
         UITextContentSensitiveTypes
@@ -60,7 +60,7 @@ internal extension DatadogExtension where ExtendedType: UITextInputTraits {
     }
 }
 
-internal extension DatadogExtension where ExtendedType: UITraitEnvironment {
+internal extension FlashcatExtension where ExtendedType: UITraitEnvironment {
     var usesDarkMode: Bool { type.traitCollection.userInterfaceStyle == .dark }
 }
 

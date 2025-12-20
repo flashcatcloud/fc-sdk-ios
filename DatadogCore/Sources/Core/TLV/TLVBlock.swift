@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Block size binary type
 internal typealias TLVBlockSize = UInt32

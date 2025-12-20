@@ -6,12 +6,12 @@
 
 import XCTest
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 @testable import TestUtilities
 
 class RUMViewScopeTests: XCTestCase {
-    var context: DatadogContext = .mockWith(
+    var context: FlashcatContext = .mockWith(
         service: "test-service",
         version: "test-version",
         buildNumber: "test-build",
@@ -97,7 +97,7 @@ class RUMViewScopeTests: XCTestCase {
         // Given
         let currentTime: Date = .mockDecember15th2019At10AMUTC()
         let source = String.mockAnySource()
-        let customContext: DatadogContext = .mockWith(
+        let customContext: FlashcatContext = .mockWith(
             source: source,
             launchInfo: .mockWith(processLaunchDate: currentTime),
             applicationStateHistory: .mockWith(initialState: .inactive, date: .distantPast)
@@ -228,7 +228,7 @@ class RUMViewScopeTests: XCTestCase {
         let currentTime: Date = .mockDecember15th2019At10AMUTC()
         let source = String.mockAnySource()
 
-        let customContext: DatadogContext = .mockWith(source: source)
+        let customContext: FlashcatContext = .mockWith(source: source)
 
         let scope = RUMViewScope(
             isInitialView: true,
@@ -2187,7 +2187,7 @@ class RUMViewScopeTests: XCTestCase {
         var currentTime: Date = .mockDecember15th2019At10AMUTC()
         let source = String.mockAnySource()
 
-        let customContext: DatadogContext = .mockWith(source: source)
+        let customContext: FlashcatContext = .mockWith(source: source)
 
         let scope = RUMViewScope(
             isInitialView: .mockRandom(),
@@ -2234,7 +2234,7 @@ class RUMViewScopeTests: XCTestCase {
 
         let customSource = String.mockAnySource()
         let expectedSource = RUMErrorEvent.Source(rawValue: customSource)
-        let customContext: DatadogContext = .mockWith(
+        let customContext: FlashcatContext = .mockWith(
             service: "test-service",
             source: customSource
         )
@@ -3084,7 +3084,7 @@ class RUMViewScopeTests: XCTestCase {
         let startViewDate: Date = .mockDecember15th2019At10AMUTC()
 
         let source = String.mockAnySource()
-        let customContext: DatadogContext = .mockWith(source: source)
+        let customContext: FlashcatContext = .mockWith(source: source)
 
         let scope = RUMViewScope(
             isInitialView: .mockRandom(),

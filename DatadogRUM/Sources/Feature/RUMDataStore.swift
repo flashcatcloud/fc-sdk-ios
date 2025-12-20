@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal extension FeatureScope {
     /// Data store endpoint suited for RUM data.
@@ -14,7 +14,7 @@ internal extension FeatureScope {
     }
 
     /// RUM data store endpoint within SDK context.
-    func rumDataStoreContext(_ block: @escaping (DatadogContext, RUMDataStore) -> Void) {
+    func rumDataStoreContext(_ block: @escaping (FlashcatContext, RUMDataStore) -> Void) {
         dataStoreContext { context, dataStore in
             block(context, rumDataStore)
         }

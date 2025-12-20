@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 /// A class for manual interaction with the RUM feature. It records RUM events that are sent to Datadog RUM.
 ///
@@ -25,7 +25,7 @@ public class RUMMonitor {
     /// It requires `RUM.enable(with:in:)` to be called first - otherwise it will return no-op implementation.
     /// - Parameter core: the instance of Datadog SDK the RUM feature was enabled in (global instance by default)
     /// - Returns: the RUM monitor
-    public static func shared(in core: DatadogCoreProtocol = CoreRegistry.default) -> RUMMonitorProtocol {
+    public static func shared(in core: FlashcatCoreProtocol = CoreRegistry.default) -> RUMMonitorProtocol {
         do {
             guard !(core is NOPDatadogCore) else {
                 throw ProgrammerError(

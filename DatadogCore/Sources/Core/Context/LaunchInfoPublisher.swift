@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 // swiftlint:disable duplicate_imports
 #if SPM_BUILD

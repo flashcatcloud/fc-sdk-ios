@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
 @testable import DatadogCore
 
@@ -16,7 +16,7 @@ private struct RemoteFeatureMock: DatadogRemoteFeature {
     var messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver()
 }
 
-private struct FeatureMock: DatadogFeature {
+private struct FeatureMock: FlashcatFeature {
     static let name: String = "feature-mock"
 
     var messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver()

@@ -78,13 +78,13 @@ custom_rules:
     regex: "(TODO|TO DO|FIX|FIXME|FIX ME|todo)(?!:? (RUMM|RUM|FFL)-[0-9]{2,})" # "TODO: RUM-123", "TODO RUM-123", "FIX RUM-123", etc.
     match_kinds:
       - comment
-    message: "All TODOs must be followed by JIRA reference, for example: \"TODO: RUM-123\""
+    message: 'All TODOs must be followed by JIRA reference, for example: "TODO: RUM-123"'
     severity: error
   unsafe_uiapplication_shared: # prevents from using `UIApplication.shared` API
     included: Sources
     name: "Unsafe API: `UIApplication.shared`"
-    regex: '(UIApplication.shared)|(UIApplication = .shared)'
-    excluded_match_kinds: 
+    regex: "(UIApplication.shared)|(UIApplication = .shared)"
+    excluded_match_kinds:
       - comment
       - doccomment
     message: "`UIApplication.shared` is unavailable in some environments. Check `UIApplication.managedShared`."
@@ -93,7 +93,7 @@ custom_rules:
     included: Sources
     name: "Unsafe API: `URLRequest.allHTTPHeaderFields`"
     regex: '\.allHTTPHeaderFields'
-    excluded_match_kinds: 
+    excluded_match_kinds:
       - comment
       - doccomment
     message: "`URLRequest.allHTTPHeaderFields` is considered unsafe. Prefer using `URLRequest.value(forHTTPHeaderField:)`. See full context in https://github.com/DataDog/dd-sdk-ios/pull/1843"
@@ -147,7 +147,7 @@ custom_rules:
       (NSURLVolumeAvailableCapacityKey)|
       (NSURLVolumeTotalCapacityKey)|
       (AppStorage)
-    excluded_match_kinds: 
+    excluded_match_kinds:
       - comment
       - doccomment
       - string
@@ -155,7 +155,7 @@ custom_rules:
     severity: error
 
 included:
-  - ../../DatadogInternal/Sources
+  - ../../FlashcatInternal/Sources
   - ../../DatadogCore/Sources
   - ../../DatadogLogs/Sources
   - ../../DatadogTrace/Sources

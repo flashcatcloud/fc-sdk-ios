@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 
 @_spi(Internal)
 import TestUtilities

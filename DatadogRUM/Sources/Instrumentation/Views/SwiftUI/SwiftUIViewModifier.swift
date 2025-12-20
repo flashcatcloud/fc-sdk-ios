@@ -6,7 +6,7 @@
 
 #if canImport(SwiftUI)
 import SwiftUI
-import DatadogInternal
+import FlashcatInternal
 
 /// `SwiftUI.ViewModifier` which notifes RUM instrumentation when modified view appears and disappears.
 /// It makes an entry point to RUM views instrumentation in SwiftUI.
@@ -58,7 +58,7 @@ public extension SwiftUI.View {
     func trackRUMView(
         name: String,
         attributes: [AttributeKey: AttributeValue] = [:],
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) -> some View {
         let path = "\(name)/\(typeDescription.hashValue)"
         let instrumentation = core.get(feature: RUMFeature.self)?.instrumentation

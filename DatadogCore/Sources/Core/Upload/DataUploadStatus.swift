@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal enum HTTPResponseStatusCode: Int {
     /// The request has been accepted for processing.

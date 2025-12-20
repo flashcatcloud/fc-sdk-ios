@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 @_spi(objc)
-import DatadogInternal
+import FlashcatInternal
 @_spi(objc)
 @testable import DatadogTrace
 

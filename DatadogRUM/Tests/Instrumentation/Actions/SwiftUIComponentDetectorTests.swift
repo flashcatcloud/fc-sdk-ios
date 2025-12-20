@@ -7,7 +7,7 @@
 import XCTest
 import UIKit
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 
 /// Note: while we only test one iOS version in CI,

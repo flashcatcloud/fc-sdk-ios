@@ -6,7 +6,7 @@
 
 import XCTest
 import SRFixtures
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
 @_spi(Internal)
 @testable import DatadogSessionReplay

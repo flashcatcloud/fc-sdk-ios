@@ -5,16 +5,16 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 // swiftlint:disable duplicate_imports
-@_exported import enum DatadogInternal.URLSessionInstrumentation
-@_exported import enum DatadogInternal.TraceContextInjection
-@_exported import struct DatadogInternal.RUMViewEvent
-@_exported import struct DatadogInternal.RUMResourceEvent
-@_exported import struct DatadogInternal.RUMErrorEvent
-@_exported import struct DatadogInternal.RUMActionEvent
-@_exported import struct DatadogInternal.RUMLongTaskEvent
+@_exported import enum FlashcatInternal.URLSessionInstrumentation
+@_exported import enum FlashcatInternal.TraceContextInjection
+@_exported import struct FlashcatInternal.RUMViewEvent
+@_exported import struct FlashcatInternal.RUMResourceEvent
+@_exported import struct FlashcatInternal.RUMErrorEvent
+@_exported import struct FlashcatInternal.RUMActionEvent
+@_exported import struct FlashcatInternal.RUMLongTaskEvent
 // swiftlint:enable duplicate_imports
 
 extension RUM {

@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal class ResourcesFeature: DatadogRemoteFeature {
     static var name = "session-replay-resources"
@@ -17,7 +17,7 @@ internal class ResourcesFeature: DatadogRemoteFeature {
     let requestBuilder: FeatureRequestBuilder
 
     init(
-        core: DatadogCoreProtocol,
+        core: FlashcatCoreProtocol,
         configuration: SessionReplay.Configuration
     ) {
         self.requestBuilder = ResourceRequestBuilder(

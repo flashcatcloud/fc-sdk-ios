@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import class DatadogInternal.W3CHTTPHeadersWriter
+import class FlashcatInternal.W3CHTTPHeadersWriter
 
 @objc(DDW3CHTTPHeadersWriter)
 @objcMembers

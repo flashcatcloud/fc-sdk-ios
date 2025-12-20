@@ -4,13 +4,13 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 /// A type providing core context and writer for writing span events.
 internal protocol SpanWriteContext {
     /// Requests core context and writer for writing span events.
     /// - Parameter block: The block to execute; it is called on the core's context queue.
-    func spanWriteContext(_ block: @escaping (DatadogContext, Writer) -> Void)
+    func spanWriteContext(_ block: @escaping (FlashcatContext, Writer) -> Void)
 }
 
 /// A `SpanWriteContext` that captures core context at the moment of initialization and provides it
@@ -25,7 +25,7 @@ internal final class LazySpanWriteContext: SpanWriteContext {
 
     /// The core context valid at the moment of creating `LazySpanWriteContext`.
     /// It doesn't require synchronization as it is accessed only from the core context queue.
-    private var context: DatadogContext?
+    private var context: FlashcatContext?
 
     init(featureScope: FeatureScope) {
         self.featureScope = featureScope
@@ -36,7 +36,7 @@ internal final class LazySpanWriteContext: SpanWriteContext {
         }
     }
 
-    func spanWriteContext(_ block: @escaping (DatadogContext, Writer) -> Void) {
+    func spanWriteContext(_ block: @escaping (FlashcatContext, Writer) -> Void) {
         // Ignore the current context and use the one captured at initialization:
         featureScope.eventWriteContext { _, writer in
             guard let context = self.context else {

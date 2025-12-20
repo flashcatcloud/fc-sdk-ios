@@ -6,7 +6,7 @@
 
 #if canImport(SwiftUI)
 import SwiftUI
-import DatadogInternal
+import FlashcatInternal
 
 #if !os(tvOS)
 
@@ -23,7 +23,7 @@ import DatadogInternal
 @available(iOS 13, *)
 internal struct RUMTapActionModifier: SwiftUI.ViewModifier {
     /// The SDK core instance.
-    weak var core: DatadogCoreProtocol?
+    weak var core: FlashcatCoreProtocol?
 
     /// The required number of taps to complete the tap action.
     let count: Int
@@ -69,7 +69,7 @@ public extension SwiftUI.View {
         name: String,
         attributes: [String: Encodable] = [:],
         count: Int = 1,
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) -> some View {
         return modifier(
             RUMTapActionModifier(

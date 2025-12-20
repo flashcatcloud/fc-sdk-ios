@@ -7,7 +7,7 @@
 #if os(iOS)
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 
 @testable import DatadogSessionReplay
 
@@ -17,7 +17,7 @@ class RUMContextReceiverTests: XCTestCase {
     func testWhenMessageContainsNonEmptyRUMBaggage_itNotifiesRUMContext() throws {
         // Given
         let core = PassthroughCoreMock()
-        let coreContext: DatadogContext = .mockWith(
+        let coreContext: FlashcatContext = .mockWith(
             additionalContext: [
                 RUMCoreContext(
                     applicationID: "app-id",
@@ -48,7 +48,7 @@ class RUMContextReceiverTests: XCTestCase {
     func testWhenSucceedingMessagesContainDifferentRUMBaggages_itNotifiesRUMContextChange() throws {
         // Given
         let core = PassthroughCoreMock()
-        let coreContext1: DatadogContext = .mockWith(
+        let coreContext1: FlashcatContext = .mockWith(
             additionalContext: [
                 RUMCoreContext(
                     applicationID: "app-id-1",
@@ -59,7 +59,7 @@ class RUMContextReceiverTests: XCTestCase {
             ]
         )
 
-        let coreContext2: DatadogContext = .mockWith(
+        let coreContext2: FlashcatContext = .mockWith(
             additionalContext: [
                 RUMCoreContext(
                     applicationID: "app-id-2",
@@ -98,7 +98,7 @@ class RUMContextReceiverTests: XCTestCase {
     func testWhenSucceedingMessagesContainSameRUMBaggages_itNotifiesRUMContextChangeOnce() throws {
         // Given
         let core = PassthroughCoreMock()
-        let coreContext1: DatadogContext = .mockWith(
+        let coreContext1: FlashcatContext = .mockWith(
             additionalContext: [
                 RUMCoreContext(
                     applicationID: "app-id",
@@ -109,7 +109,7 @@ class RUMContextReceiverTests: XCTestCase {
             ]
         )
 
-        let coreContext2: DatadogContext = .mockWith(
+        let coreContext2: FlashcatContext = .mockWith(
             additionalContext: [
                 RUMCoreContext(
                     applicationID: "app-id",
@@ -144,7 +144,7 @@ class RUMContextReceiverTests: XCTestCase {
     func testWhenMessageContainsNoRUMBaggage_itResetRUMContext() throws {
         // Given
         let core = PassthroughCoreMock()
-        let coreContext1: DatadogContext = .mockWith(
+        let coreContext1: FlashcatContext = .mockWith(
             additionalContext: [
                 RUMCoreContext(
                     applicationID: "app-id",
@@ -155,7 +155,7 @@ class RUMContextReceiverTests: XCTestCase {
             ]
         )
 
-        let coreContext2: DatadogContext = .mockWith()
+        let coreContext2: FlashcatContext = .mockWith()
 
         var rumContext: RUMCoreContext? = .mockAny()
         receiver.observe(on: NoQueue()) { context in

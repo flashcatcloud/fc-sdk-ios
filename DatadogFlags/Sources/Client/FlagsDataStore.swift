@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct FlagsDataStore {
     private static let encoder = JSONEncoder()

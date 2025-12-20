@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// An entry point to Datadog Trace feature.
 public enum Trace {
@@ -17,7 +17,7 @@ public enum Trace {
     ///   - configuration: Configuration of the feature.
     ///   - core: The instance of Datadog SDK to enable Trace in (global instance by default).
     public static func enable(
-        with configuration: Trace.Configuration = .init(), in core: DatadogCoreProtocol = CoreRegistry.default
+        with configuration: Trace.Configuration = .init(), in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         do {
             // To ensure the correct registration order between Core and Features,
@@ -31,7 +31,7 @@ public enum Trace {
     }
 
     internal static func enableOrThrow(
-        with configuration: Trace.Configuration, in core: DatadogCoreProtocol
+        with configuration: Trace.Configuration, in core: FlashcatCoreProtocol
     ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(

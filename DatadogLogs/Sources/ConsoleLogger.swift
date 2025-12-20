@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// `Logger` printing logs to console.
 internal final class ConsoleLogger: LoggerProtocol {

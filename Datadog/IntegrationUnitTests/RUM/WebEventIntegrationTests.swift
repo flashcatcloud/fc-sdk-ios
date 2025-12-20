@@ -8,7 +8,7 @@ import XCTest
 
 #if !os(tvOS)
 
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
 
 @testable import DatadogRUM

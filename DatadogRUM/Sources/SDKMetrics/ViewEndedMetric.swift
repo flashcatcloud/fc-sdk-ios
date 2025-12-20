@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Tracks the state of RUM view and exports attributes for "RUM View Ended" telemetry.
 ///

@@ -5,17 +5,17 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 // Export `URLSessionInstrumentation` elements to be available with `import DatadogTrace`:
 // swiftlint:disable duplicate_imports
-@_exported import enum DatadogInternal.URLSessionInstrumentation
+@_exported import enum FlashcatInternal.URLSessionInstrumentation
 
-@_exported import class DatadogInternal.HTTPHeadersWriter
-@_exported import class DatadogInternal.B3HTTPHeadersWriter
-@_exported import class DatadogInternal.W3CHTTPHeadersWriter
-@_exported import enum DatadogInternal.TraceContextInjection
-@_exported import enum DatadogInternal.TracingHeaderType
+@_exported import class FlashcatInternal.HTTPHeadersWriter
+@_exported import class FlashcatInternal.B3HTTPHeadersWriter
+@_exported import class FlashcatInternal.W3CHTTPHeadersWriter
+@_exported import enum FlashcatInternal.TraceContextInjection
+@_exported import enum FlashcatInternal.TracingHeaderType
 // swiftlint:enable duplicate_imports
 
 extension Trace {

@@ -7,7 +7,7 @@
 import Foundation
 import UIKit
 @_spi(objc)
-import DatadogInternal
+import FlashcatInternal
 
 internal struct UIKitRUMViewsPredicateBridge: UIKitRUMViewsPredicate {
     let objcPredicate: objc_UIKitRUMViewsPredicate

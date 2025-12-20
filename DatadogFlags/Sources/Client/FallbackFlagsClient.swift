@@ -5,13 +5,13 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal final class FallbackFlagsClient: FlagsClientProtocol {
     private let name: String
-    private weak var core: (any DatadogCoreProtocol)?
+    private weak var core: (any FlashcatCoreProtocol)?
 
-    init(name: String, core: any DatadogCoreProtocol) {
+    init(name: String, core: any FlashcatCoreProtocol) {
         self.name = name
         self.core = core
     }

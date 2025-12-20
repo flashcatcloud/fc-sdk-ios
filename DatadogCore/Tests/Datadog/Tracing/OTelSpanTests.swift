@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 import OpenTelemetryApi
 
 @testable import DatadogLogs

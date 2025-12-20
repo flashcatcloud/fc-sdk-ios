@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 // MARK: - TopLevelReflector
 /// Protocol defining an interface for reflection-based object inspection.

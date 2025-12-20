@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 /// A description of the RUM Action returned from the `UIKitRUMActionsPredicate`.
 public struct RUMAction {

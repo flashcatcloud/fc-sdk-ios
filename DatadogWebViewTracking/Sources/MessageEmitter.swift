@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Errors that can be thrown when parsing a WebView message
 internal enum WebViewMessageError: Error, Equatable {
@@ -16,13 +16,13 @@ internal enum WebViewMessageError: Error, Equatable {
 /// A type forwarding type-less messages received from Datadog Browser SDK to either `DatadogRUM` or `DatadogLogs`.
 internal final class MessageEmitter: InternalExtension<WebViewTracking>.AbstractMessageEmitter {
     /// The core for events forwarding.
-    private weak var core: DatadogCoreProtocol?
+    private weak var core: FlashcatCoreProtocol?
     /// Log events sampler.
     let logsSampler: Sampler
 
     init(
         logsSampler: Sampler,
-        core: DatadogCoreProtocol
+        core: FlashcatCoreProtocol
     ) {
         self.logsSampler = logsSampler
         self.core = core
@@ -61,7 +61,7 @@ internal final class MessageEmitter: InternalExtension<WebViewTracking>.Abstract
         }
     }
 
-    private func send(log message: WebViewMessage, in core: DatadogCoreProtocol) {
+    private func send(log message: WebViewMessage, in core: FlashcatCoreProtocol) {
         guard logsSampler.sample() else {
             return
         }
@@ -71,13 +71,13 @@ internal final class MessageEmitter: InternalExtension<WebViewTracking>.Abstract
         })
     }
 
-    private func send(rum message: WebViewMessage, in core: DatadogCoreProtocol) {
+    private func send(rum message: WebViewMessage, in core: FlashcatCoreProtocol) {
         core.send(message: .webview(message), else: {
             DD.logger.warn("A WebView RUM event is lost because RUM is disabled in the SDK")
         })
     }
 
-    private func send(record event: WebViewMessage.Event, view: WebViewMessage.View, slotId: String?, in core: DatadogCoreProtocol) {
+    private func send(record event: WebViewMessage.Event, view: WebViewMessage.View, slotId: String?, in core: FlashcatCoreProtocol) {
         var event = event
         // inject the slotId
         event["slotId"] = slotId

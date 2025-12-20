@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /* Collection of mappings from various types to `RUMDataModel` format. */
 

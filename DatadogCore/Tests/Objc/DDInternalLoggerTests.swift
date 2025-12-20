@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 @_spi(objc)
-@testable import DatadogInternal
+@testable import FlashcatInternal
 @testable import DatadogCore
 
 class DDInternalLoggerTests: XCTestCase {

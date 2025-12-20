@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// An entry point to Datadog Session Replay feature.
 public enum SessionReplay {
@@ -21,7 +21,7 @@ public enum SessionReplay {
     ///   - core: The instance of Datadog SDK to enable Session Replay in (global instance by default).
     public static func enable(
         with configuration: SessionReplay.Configuration,
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         do {
             // To ensure the correct registration order between Core and Features,
@@ -38,7 +38,7 @@ public enum SessionReplay {
     /// - Parameters:
     ///   - core: The instance of Datadog SDK to start Session Replay in (global instance by default).
     public static func startRecording(
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         do {
             try startRecording(core: core)
@@ -51,7 +51,7 @@ public enum SessionReplay {
     /// - Parameters:
     ///   - core: The instance of Datadog SDK to start Session Replay in (global instance by default).
     public static func stopRecording(
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         do {
             try stopRecording(core: core)
@@ -66,7 +66,7 @@ public enum SessionReplay {
 
     internal static func enableOrThrow(
         with configuration: SessionReplay.Configuration,
-        in core: DatadogCoreProtocol
+        in core: FlashcatCoreProtocol
     ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
@@ -100,7 +100,7 @@ public enum SessionReplay {
         )
     }
 
-    internal static func startRecording(core: DatadogCoreProtocol) throws {
+    internal static func startRecording(core: FlashcatCoreProtocol) throws {
         guard let sr = core.get(feature: SessionReplayFeature.self) else {
             throw ProgrammerError(
                 description: "Session Replay must be initialized before calling `SessionReplay.startRecording()`."
@@ -110,7 +110,7 @@ public enum SessionReplay {
         sr.startRecording()
     }
 
-    internal static func stopRecording(core: DatadogCoreProtocol) throws {
+    internal static func stopRecording(core: FlashcatCoreProtocol) throws {
         let sr = core.get(feature: SessionReplayFeature.self)
         sr?.stopRecording()
     }

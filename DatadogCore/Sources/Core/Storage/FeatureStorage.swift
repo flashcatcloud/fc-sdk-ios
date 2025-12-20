@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct FeatureStorage {
     /// The name of this Feature, used to distinguish storage instances in telemetry and logs.

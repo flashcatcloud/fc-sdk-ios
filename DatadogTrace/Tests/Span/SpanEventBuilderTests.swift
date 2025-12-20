@@ -6,14 +6,14 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 import OpenTelemetryApi
 
 @testable import DatadogTrace
 
 class SpanEventBuilderTests: XCTestCase {
     func testBuildingBasicSpan() {
-        let context: DatadogContext = .mockWith(sdkVersion: "1.2.3")
+        let context: FlashcatContext = .mockWith(sdkVersion: "1.2.3")
         let builder: SpanEventBuilder = .mockWith(service: "test-service-name")
 
         let span = builder.createSpanEvent(
@@ -621,7 +621,7 @@ class SpanEventBuilderTests: XCTestCase {
             { RUMCoreContext(applicationID: .mockRandom(), sessionID: .mockRandom(), viewID: .mockRandom(), userActionID: nil) },
             { RUMCoreContext(applicationID: .mockRandom(), sessionID: .mockRandom(), viewID: nil, userActionID: nil) }
         ])
-        let context: DatadogContext = .mockWith(additionalContext: [rum])
+        let context: FlashcatContext = .mockWith(additionalContext: [rum])
 
         // When
         let builder: SpanEventBuilder = .mockWith(bundleWithRUM: true)
@@ -656,7 +656,7 @@ class SpanEventBuilderTests: XCTestCase {
             viewID: .mockRandom(),
             userActionID: .mockRandom()
         )
-        let context: DatadogContext = .mockWith(additionalContext: [rum])
+        let context: FlashcatContext = .mockWith(additionalContext: [rum])
 
         // When
         let builder: SpanEventBuilder = .mockWith(bundleWithRUM: false)

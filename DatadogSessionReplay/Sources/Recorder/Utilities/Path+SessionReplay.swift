@@ -6,15 +6,15 @@
 
 #if os(iOS)
 
-import DatadogInternal
+import FlashcatInternal
 import Foundation
 import SwiftUI
 
 @available(iOS 13.0, *)
-extension SwiftUI.Path: DatadogExtended {}
+extension SwiftUI.Path: FlashcatExtended {}
 
 @available(iOS 13.0, *)
-extension DatadogExtension where ExtendedType == SwiftUI.Path {
+extension FlashcatExtension where ExtendedType == SwiftUI.Path {
     var svgString: String {
         var d = ""
         type.forEach { element in
@@ -35,17 +35,17 @@ extension DatadogExtension where ExtendedType == SwiftUI.Path {
     }
 }
 
-extension CGPoint: DatadogExtended {}
+extension CGPoint: FlashcatExtended {}
 
-extension DatadogExtension where ExtendedType == CGPoint {
+extension FlashcatExtension where ExtendedType == CGPoint {
     internal var svgString: String {
         "\(type.x.dd.svgString) \(type.y.dd.svgString)"
     }
 }
 
-extension CGFloat: DatadogExtended {}
+extension CGFloat: FlashcatExtended {}
 
-extension DatadogExtension where ExtendedType == CGFloat {
+extension FlashcatExtension where ExtendedType == CGFloat {
     internal var svgString: String {
         String(format: "%.3f", locale: .init(identifier: "en_US_POSIX"), type)
     }

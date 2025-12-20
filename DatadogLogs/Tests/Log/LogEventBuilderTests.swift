@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogLogs
 
 class LogEventBuilderTests: XCTestCase {
@@ -108,7 +108,7 @@ class LogEventBuilderTests: XCTestCase {
         let randomOSVersion: String = .mockRandom()
         let randomOSBuild: String = .mockRandom()
 
-        let randomSDKContext: DatadogContext = .mockWith(
+        let randomSDKContext: FlashcatContext = .mockWith(
             env: randomEnvironment,
             version: randomApplicationVersion,
             buildNumber: randomApplicationBuildNumber,
@@ -175,7 +175,7 @@ class LogEventBuilderTests: XCTestCase {
     func testGivenContextWithBuildID_whenBuildingLog_itSetsBuildId() throws {
         // Given
         let buildId: String = .mockRandom()
-        let randomSDKContext: DatadogContext = .mockWith(
+        let randomSDKContext: FlashcatContext = .mockWith(
             buildId: buildId
         )
 

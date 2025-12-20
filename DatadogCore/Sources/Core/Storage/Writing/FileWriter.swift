@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// JSON encoder used to encode data.
 private let jsonEncoder: JSONEncoder = .dd.default()

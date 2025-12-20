@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// An interface for enabling crash reporting feature in Datadog SDK.
 ///

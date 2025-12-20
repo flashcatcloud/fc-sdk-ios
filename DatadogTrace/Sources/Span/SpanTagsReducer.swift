@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Reduces `DDSpan` tags and log attributes by extracting values that require separate handling.
 ///

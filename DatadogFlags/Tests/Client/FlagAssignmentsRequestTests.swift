@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 
 @testable import DatadogFlags
 
@@ -22,7 +22,7 @@ final class FlagAssignmentsRequestTests: XCTestCase {
                 "userId": .string("123")
             ]
         )
-        let context = DatadogContext.mockWith(
+        let context = FlashcatContext.mockWith(
             clientToken: "test-token",
             env: "production",
             additionalContext: [RUMCoreContext.mockWith(applicationID: "test-app-id")]

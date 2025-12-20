@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal typealias JSON = [String: Any]
 
@@ -46,7 +46,7 @@ internal final class WebViewEventReceiver: FeatureMessageReceiver {
     /// - Parameters:
     ///   - message: The message containing the Browser RUM event.
     ///   - core: The core to write the event.
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         switch message {
         case let .webview(.rum(event)):
             receive(rum: event)

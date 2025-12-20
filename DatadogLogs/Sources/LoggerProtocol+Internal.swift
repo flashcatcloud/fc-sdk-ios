@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Internal Logger for Cross-Platform access.
 public protocol InternalLoggerProtocol {

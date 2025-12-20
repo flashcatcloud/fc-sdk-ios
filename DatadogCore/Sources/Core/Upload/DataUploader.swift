@@ -5,12 +5,12 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 import CommonCrypto
 
 /// A type that performs data uploads.
 internal protocol DataUploaderType {
-    func upload(events: [Event], context: DatadogContext, previous: DataUploadStatus?) throws -> DataUploadStatus
+    func upload(events: [Event], context: FlashcatContext, previous: DataUploadStatus?) throws -> DataUploadStatus
 }
 
 /// Synchronously uploads data to server using `HTTPClient`.
@@ -41,7 +41,7 @@ internal final class DataUploader: DataUploaderType {
 
     /// Uploads data synchronously (will block current thread) and returns the upload status.
     /// Uses timeout configured for `HTTPClient`.
-    func upload(events: [Event], context: DatadogContext, previous: DataUploadStatus?) throws -> DataUploadStatus {
+    func upload(events: [Event], context: FlashcatContext, previous: DataUploadStatus?) throws -> DataUploadStatus {
         let attempt: UInt
         if let previous = previous {
             attempt = previous.attempt + 1

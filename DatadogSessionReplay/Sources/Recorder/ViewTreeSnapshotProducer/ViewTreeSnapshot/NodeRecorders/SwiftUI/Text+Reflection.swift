@@ -7,7 +7,7 @@
 #if os(iOS)
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension StyledTextContentView: Reflection {
     init(from reflector: Reflector) throws {

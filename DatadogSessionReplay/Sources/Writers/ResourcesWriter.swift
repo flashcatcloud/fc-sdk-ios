@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// A type writing Session Replay records to `DatadogCore`.
 internal protocol ResourcesWriting {

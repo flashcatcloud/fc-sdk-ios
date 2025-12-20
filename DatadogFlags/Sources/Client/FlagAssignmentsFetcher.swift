@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol FlagAssignmentsFetching {
     func flagAssignments(
@@ -115,7 +115,7 @@ internal final class FlagAssignmentsFetcher: FlagAssignmentsFetching {
         }
     }
 
-    private func url(with context: DatadogContext) -> URL {
+    private func url(with context: FlashcatContext) -> URL {
         customEndpoint ?? context.site.flagsEndpoint().appendingPathComponent("precompute-assignments")
     }
 }

@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 #if os(tvOS)
 public typealias UIKitRUMActionsPredicate = UIPressRUMActionsPredicate

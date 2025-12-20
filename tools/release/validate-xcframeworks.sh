@@ -136,7 +136,7 @@ DATADOG_IOS=("${IOS_SWIFT[@]}" "${IOS_DSYMs[@]}" "${IOS[@]}")
 DATADOG_TVOS=("${TVOS_SWIFT[@]}" "${TVOS_DSYMs[@]}" "${TVOS[@]}")
 
 # Validate xcframeworks from the archive
-validate_xcframework "DatadogInternal.xcframework"          "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
+validate_xcframework "FlashcatInternal.xcframework"          "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "DatadogCore.xcframework"              "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "DatadogLogs.xcframework"              "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "DatadogTrace.xcframework"             "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"

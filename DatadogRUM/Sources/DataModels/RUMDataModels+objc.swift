@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 // This file was generated from JSON Schema. Do not modify it directly.
 

@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 import TestUtilities
 
@@ -49,7 +49,7 @@ class WatchdogTerminationReporterMock: WatchdogTerminationReporting {
         self.didSend = didSend
     }
 
-    func send(date: Date?, state: DatadogRUM.WatchdogTerminationAppState, viewEvent: DatadogInternal.RUMViewEvent) {
+    func send(date: Date?, state: DatadogRUM.WatchdogTerminationAppState, viewEvent: FlashcatInternal.RUMViewEvent) {
         sendParams = SendParams(date: date, state: state, viewEvent: viewEvent)
         didSend.fulfill()
     }
@@ -57,7 +57,7 @@ class WatchdogTerminationReporterMock: WatchdogTerminationReporting {
     struct SendParams {
         let date: Date?
         let state: DatadogRUM.WatchdogTerminationAppState
-        let viewEvent: DatadogInternal.RUMViewEvent
+        let viewEvent: FlashcatInternal.RUMViewEvent
     }
 }
 
@@ -87,7 +87,7 @@ extension WatchdogTerminationAppStateManager: RandomMockable {
 }
 
 extension Sysctl: RandomMockable {
-    public static func mockRandom() -> DatadogInternal.Sysctl {
+    public static func mockRandom() -> FlashcatInternal.Sysctl {
         return .init()
     }
 }
@@ -111,7 +111,7 @@ extension WatchdogTerminationMonitor: RandomMockable {
 }
 
 extension LaunchReport: RandomMockable {
-    public static func mockRandom() -> DatadogInternal.LaunchReport {
+    public static func mockRandom() -> FlashcatInternal.LaunchReport {
         return .init(didCrash: .mockRandom())
     }
 }

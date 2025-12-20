@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Mutable interval used for periodic data uploads.
 internal class DataUploadDelay {

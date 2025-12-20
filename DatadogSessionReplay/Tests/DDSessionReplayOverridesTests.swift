@@ -8,7 +8,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @_spi(objc)
 @testable import DatadogSessionReplay
 

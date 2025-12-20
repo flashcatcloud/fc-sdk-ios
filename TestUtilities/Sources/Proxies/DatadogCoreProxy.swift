@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogCore
 
 /// A `DatadogCoreProtocol` which proxies all calls to the real `DatadogCore` implementation. It intercepts
@@ -25,7 +25,7 @@ import DatadogInternal
 ///     XCTAssertEqual(events[0].serviceName, "foo-bar")
 ///     ```
 ///
-public final class DatadogCoreProxy: DatadogCoreProtocol {
+public final class DatadogCoreProxy: FlashcatCoreProtocol {
     /// Counts references to `DatadogCoreProxy` instances, so we can prevent memory
     /// leaks of SDK core in `DatadogTestsObserver`.
     public private(set) static var referenceCount = 0
@@ -36,7 +36,7 @@ public final class DatadogCoreProxy: DatadogCoreProtocol {
     @ReadWriteLock
     private var featureScopeInterceptors: [String: FeatureScopeInterceptor] = [:]
 
-    public convenience init(context: DatadogContext = .mockAny()) {
+    public convenience init(context: FlashcatContext = .mockAny()) {
         self.init(
             core: FlashcatCore(
                 directory: temporaryCoreDirectory,
@@ -68,7 +68,7 @@ public final class DatadogCoreProxy: DatadogCoreProtocol {
         DatadogCoreProxy.referenceCount -= 1
     }
 
-    public var context: DatadogContext {
+    public var context: FlashcatContext {
         didSet {
 #if DD_SDK_COMPILED_FOR_TESTING
             core.contextProvider.replace(context: context)
@@ -76,7 +76,7 @@ public final class DatadogCoreProxy: DatadogCoreProtocol {
         }
     }
 
-    public func register<T>(feature: T) throws where T: DatadogFeature {
+    public func register<T>(feature: T) throws where T: FlashcatFeature {
         try core.register(feature: feature)
     }
 
@@ -84,7 +84,7 @@ public final class DatadogCoreProxy: DatadogCoreProtocol {
         return core.feature(named: name, type: type)
     }
 
-    public func scope<T>(for featureType: T.Type) -> FeatureScope where T: DatadogFeature {
+    public func scope<T>(for featureType: T.Type) -> FeatureScope where T: FlashcatFeature {
         if featureScopeInterceptors[T.name] == nil {
             featureScopeInterceptors[T.name] = FeatureScopeInterceptor()
         }
@@ -155,7 +155,7 @@ private struct FeatureScopeProxy: FeatureScope {
     let proxy: FeatureScope
     let interceptor: FeatureScopeInterceptor
 
-    func eventWriteContext(bypassConsent: Bool, _ block: @escaping (DatadogContext, Writer) -> Void) {
+    func eventWriteContext(bypassConsent: Bool, _ block: @escaping (FlashcatContext, Writer) -> Void) {
         interceptor.enter()
         proxy.eventWriteContext(bypassConsent: bypassConsent) { context, writer in
             block(context, interceptor.intercept(writer: writer))
@@ -163,7 +163,7 @@ private struct FeatureScopeProxy: FeatureScope {
         }
     }
 
-    func context(_ block: @escaping (DatadogContext) -> Void) {
+    func context(_ block: @escaping (FlashcatContext) -> Void) {
         interceptor.enter()
         proxy.context { context in
             block(context)

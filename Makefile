@@ -95,7 +95,7 @@ test-ios:
 # Run unit tests for all iOS schemes
 test-ios-all:
 	@$(MAKE) test-ios SCHEME="DatadogCore iOS"
-	@$(MAKE) test-ios SCHEME="DatadogInternal iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatInternal iOS"
 	@$(MAKE) test-ios SCHEME="DatadogRUM iOS"
 	@$(MAKE) test-ios SCHEME="DatadogSessionReplay iOS"
 	@$(MAKE) test-ios SCHEME="DatadogLogs iOS"
@@ -116,7 +116,7 @@ test-tvos:
 # Run unit tests for all tvOS schemes
 test-tvos-all:
 	@$(MAKE) test-tvos SCHEME="DatadogCore tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogInternal tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatInternal tvOS"
 	@$(MAKE) test-tvos SCHEME="DatadogRUM tvOS"
 	@$(MAKE) test-tvos SCHEME="DatadogLogs tvOS"
 	@$(MAKE) test-tvos SCHEME="DatadogTrace tvOS"
@@ -431,11 +431,11 @@ release-publish-podspec:
 		 --artifacts-path "$(ARTIFACTS_PATH)" \
 		 --podspec-name "$(PODSPEC_NAME)"
 
-# Publish DatadogInternal podspec
+# Publish FlashcatInternal podspec
 release-publish-internal-podspecs:
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogInternal.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatInternal.podspec"
 
-# Publish podspecs that depend on DatadogInternal
+# Publish podspecs that depend on FlashcatInternal
 release-publish-dependent-podspecs:
 	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogCore.podspec"
 	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogLogs.podspec"

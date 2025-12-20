@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 import UIKit
 
 /// Tracks the memory warnings history and publishes it to the subscribers.

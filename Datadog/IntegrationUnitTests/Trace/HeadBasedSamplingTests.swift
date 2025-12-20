@@ -6,7 +6,7 @@
 
 import XCTest
 @testable import DatadogTrace
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
 
 private class InstrumentedSessionDelegate: NSObject, URLSessionDataDelegate {}

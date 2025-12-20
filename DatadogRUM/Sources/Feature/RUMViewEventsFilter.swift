@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct RUMViewEventsFilter {
     /// The initial `time_spent` value (1ns) is a placeholder set when a view starts.

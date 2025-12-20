@@ -18,7 +18,7 @@ internal protocol BackgroundTaskCoordinator {
 
 #if canImport(UIKit)
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 #if !os(watchOS)
 /// Bridge protocol that calls corresponding `UIApplication` interface for background tasks. Allows easier testablity.

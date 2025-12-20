@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 // MARK: - Copy & Paste from Datadog SDK
 

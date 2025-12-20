@@ -5,13 +5,13 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogCore
 
 extension DatadogContextProvider: AnyMockable {
     public static func mockAny() -> Self { .mockWith() }
 
-    public static func mockWith(context: DatadogContext = .mockAny()) -> Self {
+    public static func mockWith(context: FlashcatContext = .mockAny()) -> Self {
         .init(context: context)
     }
 }

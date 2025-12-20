@@ -5,7 +5,7 @@
 */
 
 #import <XCTest/XCTest.h>
-@import DatadogInternal;
+@import FlashcatInternal;
 
 @interface DDInternalLogger_apiTests : XCTestCase
 @end

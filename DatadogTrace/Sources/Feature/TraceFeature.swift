@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal final class TraceFeature: DatadogRemoteFeature {
     static let name = "tracing"
@@ -17,7 +17,7 @@ internal final class TraceFeature: DatadogRemoteFeature {
     let contextReceiver: ContextMessageReceiver
 
     init(
-        in core: DatadogCoreProtocol,
+        in core: FlashcatCoreProtocol,
         configuration: Trace.Configuration
     ) {
         self.requestBuilder = TracingRequestBuilder(

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Builds `SpanEvent` representation (for later serialization) from span information recorded in `DDSpan` and values received from global configuration.
 internal struct SpanEventBuilder {
@@ -25,7 +25,7 @@ internal struct SpanEventBuilder {
     let attributesEncoder: JSONEncoder = .dd.default()
 
     func createSpanEvent(
-        context: DatadogContext,
+        context: FlashcatContext,
         traceID: TraceID,
         spanID: SpanID,
         parentSpanID: SpanID?,

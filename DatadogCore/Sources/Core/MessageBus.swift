@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// The message-bus sends messages to a set of registered receivers.
 ///
@@ -20,7 +20,7 @@ internal final class MessageBus {
     /// A weak core reference.
     ///
     /// The core **must** be accessed within the queue.
-    private weak var core: DatadogCoreProtocol?
+    private weak var core: FlashcatCoreProtocol?
 
     /// The message bus used to dispatch messages to registered features.
     ///
@@ -58,7 +58,7 @@ internal final class MessageBus {
     /// The message-bus keeps a weak reference to the core.
     ///
     /// - Parameter core: The core ference.
-    func connect(core: DatadogCoreProtocol) {
+    func connect(core: FlashcatCoreProtocol) {
         queue.async { self.core = core }
     }
 

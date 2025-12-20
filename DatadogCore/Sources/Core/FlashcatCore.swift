@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Core implementation of Datadog SDK.
 ///
@@ -61,7 +61,7 @@ internal final class FlashcatCore {
 
     /// Registry for Features.
     @ReadWriteLock
-    private var features: [String: DatadogFeature] = [:]
+    private var features: [String: FlashcatFeature] = [:]
 
     /// The core context provider.
     internal let contextProvider: DatadogContextProvider
@@ -281,7 +281,7 @@ internal final class FlashcatCore {
 
     private var allDataStores: [DataStore] {
         features.values.compactMap { feature in
-            let featureType = type(of: feature) as DatadogFeature.Type
+            let featureType = type(of: feature) as FlashcatFeature.Type
             return scope(for: featureType).dataStore
         }
     }
@@ -311,7 +311,7 @@ internal final class FlashcatCore {
     }
 }
 
-extension FlashcatCore: DatadogCoreProtocol {
+extension FlashcatCore: FlashcatCoreProtocol {
     /// Registers a Feature instance.
     ///
     /// A Feature collects and transfers data to a Datadog Product (e.g. Logs, RUM, ...). A registered Feature can
@@ -321,7 +321,7 @@ extension FlashcatCore: DatadogCoreProtocol {
     /// A Feature can also communicate to other Features by sending message on the bus that is managed by the core.
     ///
     /// - Parameter feature: The Feature instance.
-    func register<T>(feature: T) throws where T: DatadogFeature {
+    func register<T>(feature: T) throws where T: FlashcatFeature {
         if let feature = feature as? DatadogRemoteFeature {
             let featureDirectories = try directory.getFeatureDirectories(forFeatureNamed: T.name)
 
@@ -384,7 +384,7 @@ extension FlashcatCore: DatadogCoreProtocol {
         features[name] as? T
     }
 
-    func scope<Feature>(for featureType: Feature.Type) -> FeatureScope where Feature: DatadogFeature {
+    func scope<Feature>(for featureType: Feature.Type) -> FeatureScope where Feature: FlashcatFeature {
         return CoreFeatureScope<Feature>(in: self)
     }
 
@@ -401,7 +401,7 @@ extension FlashcatCore: DatadogCoreProtocol {
     }
 }
 
-internal class CoreFeatureScope<Feature>: @unchecked Sendable, FeatureScope where Feature: DatadogFeature {
+internal class CoreFeatureScope<Feature>: @unchecked Sendable, FeatureScope where Feature: FlashcatFeature {
     private weak var core: FlashcatCore?
     private let store: FeatureDataStore
 
@@ -415,7 +415,7 @@ internal class CoreFeatureScope<Feature>: @unchecked Sendable, FeatureScope wher
         )
     }
 
-    func eventWriteContext(bypassConsent: Bool, _ block: @escaping (DatadogContext, Writer) -> Void) {
+    func eventWriteContext(bypassConsent: Bool, _ block: @escaping (FlashcatContext, Writer) -> Void) {
         guard let core = core else {
             return  // core is deinitialized
         }
@@ -441,7 +441,7 @@ internal class CoreFeatureScope<Feature>: @unchecked Sendable, FeatureScope wher
         }
     }
 
-    func context(_ block: @escaping (DatadogContext) -> Void) {
+    func context(_ block: @escaping (FlashcatContext) -> Void) {
         // (on user thread) request SDK context
         core?.contextProvider.read { context in
             // (on context thread) call the block
@@ -510,7 +510,7 @@ extension DatadogContextProvider {
         let appStateHistory = AppStateHistory(initialState: initialAppState, date: dateProvider.now)
         let launchInfo = appLaunchHandler.resolveLaunchInfo(using: processInfo)
 
-        let context = DatadogContext(
+        let context = FlashcatContext(
             site: site,
             clientToken: clientToken,
             service: service,

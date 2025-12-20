@@ -6,7 +6,7 @@
 
 import Foundation
 @_spi(objc)
-import DatadogInternal
+import FlashcatInternal
 
 @objc(DDTraceConfiguration)
 @objcMembers

@@ -6,7 +6,7 @@ include ../../tools/utils/common.mk
 ifeq ($(PLATFORM), iOS Simulator)
 SCHEME := App iOS
 BUILD_XCFRAMEWORKS_FLAG := --ios
-EXPECTED_XCFRAMEWORKS := DatadogInternal \
+EXPECTED_XCFRAMEWORKS := FlashcatInternal \
 						DatadogCore \
 						DatadogLogs \
 						DatadogTrace \
@@ -20,7 +20,7 @@ EXPECTED_XCFRAMEWORKS := DatadogInternal \
 else ifeq ($(PLATFORM), tvOS Simulator)
 SCHEME := App tvOS
 BUILD_XCFRAMEWORKS_FLAG := --tvos
-EXPECTED_XCFRAMEWORKS := DatadogInternal \
+EXPECTED_XCFRAMEWORKS := FlashcatInternal \
 						DatadogCore \
 						DatadogLogs \
 						DatadogTrace \

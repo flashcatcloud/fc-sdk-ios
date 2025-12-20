@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal enum DataStoreFileWritingError: Error {
     case failedToEncodeVersion(Error)

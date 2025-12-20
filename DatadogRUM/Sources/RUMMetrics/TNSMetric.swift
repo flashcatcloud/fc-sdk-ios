@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol TNSMetricTracking {
     /// Tracks the start time of a resource identified by its `resourceID`.

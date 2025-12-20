@@ -6,7 +6,7 @@
 
 #import <XCTest/XCTest.h>
 @import DatadogRUM;
-@import DatadogInternal;
+@import FlashcatInternal;
 
 // MARK: - DDUIKitRUMViewsPredicate
 

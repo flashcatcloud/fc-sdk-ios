@@ -5,7 +5,7 @@
  */
 
 #if os(iOS)
-import DatadogInternal
+import FlashcatInternal
 
 /// Text obfuscation strategies for different text types.
 @_spi(Internal)

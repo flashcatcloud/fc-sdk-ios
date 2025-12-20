@@ -6,7 +6,7 @@
 
 #if DEBUG
 
-import DatadogInternal
+import FlashcatInternal
 import UIKit
 
 class ConsoleOutputInterceptor {

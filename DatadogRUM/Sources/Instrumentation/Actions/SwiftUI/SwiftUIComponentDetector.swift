@@ -6,7 +6,7 @@
 
 import Foundation
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 internal enum SwiftUIComponentNames {
     static let button = "SwiftUI_Button"

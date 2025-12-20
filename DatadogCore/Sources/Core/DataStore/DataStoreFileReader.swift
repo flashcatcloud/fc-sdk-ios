@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal enum DataStoreFileReadingError: Error {
     /// Indicates unexpected TLV blocks encountered during file reading.

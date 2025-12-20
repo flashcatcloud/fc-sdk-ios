@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// A type managing RUM information necessary for building context of fatal errors such as Crashes or Fatal App Hangs.
 internal protocol FatalErrorContextNotifying: AnyObject {

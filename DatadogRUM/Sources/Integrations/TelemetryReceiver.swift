@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal final class TelemetryReceiver: FeatureMessageReceiver {
     /// Maximum number of telemetry events allowed per RUM  sessions.
@@ -64,7 +64,7 @@ internal final class TelemetryReceiver: FeatureMessageReceiver {
     ///   - message: The message to consume.
     ///   - core: The core sending the message.
     /// - Returns: `true` if the message is a `.telemetry` case.
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         guard case let .telemetry(telemetry) = message else {
             return false
         }
@@ -192,7 +192,7 @@ internal final class TelemetryReceiver: FeatureMessageReceiver {
         }
     }
 
-    private func send(usage: DatadogInternal.UsageTelemetry) {
+    private func send(usage: FlashcatInternal.UsageTelemetry) {
         let date = dateProvider.now
 
         self.record(event: nil) { context, writer in
@@ -228,7 +228,7 @@ internal final class TelemetryReceiver: FeatureMessageReceiver {
     /// configuration for lazy initialization of the SDK.
     ///
     /// - Parameter configuration: The SDK configuration.
-    private func send(configuration: DatadogInternal.ConfigurationTelemetry) {
+    private func send(configuration: FlashcatInternal.ConfigurationTelemetry) {
         guard configurationExtraSampler.sample() else {
             return
         }
@@ -306,7 +306,7 @@ internal final class TelemetryReceiver: FeatureMessageReceiver {
         }
     }
 
-    private func record(event id: String?, operation: @escaping (DatadogContext, Writer) -> Void) {
+    private func record(event id: String?, operation: @escaping (FlashcatContext, Writer) -> Void) {
         guard sampler.sample() else {
             return
         }
@@ -380,7 +380,7 @@ private extension TelemetryUsageEvent.Telemetry.Usage {
 }
 
 private extension TelemetryUsageEvent.Telemetry.Usage.TelemetryCommonFeaturesUsage.SetTrackingConsent.TrackingConsent {
-    init(consent: DatadogInternal.TrackingConsent) {
+    init(consent: FlashcatInternal.TrackingConsent) {
         switch consent {
         case .granted:
             self = .granted
@@ -393,7 +393,7 @@ private extension TelemetryUsageEvent.Telemetry.Usage.TelemetryCommonFeaturesUsa
 }
 
 private extension TelemetryConfigurationEvent.Telemetry.Configuration {
-    init(_ configuration: DatadogInternal.ConfigurationTelemetry) {
+    init(_ configuration: FlashcatInternal.ConfigurationTelemetry) {
         self.init(
             actionNameAttribute: nil,
             allowFallbackToLocalStorage: nil,

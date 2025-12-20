@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 
 class RUMEventSanitizerTests: XCTestCase {

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Interface for Telemetry metrics.
 internal protocol MetricAttributesConvertible {

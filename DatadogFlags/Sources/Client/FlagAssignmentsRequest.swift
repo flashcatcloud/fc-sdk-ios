@@ -5,13 +5,13 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension URLRequest {
     internal static func flagAssignmentsRequest(
         url: URL,
         evaluationContext: FlagsEvaluationContext,
-        context: DatadogContext,
+        context: FlashcatContext,
         customHeaders: [String: String]?
     ) throws -> URLRequest {
         var request = URLRequest(url: url)

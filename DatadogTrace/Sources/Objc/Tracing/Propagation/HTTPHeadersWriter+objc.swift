@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import class DatadogInternal.HTTPHeadersWriter
+import class FlashcatInternal.HTTPHeadersWriter
 
 @objc(DDHTTPHeadersWriter)
 @objcMembers

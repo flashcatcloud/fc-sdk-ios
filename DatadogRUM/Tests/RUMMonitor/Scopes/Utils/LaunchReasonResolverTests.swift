@@ -5,7 +5,7 @@
  */
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 
 class LaunchReasonResolverTests: XCTestCase {
@@ -22,12 +22,12 @@ class LaunchReasonResolverTests: XCTestCase {
     /// Sends each command through the resolver, collects the contexts when `onReady` is called,
     /// and asserts that the launch reason is the same for all. Returns that reason.
     private func resolveAndValidate(
-        context: DatadogContext,
+        context: FlashcatContext,
         commands: [RUMCommand],
         file: StaticString = #file,
         line: UInt = #line
     ) throws -> LaunchReason {
-        var received: [(RUMCommand, DatadogContext)] = []
+        var received: [(RUMCommand, FlashcatContext)] = []
 
         for command in commands {
             resolver.deferUntilLaunchReasonResolved(command: command,context: context, writer: writer) { cmd, ctx, _ in
@@ -47,7 +47,7 @@ class LaunchReasonResolverTests: XCTestCase {
     // MARK: - User Launch
 
     func testUserLaunch_resolvesUserLaunchForSceneDelegateFlow() throws {
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             launchInfo: baseLaunchInfo,
             applicationStateHistory: .mockWith(
                 initialState: .background,
@@ -69,7 +69,7 @@ class LaunchReasonResolverTests: XCTestCase {
     }
 
     func testUserLaunch_resolvesImmediately_whenInitialStateInactiveOrActive() throws {
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             launchInfo: baseLaunchInfo,
             applicationStateHistory: .mockWith(
                 initialState: [.inactive, .active].randomElement()!,
@@ -88,7 +88,7 @@ class LaunchReasonResolverTests: XCTestCase {
     // MARK: - Background Launch
 
     func testBackgroundLaunch_resolvesAfterThreshold() throws {
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             launchInfo: baseLaunchInfo,
             applicationStateHistory: .mockWith(
                 initialState: .background,
@@ -113,7 +113,7 @@ class LaunchReasonResolverTests: XCTestCase {
             launchReason: .prewarming,
             processLaunchDate: baseLaunchInfo.processLaunchDate
         )
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             launchInfo: prewarmInfo,
             applicationStateHistory: .mockWith(
                 initialState: .background,

@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 import Foundation
 
 #if SPM_BUILD
@@ -298,8 +298,8 @@ public  class DataUploaderMock: DataUploaderType {
     }
 
     public func upload(
-        events: [DatadogInternal.Event],
-        context: DatadogInternal.DatadogContext,
+        events: [FlashcatInternal.Event],
+        context: FlashcatInternal.FlashcatContext,
         previous: DataUploadStatus?) throws -> DataUploadStatus {
             uploadedEvents += events
             try onUpload?(previous)

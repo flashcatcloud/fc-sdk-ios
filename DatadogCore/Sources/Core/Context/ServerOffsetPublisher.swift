@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// List of Datadog NTP pools.
 public let DatadogNTPServers = [

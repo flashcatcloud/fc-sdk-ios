@@ -5,7 +5,7 @@
 */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 import OpenTelemetryApi
 
 /// The Datadog implementation of OpenTelemetry `TracerProvider`.
@@ -34,11 +34,11 @@ import OpenTelemetryApi
 ///     .startSpan()
 /// ```
 public class OTelTracerProvider: OpenTelemetryApi.TracerProvider {
-    private weak var core: DatadogCoreProtocol?
+    private weak var core: FlashcatCoreProtocol?
 
     /// Creates a tracer provider with the given Datadog SDK instance.
     /// - Parameter core: the instance of Datadog SDK the Trace feature was enabled in (global instance by default)
-    public init(in core: DatadogCoreProtocol = CoreRegistry.default) {
+    public init(in core: FlashcatCoreProtocol = CoreRegistry.default) {
         self.core = core
     }
 

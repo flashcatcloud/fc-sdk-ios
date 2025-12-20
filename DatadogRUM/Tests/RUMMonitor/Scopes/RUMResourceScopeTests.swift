@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 @testable import TestUtilities
 
@@ -24,7 +24,7 @@ extension RUMResourceEvent.Resource.Graphql.Errors.Path: Equatable {
 }
 
 class RUMResourceScopeTests: XCTestCase {
-    let context: DatadogContext = .mockWith(
+    let context: FlashcatContext = .mockWith(
         service: "test-service",
         version: "test-version",
         buildNumber: "test-build",
@@ -370,7 +370,7 @@ class RUMResourceScopeTests: XCTestCase {
 
         // Given
         let customSource: String = .mockAnySource()
-        let customContext: DatadogContext = .mockWith(source: customSource)
+        let customContext: FlashcatContext = .mockWith(source: customSource)
 
         let scope = RUMResourceScope.mockWith(
             parent: provider,
@@ -844,7 +844,7 @@ class RUMResourceScopeTests: XCTestCase {
         var currentTime: Date = .mockDecember15th2019At10AMUTC()
 
         let source = String.mockAnySource()
-        let customContext: DatadogContext = .mockWith(
+        let customContext: FlashcatContext = .mockWith(
             service: "test-service",
             source: source
         )
@@ -1231,7 +1231,7 @@ class RUMResourceScopeTests: XCTestCase {
 
         // Given
         let appLauchToErrorTimeDiff = Int64.random(in: 10..<1_000_000)
-        let customContext: DatadogContext = .mockWith(
+        let customContext: FlashcatContext = .mockWith(
             launchInfo: .mockWith(processLaunchDate: currentTime)
         )
 

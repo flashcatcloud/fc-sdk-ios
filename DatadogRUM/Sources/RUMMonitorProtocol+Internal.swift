@@ -5,17 +5,17 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Extends `RUMMonitorProtocol` with additional methods designed for Datadog cross-platform SDKs.
 public extension RUMMonitorProtocol {
     /// Grants access to an internal interface utilized only by Datadog cross-platform SDKs.
     /// **It is not meant for public use** and it might change without prior notice.
-    var _internal: DatadogInternalInterface? {
+    var _internal: FlashcatInternalInterface? {
         guard let monitor = self as? RUMCommandSubscriber else {
             return nil
         }
-        return DatadogInternalInterface(monitor: monitor)
+        return FlashcatInternalInterface(monitor: monitor)
     }
 }
 
@@ -24,7 +24,7 @@ public extension RUMMonitorProtocol {
 ///
 /// Methods, members, and functionality of this interface is subject to change without prior notice,
 /// as they are not considered part of the public interface of the Datadog SDK.
-public struct DatadogInternalInterface {
+public struct FlashcatInternalInterface {
     let monitor: RUMCommandSubscriber
 
     /// Adds a RUM error to the current view, allowing the addition of BinaryImages

@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 internal struct UIImageResource {
     private let image: UIImage

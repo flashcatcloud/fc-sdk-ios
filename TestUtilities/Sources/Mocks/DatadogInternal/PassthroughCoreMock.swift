@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Passthrough core mocks feature-scope allowing recording events in **sync**.
 ///
@@ -26,14 +26,14 @@ import DatadogInternal
 ///     try core.register(feature: feature)
 ///     core.get(feature: MyCustomFeature.self) // returns nil
 ///
-open class PassthroughCoreMock: DatadogCoreProtocol, FeatureScope, @unchecked Sendable {
+open class PassthroughCoreMock: FlashcatCoreProtocol, FeatureScope, @unchecked Sendable {
     /// Counts references to `PassthroughCoreMock` instances, so we can prevent memory
     /// leaks of SDK core in `DatadogTestsObserver`.
     public private(set) static var referenceCount = 0
 
     /// Current context that will be passed to feature-scopes.
     @ReadWriteLock
-    public var context: DatadogContext {
+    public var context: FlashcatContext {
         didSet { send(message: .context(context)) }
     }
 
@@ -51,7 +51,7 @@ open class PassthroughCoreMock: DatadogCoreProtocol, FeatureScope, @unchecked Se
     ///   - context: The testing context.
 
     public required init(
-        context: DatadogContext = .mockAny(),
+        context: FlashcatContext = .mockAny(),
         dataStore: DataStore = NOPDataStore(),
         messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver()
     ) {
@@ -69,12 +69,12 @@ open class PassthroughCoreMock: DatadogCoreProtocol, FeatureScope, @unchecked Se
     }
 
     /// no-op
-    public func register<T>(feature: T) throws where T: DatadogFeature { }
+    public func register<T>(feature: T) throws where T: FlashcatFeature { }
     /// no-op
     public func feature<T>(named name: String, type: T.Type) -> T? { nil }
 
     /// Always returns a feature-scope.
-    public func scope<T>(for featureType: T.Type) -> FeatureScope where T: DatadogFeature {
+    public func scope<T>(for featureType: T.Type) -> FeatureScope where T: FlashcatFeature {
         self
     }
 
@@ -94,12 +94,12 @@ open class PassthroughCoreMock: DatadogCoreProtocol, FeatureScope, @unchecked Se
     /// Execute `block` with the current context and a `writer` to record events.
     ///
     /// - Parameter block: The block to execute.
-    public func eventWriteContext(bypassConsent: Bool, _ block: @escaping (DatadogContext, Writer) -> Void) {
+    public func eventWriteContext(bypassConsent: Bool, _ block: @escaping (FlashcatContext, Writer) -> Void) {
         block(context, writer)
         onEventWriteContext?(bypassConsent)
     }
 
-    public func context(_ block: @escaping (DatadogContext) -> Void) {
+    public func context(_ block: @escaping (FlashcatContext) -> Void) {
         block(context)
     }
 

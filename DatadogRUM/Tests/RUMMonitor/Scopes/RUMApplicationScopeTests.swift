@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 @testable import TestUtilities
 
@@ -16,7 +16,7 @@ class RUMApplicationScopeTests: XCTestCase {
     /// TODO: RUM-1649 Move this configuration to `RUMApplicationScope.init()`, so we can remove this setup in tests.
     private func createRUMApplicationScope(
         dependencies: RUMScopeDependencies,
-        sdkContext: DatadogContext = .mockWith(sdkInitDate: Date())
+        sdkContext: FlashcatContext = .mockWith(sdkInitDate: Date())
     ) -> RUMApplicationScope {
         let scope = RUMApplicationScope(dependencies: dependencies)
         // Always receive `RUMSDKInitCommand` as the very first command (see: `Monitor.notifySDKInit()`)
@@ -320,7 +320,7 @@ class RUMApplicationScopeTests: XCTestCase {
 
     func testGivenAppLaunchInForegroundAndNoPrewarming_whenInitialSessionIsStarted() throws {
         // Given
-        let sdkContext: DatadogContext = .mockWith(
+        let sdkContext: FlashcatContext = .mockWith(
             launchInfo: .mockWith(
                 launchReason: .userLaunch,
                 processLaunchDate: .mockDecember15th2019At10AMUTC()
@@ -351,7 +351,7 @@ class RUMApplicationScopeTests: XCTestCase {
 
     func testGivenAppLaunchInBackgroundAndNoPrewarming_whenInitialSessionIsStarted() throws {
         // Given
-        let sdkContext: DatadogContext = .mockWith(
+        let sdkContext: FlashcatContext = .mockWith(
             launchInfo: .mockWith(
                 launchReason: .backgroundLaunch,
                 processLaunchDate: .mockDecember15th2019At10AMUTC()
@@ -380,7 +380,7 @@ class RUMApplicationScopeTests: XCTestCase {
 
     func testGivenLaunchWithPrewarming_whenInitialSessionIsStarted() throws {
         // Given
-        let sdkContext: DatadogContext = .mockWith(
+        let sdkContext: FlashcatContext = .mockWith(
             launchInfo: .mockWith(
                 launchReason: .prewarming,
                 processLaunchDate: .mockDecember15th2019At10AMUTC()
@@ -410,7 +410,7 @@ class RUMApplicationScopeTests: XCTestCase {
     func testGivenInactiveSession_whenNewOneIsStarted_itSetsInactivityTimeoutPrecondition() {
         // Given
         var currentTime: Date = .mockDecember15th2019At10AMUTC()
-        let sdkContext: DatadogContext = .mockWith(sdkInitDate: currentTime)
+        let sdkContext: FlashcatContext = .mockWith(sdkInitDate: currentTime)
         let scope = createRUMApplicationScope(
             dependencies: .mockWith(sessionSampler: .mockKeepAll()),
             sdkContext: sdkContext
@@ -432,7 +432,7 @@ class RUMApplicationScopeTests: XCTestCase {
         // Given
         let initialTime: Date = .mockDecember15th2019At10AMUTC()
         var currentTime: Date = initialTime
-        let sdkContext: DatadogContext = .mockWith(sdkInitDate: currentTime)
+        let sdkContext: FlashcatContext = .mockWith(sdkInitDate: currentTime)
         let scope = createRUMApplicationScope(
             dependencies: .mockWith(sessionSampler: .mockKeepAll()),
             sdkContext: sdkContext
@@ -462,7 +462,7 @@ class RUMApplicationScopeTests: XCTestCase {
     func testGivenStoppedSession_whenNewOneIsStarted_itSetsExplicitStopPrecondition() {
         // Given
         var currentTime: Date = .mockDecember15th2019At10AMUTC()
-        let sdkContext: DatadogContext = .mockWith(sdkInitDate: currentTime)
+        let sdkContext: FlashcatContext = .mockWith(sdkInitDate: currentTime)
         let scope = createRUMApplicationScope(
             dependencies: .mockWith(sessionSampler: .mockKeepAll()),
             sdkContext: sdkContext

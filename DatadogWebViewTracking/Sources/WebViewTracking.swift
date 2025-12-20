@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 #if os(tvOS)
 #warning("Datadog WebView Tracking does not support tvOS")
@@ -40,7 +40,7 @@ public enum WebViewTracking {
         webView: WKWebView,
         hosts: Set<String> = [],
         logsSampleRate: SampleRate = .maxSampleRate,
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         do {
             // To ensure the correct registration order between Core and Features,
@@ -82,7 +82,7 @@ public enum WebViewTracking {
         hosts: Set<String>,
         hostsSanitizer: HostsSanitizing,
         logsSampleRate: Float,
-        in core: DatadogCoreProtocol
+        in core: FlashcatCoreProtocol
     ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
@@ -218,7 +218,7 @@ extension InternalExtension where ExtendedType == WebViewTracking {
     ///   - logsSampleRate: The sampling rate for logs coming from the WebView. Must be a value between `0` and `100`. Default: `100`.
     /// - Returns: A `MessageEmitter` instance
     public static func messageEmitter(
-        in core: DatadogCoreProtocol,
+        in core: FlashcatCoreProtocol,
         logsSampleRate: SampleRate = .maxSampleRate
     ) -> AbstractMessageEmitter {
         return MessageEmitter(

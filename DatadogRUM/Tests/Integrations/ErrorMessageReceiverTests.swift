@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import TestUtilities
 
 @testable import DatadogRUM

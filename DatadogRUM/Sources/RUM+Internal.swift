@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension RUM: InternalExtended {}
 
@@ -18,7 +18,7 @@ extension InternalExtension where ExtendedType == RUM {
     ///    - in: the core to check
     ///
     /// - Returns: true if `RUM` has been enabled for the supplied core.
-    public static func isEnabled(in core: DatadogCoreProtocol = CoreRegistry.default) -> Bool {
+    public static func isEnabled(in core: FlashcatCoreProtocol = CoreRegistry.default) -> Bool {
         return core.get(feature: RUMFeature.self) != nil
     }
 
@@ -31,7 +31,7 @@ extension InternalExtension where ExtendedType == RUM {
     ///    - in: the core to enable URL session in
     public static func enableURLSessionTracking(
         with configuration: RUM.Configuration.URLSessionTracking,
-        in core: DatadogCoreProtocol = CoreRegistry.default) throws {
+        in core: FlashcatCoreProtocol = CoreRegistry.default) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
                 description: "Datadog SDK and RUM must be initialized before calling `RUM.enableUrlSessionTracking`."

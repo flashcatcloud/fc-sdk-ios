@@ -6,13 +6,13 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 // swiftlint:disable duplicate_imports
-@_exported import enum DatadogInternal.SessionReplayPrivacyLevel
-@_exported import enum DatadogInternal.TextAndInputPrivacyLevel
-@_exported import enum DatadogInternal.ImagePrivacyLevel
-@_exported import enum DatadogInternal.TouchPrivacyLevel
+@_exported import enum FlashcatInternal.SessionReplayPrivacyLevel
+@_exported import enum FlashcatInternal.TextAndInputPrivacyLevel
+@_exported import enum FlashcatInternal.ImagePrivacyLevel
+@_exported import enum FlashcatInternal.TouchPrivacyLevel
 // swiftlint:enable duplicate_imports
 
 extension SessionReplay {

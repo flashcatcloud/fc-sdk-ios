@@ -5,12 +5,12 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
 @testable import DatadogCore
 
 class DatadogContextProviderTests: XCTestCase {
-    let context: DatadogContext = .mockAny()
+    let context: FlashcatContext = .mockAny()
 
     // MARK: - Test Propagation
 

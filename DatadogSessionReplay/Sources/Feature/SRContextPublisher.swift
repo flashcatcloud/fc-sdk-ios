@@ -6,13 +6,13 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Publisher that sets Session Replay context for being utilized by other Features.
 internal class SRContextPublisher {
-    private weak var core: DatadogCoreProtocol?
+    private weak var core: FlashcatCoreProtocol?
 
-    init(core: DatadogCoreProtocol) {
+    init(core: FlashcatCoreProtocol) {
         self.core = core
     }
 

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal class RUMSessionScope: RUMScope, RUMContextProvider {
     struct Constants {
@@ -97,7 +97,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         parent: RUMContextProvider,
         startTime: Date,
         startPrecondition: RUMSessionPrecondition?,
-        context: DatadogContext,
+        context: FlashcatContext,
         dependencies: RUMScopeDependencies,
         applicationState: RUMApplicationState,
         resumingViewScope: RUMViewScope? = nil
@@ -151,7 +151,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         from expiredSession: RUMSessionScope,
         startTime: Date,
         startPrecondition: RUMSessionPrecondition?,
-        context: DatadogContext,
+        context: FlashcatContext,
         transferActiveView: Bool,
         applicationState: RUMApplicationState
     ) {
@@ -205,7 +205,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
     // MARK: - RUMScope
 
-    func process(command: RUMCommand, context: DatadogContext, writer: Writer) -> Bool {
+    func process(command: RUMCommand, context: FlashcatContext, writer: Writer) -> Bool {
         if hasTimedOut(currentTime: command.time) {
             endReason = .timeOut
             return false // end this session (no longer keep the session scope)
@@ -306,7 +306,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
     // MARK: - RUMCommands Processing
 
-    private func startView(on command: RUMStartViewCommand, context: DatadogContext) {
+    private func startView(on command: RUMStartViewCommand, context: FlashcatContext) {
         let isStartingInitialView = isInitialSession && !state.hasTrackedAnyView
         startView(
             isInitialView: isStartingInitialView,
@@ -363,7 +363,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         )
     }
 
-    private func startApplicationLaunchView(on command: RUMCommand, context: DatadogContext, writer: Writer) {
+    private func startApplicationLaunchView(on command: RUMCommand, context: FlashcatContext, writer: Writer) {
         let isActivePrewarm = context.launchInfo.launchReason == .prewarming
         let startTime: Date
 
@@ -400,7 +400,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         )
     }
 
-    private func handleOffViewCommand(command: RUMCommand, context: DatadogContext, writer: Writer) {
+    private func handleOffViewCommand(command: RUMCommand, context: FlashcatContext, writer: Writer) {
         let handlingRule = RUMOffViewEventsHandlingRule(
             applicationState: applicationState,
             sessionState: state,
@@ -440,7 +440,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         return command is RUMKeepSessionAliveCommand || command is RUMUpdatePerformanceMetric || command is RUMHandleAppLifecycleEventCommand
     }
 
-    private func startBackgroundView(on command: RUMCommand, context: DatadogContext) {
+    private func startBackgroundView(on command: RUMCommand, context: FlashcatContext) {
         let isStartingInitialView = isInitialSession && !state.hasTrackedAnyView
 
         startView(

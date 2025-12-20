@@ -6,7 +6,7 @@
 
 import Foundation
 import OpenTelemetryApi
-import DatadogInternal
+import FlashcatInternal
 
 extension OpenTelemetryApi.SpanId {
     /// Converts OpenTelemetry `SpanId` to Datadog `SpanID`.

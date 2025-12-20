@@ -9,7 +9,7 @@ import Foundation
 @testable import DatadogLogs
 @testable import DatadogRUM
 @testable import DatadogTrace
-@testable import DatadogInternal
+@testable import FlashcatInternal
 
 extension DatadogCoreProxy {
     public func waitAndReturnSpanMatchers(file: StaticString = #file, line: UInt = #line) throws -> [SpanMatcher] {

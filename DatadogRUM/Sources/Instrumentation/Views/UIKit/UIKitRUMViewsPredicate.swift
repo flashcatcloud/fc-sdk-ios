@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 /// Protocol defining the predicate for UIKit view controller tracking in RUM.
 ///

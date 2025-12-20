@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 import Foundation
 
 /*
@@ -45,7 +45,7 @@ internal class RUMFeatureOperationManager {
 
     // MARK: - Public Interface
 
-    func process(_ command: RUMOperationStepVitalCommand, context: DatadogContext, writer: Writer, activeView: RUMViewScope?) {
+    func process(_ command: RUMOperationStepVitalCommand, context: FlashcatContext, writer: Writer, activeView: RUMViewScope?) {
         // Validate command parameters
         guard validateCommand(command) else {
             return
@@ -77,7 +77,7 @@ internal class RUMFeatureOperationManager {
 
     // MARK: - Private Methods
 
-    private func writeVitalEvent(from command: RUMOperationStepVitalCommand, context: DatadogContext, writer: Writer, activeView: RUMViewScope?) {
+    private func writeVitalEvent(from command: RUMOperationStepVitalCommand, context: FlashcatContext, writer: Writer, activeView: RUMViewScope?) {
         let vital = RUMVitalOperationStepEvent.Vital(
             failureReason: command.failureReason,
             id: command.vitalId,

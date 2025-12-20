@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 internal class UIViewControllerSwizzler {
     let viewDidAppear: ViewDidAppear

@@ -7,7 +7,7 @@
 import XCTest
 import SwiftUI
 @testable import DatadogRUM
-@testable import DatadogInternal
+@testable import FlashcatInternal
 
 class SwiftUIViewNameExtractorTests: XCTestCase {
     var extractor: SwiftUIReflectionBasedViewNameExtractor! // swiftlint:disable:this implicitly_unwrapped_optional

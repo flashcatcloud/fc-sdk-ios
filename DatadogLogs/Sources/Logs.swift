@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// iOS Log Collection
 ///
@@ -56,7 +56,7 @@ public enum Logs {
     ///   - core: The instance of Datadog SDK to enable Logs in (global instance by default).
     public static func enable(
         with configuration: Logs.Configuration = .init(),
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         do {
             // To ensure the correct registration order between Core and Features,
@@ -70,7 +70,7 @@ public enum Logs {
     }
 
     internal static func enableOrThrow(
-        with configuration: Logs.Configuration, in core: DatadogCoreProtocol
+        with configuration: Logs.Configuration, in core: FlashcatCoreProtocol
     ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
@@ -97,7 +97,7 @@ public enum Logs {
     ///   - value: the attribute value that conforms to `Encodable`. See `AttributeValue` documentation
     ///     for information on nested encoding containers limitation.
     ///   - core: the `DatadogCoreProtocol` to add the attribute to.
-    public static func addAttribute(forKey key: AttributeKey, value: AttributeValue, in core: DatadogCoreProtocol = CoreRegistry.default) {
+    public static func addAttribute(forKey key: AttributeKey, value: AttributeValue, in core: FlashcatCoreProtocol = CoreRegistry.default) {
         guard let feature = core.get(feature: LogsFeature.self) else {
             return
         }
@@ -111,7 +111,7 @@ public enum Logs {
     /// - Parameters:
     ///   - key: the key of an attribute that will be removed.
     ///   - core: the `DatadogCoreProtocol` to remove the attribute from.
-    public static func removeAttribute(forKey key: AttributeKey, in core: DatadogCoreProtocol = CoreRegistry.default) {
+    public static func removeAttribute(forKey key: AttributeKey, in core: FlashcatCoreProtocol = CoreRegistry.default) {
         guard let feature = core.get(feature: LogsFeature.self) else {
             return
         }
@@ -119,7 +119,7 @@ public enum Logs {
         sendAttributesChanged(for: feature, in: core)
     }
 
-    private static func sendAttributesChanged(for feature: LogsFeature, in core: DatadogCoreProtocol) {
+    private static func sendAttributesChanged(for feature: LogsFeature, in core: FlashcatCoreProtocol) {
         core.send(
             message: .payload(LogEventAttributes(
                 attributes: feature.attributes.getAttributes()

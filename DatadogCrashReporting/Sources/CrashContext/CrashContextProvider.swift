@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// An interface for writing and reading  the `CrashContext`
 internal protocol CrashContextProvider: AnyObject {
@@ -60,7 +60,7 @@ internal class CrashContextCoreProvider: CrashContextProvider {
 }
 
 extension CrashContextCoreProvider: FeatureMessageReceiver {
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         switch message {
         case .context(let context):
             update(context: context)
@@ -84,7 +84,7 @@ extension CrashContextCoreProvider: FeatureMessageReceiver {
     /// Updates crash context.
     ///
     /// - Parameter context: The updated core context.
-    private func update(context: DatadogContext) {
+    private func update(context: FlashcatContext) {
         queue.async { [weak self] in
             guard let self = self else {
                 return

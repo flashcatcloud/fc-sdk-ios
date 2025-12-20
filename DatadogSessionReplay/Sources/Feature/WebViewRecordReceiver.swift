@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct WebViewRecordReceiver: FeatureMessageReceiver {
     internal struct WebRecord: Encodable {
@@ -22,7 +22,7 @@ internal struct WebViewRecordReceiver: FeatureMessageReceiver {
     /// Session Replay feature scope.
     let scope: FeatureScope
 
-    func receive(message: DatadogInternal.FeatureMessage, from core: DatadogInternal.DatadogCoreProtocol) -> Bool {
+    func receive(message: FlashcatInternal.FeatureMessage, from core: FlashcatInternal.FlashcatCoreProtocol) -> Bool {
         guard case let .webview(.record(event, view)) = message else {
             return false
         }

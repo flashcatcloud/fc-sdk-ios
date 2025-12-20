@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Tracks View Hitches telemetry and exports attributes under the "RUM UI Slowness" metric.
 internal final class ViewHitchesMetric {

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Abstracts the `DataUploadWorker`, so we can have no-op uploader in tests.
 internal protocol DataUploadWorkerType {
@@ -101,7 +101,7 @@ internal class DataUploadWorker: DataUploadWorkerType {
         queue.asyncAfter(deadline: .now() + delay.current, execute: readWork)
     }
 
-    private func uploadFile(from files: [ReadableFile], context: DatadogContext) {
+    private func uploadFile(from files: [ReadableFile], context: FlashcatContext) {
         let uploadWork = DispatchWorkItem { [weak self] in
             guard let self = self else {
                 return

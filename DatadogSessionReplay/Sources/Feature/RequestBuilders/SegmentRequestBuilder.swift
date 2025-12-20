@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct SegmentRequestBuilder: FeatureRequestBuilder {
     private static let newlineByte = "\n".data(using: .utf8)! // swiftlint:disable:this force_unwrapping
@@ -30,7 +30,7 @@ internal struct SegmentRequestBuilder: FeatureRequestBuilder {
 
     func request(
         for events: [Event],
-        with context: DatadogContext,
+        with context: FlashcatContext,
         execution: ExecutionContext
     ) throws -> URLRequest {
         var tags = [
@@ -59,7 +59,7 @@ internal struct SegmentRequestBuilder: FeatureRequestBuilder {
         return try createRequest(segments: segments, context: context, tags: tags)
     }
 
-    private func createRequest(segments: [SegmentJSON], context: DatadogContext, tags: [String]) throws -> URLRequest {
+    private func createRequest(segments: [SegmentJSON], context: FlashcatContext, tags: [String]) throws -> URLRequest {
         var multipart = multipartBuilder
 
         let builder = URLRequestBuilder(
@@ -115,7 +115,7 @@ internal struct SegmentRequestBuilder: FeatureRequestBuilder {
         return builder.uploadRequest(with: multipart.build(), compress: false)
     }
 
-    private func url(with context: DatadogContext) -> URL {
+    private func url(with context: FlashcatContext) -> URL {
         customUploadURL ?? context.site.endpoint.appendingPathComponent("api/v2/replay")
     }
 }

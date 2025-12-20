@@ -21,6 +21,6 @@ Pod::Spec.new do |s|
 
   s.source_files = ["DatadogWebViewTracking/Sources/**/*.swift"]
 
-  s.dependency 'DatadogInternal', s.version.to_s
+  s.dependency 'FlashcatInternal', s.version.to_s
 
 end

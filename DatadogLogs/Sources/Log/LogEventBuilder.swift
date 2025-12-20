@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Builds `LogEvent` from data received from the user and provided internally by the SDK.
 internal struct LogEventBuilder {
@@ -51,7 +51,7 @@ internal struct LogEventBuilder {
         binaryImages: [BinaryImage]?,
         attributes: LogEvent.Attributes,
         tags: Set<String>,
-        context: DatadogContext,
+        context: FlashcatContext,
         threadName: String,
         callback: @escaping (LogEvent) -> Void
     ) {

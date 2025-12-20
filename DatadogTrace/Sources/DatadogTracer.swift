@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 import OpenTelemetryApi
 
 internal final class DatadogTracer: OTTracer, OpenTelemetryApi.Tracer {
@@ -34,7 +34,7 @@ internal final class DatadogTracer: OTTracer, OpenTelemetryApi.Tracer {
     // MARK: - Initialization
 
     convenience init(
-        core: DatadogCoreProtocol,
+        core: FlashcatCoreProtocol,
         localTraceSampler: Sampler,
         tags: [String: Encodable],
         traceIDGenerator: TraceIDGenerator,

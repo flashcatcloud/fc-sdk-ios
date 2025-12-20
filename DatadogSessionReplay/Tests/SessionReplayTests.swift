@@ -7,7 +7,7 @@
 #if os(iOS)
 import XCTest
 import TestUtilities
-@testable import DatadogInternal
+@testable import FlashcatInternal
 @_spi(Internal)
 @testable import DatadogSessionReplay
 

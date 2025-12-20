@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 /// Predicate determining which SwiftUI component interactions should be recorded as RUM actions.
 /// Implement this protocol to customize or filter SwiftUI action tracking.

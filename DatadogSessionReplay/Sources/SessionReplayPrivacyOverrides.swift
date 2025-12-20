@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 // MARK: - Associated Keys
 
@@ -15,7 +15,7 @@ internal var associatedOverridesKey: UInt8 = 3
 // MARK: - DatadogExtension for UIView
 
 /// Extension to provide access to `SessionReplayPrivacyOverrides` for any `UIView`.
-extension DatadogExtension where ExtendedType: UIView {
+extension FlashcatExtension where ExtendedType: UIView {
     /// Provides access to Session Replay override settings for the view.
     /// Usage: `myView.dd.sessionReplayPrivacyOverrides.textAndInputPrivacy = .maskNone`.
     public var sessionReplayPrivacyOverrides: SessionReplayPrivacyOverrides {

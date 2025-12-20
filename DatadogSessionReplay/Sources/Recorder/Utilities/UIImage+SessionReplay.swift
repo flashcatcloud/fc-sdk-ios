@@ -7,15 +7,15 @@
 #if os(iOS)
 import Foundation
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 import CommonCrypto
 
 private let bitsPerComponent = 8
 private var identifierKey: UInt8 = 0
 
-extension UIImage: DatadogExtended {}
+extension UIImage: FlashcatExtended {}
 
-extension DatadogExtension where ExtendedType: UIImage {
+extension FlashcatExtension where ExtendedType: UIImage {
     var identifier: String {
         if let hash = objc_getAssociatedObject(type, &identifierKey) as? String {
             return hash

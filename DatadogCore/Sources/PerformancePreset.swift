@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol StoragePerformancePreset {
     /// Maximum size of a single file (in bytes).

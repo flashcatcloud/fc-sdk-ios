@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Command processed through the tree of `RUMScopes`.
 internal protocol RUMCommand {

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension Logs: InternalExtended {}
 
@@ -16,7 +16,7 @@ extension InternalExtension where ExtendedType == Logs {
     ///    - in: the core to check
     ///
     /// - Returns: true if `Logs` has been enabled for the supplied core.
-    public static func isEnabled(in core: DatadogCoreProtocol = CoreRegistry.default) -> Bool {
+    public static func isEnabled(in core: FlashcatCoreProtocol = CoreRegistry.default) -> Bool {
         return core.get(feature: LogsFeature.self) != nil
     }
 }

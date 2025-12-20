@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 
 class SessionReplayDependencyTests: XCTestCase {
@@ -14,7 +14,7 @@ class SessionReplayDependencyTests: XCTestCase {
         let recordsCountByViewID: [String: Int64] = [.mockRandom(): .mockRandom()]
 
         // When
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             additionalContext: [
                 SessionReplayCoreContext.HasReplay(value: hasReplay),
                 SessionReplayCoreContext.RecordsCount(value: recordsCountByViewID)
@@ -28,7 +28,7 @@ class SessionReplayDependencyTests: XCTestCase {
 
     func testWhenSessionReplayIsNotConfigured_itReadsNoSRBaggage() {
         // When
-        let context: DatadogContext = .mockAny()
+        let context: FlashcatContext = .mockAny()
 
         // Then
         XCTAssertNil(context.hasReplay)

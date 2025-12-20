@@ -5,13 +5,13 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Defines whether the trace context should be injected into all requests or only sampled ones.
 @objc(DDTraceContextInjection)
 @_spi(objc)
 public enum objc_TraceContextInjection: Int {
-    internal var swiftType: DatadogInternal.TraceContextInjection {
+    internal var swiftType: FlashcatInternal.TraceContextInjection {
         switch self {
         case .all:
             return .all

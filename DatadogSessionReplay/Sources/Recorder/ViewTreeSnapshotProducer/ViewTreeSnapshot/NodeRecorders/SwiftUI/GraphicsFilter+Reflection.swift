@@ -7,7 +7,7 @@
 #if os(iOS)
 
 import SwiftUI
-import DatadogInternal
+import FlashcatInternal
 
 @available(iOS 13.0, tvOS 13.0, *)
 extension GraphicsFilter: Reflection {

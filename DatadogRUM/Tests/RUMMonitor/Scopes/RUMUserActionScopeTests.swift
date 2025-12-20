@@ -5,12 +5,12 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import TestUtilities
 @testable import DatadogRUM
 
 class RUMUserActionScopeTests: XCTestCase {
-    let context: DatadogContext = .mockWith(
+    let context: FlashcatContext = .mockWith(
         service: "test-service",
         version: "test-version",
         buildNumber: "test-build",
@@ -143,7 +143,7 @@ class RUMUserActionScopeTests: XCTestCase {
 
     func testGivenCustomSource_whenActionIsSent_itSendsCustomSource() throws {
         let source = String.mockAnySource()
-        let customContext: DatadogContext = .mockWith(source: source)
+        let customContext: FlashcatContext = .mockWith(source: source)
 
         let scope = RUMViewScope.mockWith(
             parent: parent,

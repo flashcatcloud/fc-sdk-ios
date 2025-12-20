@@ -5,9 +5,9 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
-internal final class CrashReportingFeature: DatadogFeature {
+internal final class CrashReportingFeature: FlashcatFeature {
     static let name = "crash-reporter"
 
     let messageReceiver: FeatureMessageReceiver

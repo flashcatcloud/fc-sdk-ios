@@ -5,7 +5,7 @@
 */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
 @_spi(objc)
 @testable import DatadogLogs

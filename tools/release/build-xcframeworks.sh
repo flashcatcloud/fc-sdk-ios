@@ -110,7 +110,7 @@ cp -r "Carthage/Build/CrashReporter.xcframework" "$XCFRAMEWORKS_OUTPUT"
 cp -r "Carthage/Build/OpenTelemetryApi.xcframework" "$XCFRAMEWORKS_OUTPUT"
 
 # Build Datadog XCFrameworks
-build_xcframework DatadogInternal "$PLATFORMS"
+build_xcframework FlashcatInternal "$PLATFORMS"
 build_xcframework DatadogCore "$PLATFORMS"
 build_xcframework DatadogLogs "$PLATFORMS"
 build_xcframework DatadogTrace "$PLATFORMS"

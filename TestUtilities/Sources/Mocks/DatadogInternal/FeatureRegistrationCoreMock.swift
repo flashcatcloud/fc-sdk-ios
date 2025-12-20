@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 import Foundation
 
 /// Core mock that only allows registering and retrieving features.
@@ -21,11 +21,11 @@ import Foundation
 ///
 /// **Note:** If you need different capabilities, check other available core mocks,
 /// before you consider adding it here.
-public class FeatureRegistrationCoreMock: DatadogCoreProtocol {
+public class FeatureRegistrationCoreMock: FlashcatCoreProtocol {
     /// Counts references to this mock, so we can test if there are no memory leaks.
     public private(set) static var referenceCount = 0
 
-    public internal(set) var registeredFeatures: [DatadogFeature] = []
+    public internal(set) var registeredFeatures: [FlashcatFeature] = []
 
     public init() {
         FeatureRegistrationCoreMock.referenceCount += 1
@@ -37,7 +37,7 @@ public class FeatureRegistrationCoreMock: DatadogCoreProtocol {
 
     // MARK: - Supported
 
-    public func register<T>(feature: T) throws where T: DatadogFeature {
+    public func register<T>(feature: T) throws where T: FlashcatFeature {
         registeredFeatures.append(feature)
     }
 
@@ -47,7 +47,7 @@ public class FeatureRegistrationCoreMock: DatadogCoreProtocol {
 
     // MARK: - Unsupported
 
-    public func scope<T>(for featureType: T.Type) -> FeatureScope where T: DatadogFeature {
+    public func scope<T>(for featureType: T.Type) -> FeatureScope where T: FlashcatFeature {
         return NOPFeatureScope()
     }
 
@@ -55,7 +55,7 @@ public class FeatureRegistrationCoreMock: DatadogCoreProtocol {
         // not supported - use different type of core mock if you need this
     }
 
-    public func send(message: DatadogInternal.FeatureMessage, else fallback: @escaping () -> Void) {
+    public func send(message: FlashcatInternal.FeatureMessage, else fallback: @escaping () -> Void) {
         // not supported - use different type of core mock if you need this
     }
 

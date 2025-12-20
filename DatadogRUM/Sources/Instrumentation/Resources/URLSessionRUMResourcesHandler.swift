@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct DistributedTracing {
     /// The sampling rate for tracing. Value between `0.0` and `100.0`, where `0.0` means NO trace will be sent and `100.0` means ALL traces will be sent.
@@ -69,7 +69,7 @@ internal final class URLSessionRUMResourcesHandler: DatadogURLSessionHandler, RU
 
     // MARK: - DatadogURLSessionHandler
 
-    func modify(request: URLRequest, headerTypes: Set<DatadogInternal.TracingHeaderType>, networkContext: NetworkContext?) -> (URLRequest, TraceContext?) {
+    func modify(request: URLRequest, headerTypes: Set<FlashcatInternal.TracingHeaderType>, networkContext: NetworkContext?) -> (URLRequest, TraceContext?) {
         distributedTracing?.modify(
             request: request,
             headerTypes: headerTypes,
@@ -79,7 +79,7 @@ internal final class URLSessionRUMResourcesHandler: DatadogURLSessionHandler, RU
         ) ?? (request, nil)
     }
 
-    func interceptionDidStart(interception: DatadogInternal.URLSessionTaskInterception) {
+    func interceptionDidStart(interception: FlashcatInternal.URLSessionTaskInterception) {
         let url = interception.request.url?.absoluteString ?? "unknown_url"
         interception.register(origin: "rum")
 
@@ -96,7 +96,7 @@ internal final class URLSessionRUMResourcesHandler: DatadogURLSessionHandler, RU
         )
     }
 
-    func interceptionDidComplete(interception: DatadogInternal.URLSessionTaskInterception) {
+    func interceptionDidComplete(interception: FlashcatInternal.URLSessionTaskInterception) {
         guard let subscriber = subscriber else {
             return DD.logger.warn(
                 """
@@ -196,7 +196,7 @@ internal final class URLSessionRUMResourcesHandler: DatadogURLSessionHandler, RU
 }
 
 extension DistributedTracing {
-    func modify(request: URLRequest, headerTypes: Set<DatadogInternal.TracingHeaderType>, rumSessionId: String?, userId: String?, accountId: String?) -> (URLRequest, TraceContext?) {
+    func modify(request: URLRequest, headerTypes: Set<FlashcatInternal.TracingHeaderType>, rumSessionId: String?, userId: String?, accountId: String?) -> (URLRequest, TraceContext?) {
         let traceID = traceIDGenerator.generate()
         let spanID = spanIDGenerator.generate()
 
@@ -274,7 +274,7 @@ extension DistributedTracing {
         return (request, (hasSetAnyHeader && injectedSpanContext.isKept) ? injectedSpanContext : nil)
     }
 
-    func trace(from interception: DatadogInternal.URLSessionTaskInterception) -> RUMSpanContext? {
+    func trace(from interception: FlashcatInternal.URLSessionTaskInterception) -> RUMSpanContext? {
         return interception.trace.map {
             .init(
                 traceID: $0.traceID,

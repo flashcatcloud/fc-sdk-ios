@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 
 @testable import DatadogFlags
 
@@ -77,7 +77,7 @@ final class ExposureRequestBuilderTests: XCTestCase {
             customIntakeURL: nil,
             telemetry: NOPTelemetry()
         )
-        let context: DatadogContext = .mockWith(source: randomSource)
+        let context: FlashcatContext = .mockWith(source: randomSource)
 
         // When
         let request = try builder.request(for: mockEvents, with: context, execution: .mockAny())
@@ -103,7 +103,7 @@ final class ExposureRequestBuilderTests: XCTestCase {
             customIntakeURL: nil,
             telemetry: NOPTelemetry()
         )
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             clientToken: randomClientToken,
             version: randomVersion,
             source: randomSource,

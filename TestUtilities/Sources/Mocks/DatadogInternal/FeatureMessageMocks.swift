@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 public extension Array where Element == FeatureMessage {
     /// Unpacks the first "payload message" in this array.
@@ -24,7 +24,7 @@ public extension Array where Element == FeatureMessage {
     }
 
     /// Unpacks the first "context message" in this array.
-    func firstContext() -> DatadogContext? {
+    func firstContext() -> FlashcatContext? {
         lazy.compactMap { $0.asContext }.first
     }
 
@@ -57,7 +57,7 @@ public extension FeatureMessage {
     }
 
     /// Extracts context from feature message.
-    var asContext: DatadogContext? {
+    var asContext: FlashcatContext? {
         guard case let .context(context) = self else {
             return nil
         }

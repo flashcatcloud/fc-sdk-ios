@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol RUMFlagEvaluationReporting {
     func sendFlagEvaluation<T: FlagValue>(flagKey: String, value: T)

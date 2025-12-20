@@ -6,7 +6,7 @@
 
 #if canImport(UIKit)
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 #if canImport(WatchKit)
 import WatchKit
 #endif

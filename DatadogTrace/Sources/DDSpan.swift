@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal final class DDSpan: OTSpan {
     /// The `Tracer` which created this span.

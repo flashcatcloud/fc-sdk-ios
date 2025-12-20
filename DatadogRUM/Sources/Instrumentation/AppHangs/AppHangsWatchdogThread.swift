@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol AppHangsObservingThread: Flushable {
     /// Starts the thread with given delegate.

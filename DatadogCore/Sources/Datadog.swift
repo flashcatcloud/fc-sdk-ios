@@ -5,11 +5,11 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 //swiftlint:disable duplicate_imports
-@_exported import enum DatadogInternal.TrackingConsent
-@_exported import protocol DatadogInternal.DatadogCoreProtocol
+@_exported import enum FlashcatInternal.TrackingConsent
+@_exported import protocol FlashcatInternal.FlashcatCoreProtocol
 //swiftlint:enable duplicate_imports
 
 /// An entry point to Datadog SDK.
@@ -55,7 +55,7 @@ public enum Datadog {
     ///
     /// - Parameter name: The name of the instance to get.
     /// - Returns: The core instance if it exists, `NOPDatadogCore` instance otherwise.
-    public static func sdkInstance(named name: String) -> DatadogCoreProtocol {
+    public static func sdkInstance(named name: String) -> FlashcatCoreProtocol {
         CoreRegistry.instance(named: name)
     }
 
@@ -73,7 +73,7 @@ public enum Datadog {
         name: String? = nil,
         email: String? = nil,
         extraInfo: [AttributeKey: AttributeValue] = [:],
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         let core = core as? FlashcatCore
         core?.setUserInfo(
@@ -93,7 +93,7 @@ public enum Datadog {
     ///   - extraInfo: User's additional custom attributes
     public static func addUserExtraInfo(
         _ extraInfo: [AttributeKey: AttributeValue?],
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         let core = core as? FlashcatCore
         core?.addUserExtraInfo(extraInfo)
@@ -113,7 +113,7 @@ public enum Datadog {
     /// you need to stop the view first by using `RUMMonitor.stopView(viewController:attributes:)`
     ///
     public static func clearUserInfo(
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         let core = core as? FlashcatCore
         core?.clearUserInfo()
@@ -131,7 +131,7 @@ public enum Datadog {
         id: String,
         name: String? = nil,
         extraInfo: [AttributeKey: AttributeValue] = [:],
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         let core = core as? FlashcatCore
         core?.setAccountInfo(
@@ -150,7 +150,7 @@ public enum Datadog {
     ///   - extraInfo: User's additional custom attributes
     public static func addAccountExtraInfo(
         _ extraInfo: [AttributeKey: AttributeValue?],
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         let core = core as? FlashcatCore
         core?.addAccountExtraInfo(extraInfo)
@@ -170,7 +170,7 @@ public enum Datadog {
     /// you need to stop the view first by using `RUMMonitor.stopView(viewController:attributes:)`
     ///
     public static func clearAccountInfo(
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         let core = core as? FlashcatCore
         core?.clearAccountInfo()
@@ -178,13 +178,13 @@ public enum Datadog {
 
     /// Sets the tracking consent regarding the data collection for the Datadog SDK.
     /// - Parameter trackingConsent: new consent value, which will be applied for all data collected from now on
-    public static func set(trackingConsent: TrackingConsent, in core: DatadogCoreProtocol = CoreRegistry.default) {
+    public static func set(trackingConsent: TrackingConsent, in core: FlashcatCoreProtocol = CoreRegistry.default) {
         let core = core as? FlashcatCore
         core?.set(trackingConsent: trackingConsent)
     }
 
     /// Clears all data that has not already been sent to Datadog servers.
-    public static func clearAllData(in core: DatadogCoreProtocol = CoreRegistry.default) {
+    public static func clearAllData(in core: FlashcatCoreProtocol = CoreRegistry.default) {
         let core = core as? FlashcatCore
         core?.clearAllData()
     }
@@ -248,7 +248,7 @@ public enum Datadog {
         with configuration: Configuration,
         trackingConsent: TrackingConsent,
         instanceName: String = CoreRegistry.defaultInstanceName
-    ) -> DatadogCoreProtocol {
+    ) -> FlashcatCoreProtocol {
         #if targetEnvironment(macCatalyst)
         consolePrint("⚠️ Catalyst is not officially supported by Datadog SDK: some features may NOT be functional!", .warn)
         #endif
@@ -282,7 +282,7 @@ public enum Datadog {
         with configuration: Configuration,
         trackingConsent: TrackingConsent,
         instanceName: String
-    ) throws -> DatadogCoreProtocol {
+    ) throws -> FlashcatCoreProtocol {
         guard !CoreRegistry.isRegistered(instanceName: instanceName) else {
             throw ProgrammerError(description: "The '\(instanceName)' instance of SDK is already initialized.")
         }

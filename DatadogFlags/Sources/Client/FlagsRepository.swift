@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol FlagsRepositoryProtocol {
     var clientName: String { get }

@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogTrace
 
 class SpanWriteContextTests: XCTestCase {
@@ -15,7 +15,7 @@ class SpanWriteContextTests: XCTestCase {
     func testWhenRequestingSpanWriteContext_itProvidesInitialCoreContext() {
         let retrieveContext = expectation(description: "provide core context")
 
-        let initialContext: DatadogContext = .mockRandom()
+        let initialContext: FlashcatContext = .mockRandom()
         featureScope.contextMock = initialContext
 
         // Given

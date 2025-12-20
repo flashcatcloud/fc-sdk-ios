@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 import UIKit
 
 internal final class RUMFeature: DatadogRemoteFeature {
@@ -28,7 +28,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
     )
 
     init(
-        in core: DatadogCoreProtocol,
+        in core: FlashcatCoreProtocol,
         configuration: RUM.Configuration
     ) throws {
         self.configuration = configuration

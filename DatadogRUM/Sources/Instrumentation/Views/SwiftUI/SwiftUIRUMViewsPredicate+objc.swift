@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 // MARK: - SwiftUI Views Predicate Bridge
 

@@ -5,12 +5,12 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 @testable import TestUtilities
 
 class RUMSessionScopeTests: XCTestCase {
-    let context: DatadogContext = .mockAny()
+    let context: FlashcatContext = .mockAny()
     let writer = FileWriterMock()
 
     private lazy var parent = RUMApplicationScope(

@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 
 class RUMScopeTests: XCTestCase {
@@ -20,7 +20,7 @@ class RUMScopeTests: XCTestCase {
         }
 
         let context = RUMContext.mockWith(rumApplicationID: .mockAny(), sessionID: .nullUUID)
-        func process(command: RUMCommand, context: DatadogContext, writer: Writer) -> Bool { !isCompleted }
+        func process(command: RUMCommand, context: FlashcatContext, writer: Writer) -> Bool { !isCompleted }
     }
 
     func testWhenPropagatingCommand_itRemovesCompletedScope() {

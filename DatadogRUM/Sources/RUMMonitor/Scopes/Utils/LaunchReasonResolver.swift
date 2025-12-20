@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Resolves the app's launch reason (`LaunchReason`) for platforms like tvOS, where
 /// it cannot be determined immediately at SDK initialization (e.g., no `task_role` kernel's API support).
@@ -26,7 +26,7 @@ internal final class LaunchReasonResolver {
     /// Launch window duration before resolving `.backgroundLaunch`.
     private let threshold: TimeInterval
     /// Buffer of commands received while the launch reason is unresolved.
-    private var buffer: [(command: RUMCommand, context: DatadogContext, writer: Writer)] = []
+    private var buffer: [(command: RUMCommand, context: FlashcatContext, writer: Writer)] = []
     /// Resolved launch reason, updated once a conclusive condition is met.
     private var resolvedReason: LaunchReason?
 
@@ -52,9 +52,9 @@ internal final class LaunchReasonResolver {
     ///   - onReady: Callback called once per command, with the resolved launch reason injected into context.
     func deferUntilLaunchReasonResolved(
         command: RUMCommand,
-        context: DatadogContext,
+        context: FlashcatContext,
         writer: Writer,
-        onReady: (RUMCommand, DatadogContext, Writer) -> Void
+        onReady: (RUMCommand, FlashcatContext, Writer) -> Void
     ) {
         // If the launch reason was already resolved externally (e.g., via iOS `task_role` or prewarm flag),
         // forward the command immediately. This is a defensive check — callers should avoid deferring resolution
@@ -93,7 +93,7 @@ internal final class LaunchReasonResolver {
     /// Attempts to resolve the launch reason based on current state, lifecycle events, or elapsed time.
     ///
     /// - Returns: A resolved `LaunchReason`, or `nil` if it remains uncertain.
-    private func evaluateLaunchReason(command: RUMCommand, context: DatadogContext) -> LaunchReason? {
+    private func evaluateLaunchReason(command: RUMCommand, context: FlashcatContext) -> LaunchReason? {
         if context.applicationStateHistory.initialState != .background {
             return .userLaunch
         }
@@ -112,9 +112,9 @@ internal final class LaunchReasonResolver {
     }
 }
 
-private extension DatadogContext {
+private extension FlashcatContext {
     /// Returns a copy of this context with the updated `launchReason`.
-    func replacing(launchReason: LaunchReason) -> DatadogContext {
+    func replacing(launchReason: LaunchReason) -> FlashcatContext {
         var copy = self
         copy.launchInfo.launchReason = launchReason
         return copy

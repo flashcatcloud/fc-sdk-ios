@@ -7,7 +7,7 @@
 import XCTest
 import Network
 import SystemConfiguration
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogCore
 
 class NetworkConnectionInfoPublisherTests: XCTestCase {

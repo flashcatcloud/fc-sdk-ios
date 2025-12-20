@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 /// Common path components for SwiftUI view traversal
 internal enum SwiftUIViewNode: String {

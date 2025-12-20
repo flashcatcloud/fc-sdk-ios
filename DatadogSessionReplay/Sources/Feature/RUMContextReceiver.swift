@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// An observer notifying on`RUMContext` changes.
 internal protocol RUMContextObserver {
@@ -26,7 +26,7 @@ internal class RUMContextReceiver: FeatureMessageReceiver, RUMContextObserver {
 
     // MARK: - FeatureMessageReceiver
 
-    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         guard case let .context(context) = message else {
             return false
         }

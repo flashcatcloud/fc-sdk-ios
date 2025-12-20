@@ -22,7 +22,7 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.source_files = "DatadogCrashReporting/Sources/**/*.swift"
-  s.dependency 'DatadogInternal', s.version.to_s
+  s.dependency 'FlashcatInternal', s.version.to_s
   s.dependency 'PLCrashReporter', '~> 1.12.0'
 
   s.resource_bundle = {

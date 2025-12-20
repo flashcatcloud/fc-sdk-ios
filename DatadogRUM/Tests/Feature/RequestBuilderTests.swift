@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 
 class RequestBuilderTests: XCTestCase {
@@ -88,7 +88,7 @@ class RequestBuilderTests: XCTestCase {
             eventsFilter: .init(telemetry: TelemetryMock()),
             telemetry: NOPTelemetry()
         )
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             service: randomService,
             env: randomEnv,
             version: randomVersion,
@@ -124,7 +124,7 @@ class RequestBuilderTests: XCTestCase {
             eventsFilter: .init(telemetry: TelemetryMock()),
             telemetry: NOPTelemetry()
         )
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             clientToken: randomClientToken,
             service: randomService,
             env: randomEnv,

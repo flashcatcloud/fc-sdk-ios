@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 
-@testable import DatadogInternal
+@testable import FlashcatInternal
 @testable import DatadogLogs
 @_spi(objc)
 @testable import DatadogCore

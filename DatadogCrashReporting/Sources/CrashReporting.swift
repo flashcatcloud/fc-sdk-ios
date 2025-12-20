@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Enable iOS Crash Reporting and Error Tracking to get comprehensive crash reports and
 /// error trends with Real User Monitoring. With this feature, you can access:
@@ -21,7 +21,7 @@ import DatadogInternal
 public final class CrashReporting {
     /// Initializes the Datadog Crash Reporter using the default
     /// `PLCrashReporter` plugin.
-    public static func enable(in core: DatadogCoreProtocol = CoreRegistry.default) {
+    public static func enable(in core: FlashcatCoreProtocol = CoreRegistry.default) {
         enable(with: PLCrashReporterPlugin(), in: core)
     }
 
@@ -31,7 +31,7 @@ public final class CrashReporting {
     /// - Provide crash report
     /// - Store context data associated with crashes
     /// - Provide backtraces
-    public static func enable(with plugin: CrashReportingPlugin, in core: DatadogCoreProtocol = CoreRegistry.default) {
+    public static func enable(with plugin: CrashReportingPlugin, in core: FlashcatCoreProtocol = CoreRegistry.default) {
         do {
             // To ensure the correct registration order between Core and Features,
             // the entire initialization flow is synchronized on the main thread.
@@ -43,7 +43,7 @@ public final class CrashReporting {
         }
     }
 
-    internal static func enableOrThrow(with plugin: CrashReportingPlugin, in core: DatadogCoreProtocol) throws {
+    internal static func enableOrThrow(with plugin: CrashReportingPlugin, in core: FlashcatCoreProtocol) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
                 description: "Datadog SDK must be initialized before calling `CrashReporting.enable()`."

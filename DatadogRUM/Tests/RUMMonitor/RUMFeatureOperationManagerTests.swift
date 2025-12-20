@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 @testable import TestUtilities
 
@@ -14,14 +14,14 @@ class RUMFeatureOperationManagerTests: XCTestCase {
     private var mockParent: RUMContextProviderMock! // swiftlint:disable:this implicitly_unwrapped_optional
     private var mockDependencies: RUMScopeDependencies! // swiftlint:disable:this implicitly_unwrapped_optional
     private var mockWriter: FileWriterMock! // swiftlint:disable:this implicitly_unwrapped_optional
-    private var mockContext: DatadogContext! // swiftlint:disable:this implicitly_unwrapped_optional
+    private var mockContext: FlashcatContext! // swiftlint:disable:this implicitly_unwrapped_optional
 
     override func setUp() {
         super.setUp()
         mockParent = RUMContextProviderMock()
         mockDependencies = RUMScopeDependencies.mockAny()
         mockWriter = FileWriterMock()
-        mockContext = DatadogContext.mockAny()
+        mockContext = FlashcatContext.mockAny()
 
         manager = RUMFeatureOperationManager(
             parent: mockParent,

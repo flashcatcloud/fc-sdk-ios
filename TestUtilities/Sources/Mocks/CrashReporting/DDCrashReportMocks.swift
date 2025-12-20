@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 import CrashReporter
 
 @testable import DatadogCrashReporting

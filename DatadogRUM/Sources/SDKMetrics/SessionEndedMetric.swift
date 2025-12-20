@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal enum SessionEndedMetricError: Error, CustomStringConvertible {
     /// Indicates an attempt of tracking view event in session that shouldn't belong to.
@@ -141,7 +141,7 @@ internal class SessionEndedMetric {
     init(
         sessionID: RUMUUID,
         precondition: RUMSessionPrecondition?,
-        context: DatadogContext,
+        context: FlashcatContext,
         tracksBackgroundEvents: Bool,
         isUsingSceneLifecycle: Bool,
         validSessionCount: Int
@@ -461,7 +461,7 @@ internal class SessionEndedMetric {
     ///
     /// - Parameter context: the SDK context valid at the moment of this call
     /// - Returns: metric attributes
-    func asMetricAttributes(with context: DatadogContext) -> [String: Encodable] {
+    func asMetricAttributes(with context: FlashcatContext) -> [String: Encodable] {
         var lifecycleInfo: Attributes.LifecycleInfo?
 
         // Compute duration

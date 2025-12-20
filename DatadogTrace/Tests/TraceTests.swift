@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-@testable import DatadogInternal
+@testable import FlashcatInternal
 @testable import DatadogTrace
 
 class TraceTests: XCTestCase {

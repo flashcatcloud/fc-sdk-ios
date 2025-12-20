@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct DDSpanContext: OTSpanContext {
     /// This span's trace ID.

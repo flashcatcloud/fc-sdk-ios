@@ -73,7 +73,7 @@ let package = Package(
         .target(
             name: "DatadogCore",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .target(name: "DatadogPrivate"),
             ],
             path: "DatadogCore",
@@ -89,23 +89,23 @@ let package = Package(
         ),
 
         .target(
-            name: "DatadogInternal",
-            path: "DatadogInternal/Sources",
+            name: "FlashcatInternal",
+            path: "FlashcatInternal/Sources",
             swiftSettings: internalSwiftSettings
         ),
         .testTarget(
-            name: "DatadogInternalTests",
+            name: "FlashcatInternalTests",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogInternal/Tests"
+            path: "FlashcatInternal/Tests"
         ),
 
         .target(
             name: "DatadogLogs",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
             ],
             path: "DatadogLogs/Sources"
         ),
@@ -121,7 +121,7 @@ let package = Package(
         .target(
             name: "DatadogTrace",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .product(name: "OpenTelemetryApi", package: opentelemetry.name)
             ],
             path: "DatadogTrace/Sources"
@@ -138,7 +138,7 @@ let package = Package(
         .target(
             name: "DatadogRUM",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
             ],
             path: "DatadogRUM",
             sources: ["Sources"],
@@ -158,7 +158,7 @@ let package = Package(
         .target(
             name: "DatadogCrashReporting",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .product(name: "CrashReporter", package: "PLCrashReporter"),
             ],
             path: "DatadogCrashReporting",
@@ -179,7 +179,7 @@ let package = Package(
         .target(
             name: "DatadogWebViewTracking",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
             ],
             path: "DatadogWebViewTracking/Sources"
         ),
@@ -194,7 +194,7 @@ let package = Package(
 
         .target(
             name: "DatadogSessionReplay",
-            dependencies: ["DatadogInternal"],
+            dependencies: ["FlashcatInternal"],
             path: "DatadogSessionReplay/Sources"
         ),
         .testTarget(
@@ -212,7 +212,7 @@ let package = Package(
         .target(
             name: "DatadogFlags",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
             ],
             path: "DatadogFlags/Sources"
         ),
@@ -230,7 +230,7 @@ let package = Package(
             dependencies: [
                 .target(name: "DatadogCore"),
                 .target(name: "DatadogPrivate"),
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .target(name: "DatadogLogs"),
                 .target(name: "DatadogRUM"),
                 .target(name: "DatadogSessionReplay"),

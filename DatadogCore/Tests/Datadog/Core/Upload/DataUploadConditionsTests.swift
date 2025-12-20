@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogCore
 
 class DataUploadConditionsTests: XCTestCase {
@@ -92,7 +92,7 @@ class DataUploadConditionsTests: XCTestCase {
         file: StaticString = #file,
         line: UInt = #line
     ) {
-        let context: DatadogContext = .mockWith(networkConnectionInfo: network, batteryStatus: battery, isLowPowerModeEnabled: isLowPowerModeEnabled)
+        let context: FlashcatContext = .mockWith(networkConnectionInfo: network, batteryStatus: battery, isLowPowerModeEnabled: isLowPowerModeEnabled)
         let conditions = DataUploadConditions()
         let canPerformUpload = conditions.blockersForUpload(with: context).isEmpty
         XCTAssertEqual(

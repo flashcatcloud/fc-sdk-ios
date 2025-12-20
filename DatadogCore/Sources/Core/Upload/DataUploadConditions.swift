@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Tells if data upload can be performed based on given system conditions.
 internal struct DataUploadConditions {
@@ -27,7 +27,7 @@ internal struct DataUploadConditions {
         self.minBatteryLevel = minBatteryLevel
     }
 
-    func blockersForUpload(with context: DatadogContext) -> [Blocker] {
+    func blockersForUpload(with context: FlashcatContext) -> [Blocker] {
         var blockers: [Blocker] = []
         #if !os(watchOS)
         guard let reachability = context.networkConnectionInfo?.reachability else {

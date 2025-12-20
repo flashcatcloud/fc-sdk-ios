@@ -6,7 +6,7 @@
 
 import XCTest
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 @testable import TestUtilities
 @testable import DatadogRUM
 

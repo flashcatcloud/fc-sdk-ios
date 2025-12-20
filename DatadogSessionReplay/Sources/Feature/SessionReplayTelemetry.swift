@@ -7,7 +7,7 @@
 #if os(iOS)
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Session Replay Telemetry forwards telemetry events on a dedicated queue
 /// and deduplicate debug and error messages based on their ids.
@@ -25,7 +25,7 @@ internal final class SessionReplayTelemetry {
 }
 
 extension SessionReplayTelemetry: Telemetry {
-    func send(telemetry: DatadogInternal.TelemetryMessage) {
+    func send(telemetry: FlashcatInternal.TelemetryMessage) {
         queue.run { [weak self] in
             guard let self else {
                 return

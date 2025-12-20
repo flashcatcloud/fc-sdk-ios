@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogRUM
 
 class SessionEndedMetricTests: XCTestCase {
@@ -637,7 +637,7 @@ class SessionEndedMetricTests: XCTestCase {
             raw: .init(taskPolicyRole: "TASK_ROLE_MOCK", isPrewarmed: prewarmed)
         )
         let sdkInitDate = launchInfo.processLaunchDate + 0.42
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             sdkInitDate: sdkInitDate,
             launchInfo: launchInfo,
             applicationStateHistory: .mockWith(initialState: .inactive, date: sdkInitDate)
@@ -674,7 +674,7 @@ class SessionEndedMetricTests: XCTestCase {
         let view2Stop = view2Start + 5 // view2 lasts for 5s
         let validSessionCount: Int = .mockRandom()
 
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             launchInfo: .mockWith(processLaunchDate: processLaunchDate),
             applicationStateHistory: .mockWith(
                 initialState: .inactive,
@@ -774,7 +774,7 @@ private extension SessionEndedMetric {
     static func with(
         sessionID: RUMUUID,
         precondition: RUMSessionPrecondition? = .mockRandom(),
-        context: DatadogContext = .mockRandom(),
+        context: FlashcatContext = .mockRandom(),
         tracksBackgroundEvents: Bool = .mockRandom(),
         isUsingSceneLifecycle: Bool = .mockRandom(),
         validSessionCount: Int = .mockRandom()

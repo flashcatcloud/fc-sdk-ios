@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// A thread-safe container for managing attributes in a key-value format.
 /// This class allows concurrent access and modification of attributes, ensuring data consistency

@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 
 @testable import DatadogCore
 
@@ -74,7 +74,7 @@ class MessageBusTests: XCTestCase {
 }
 
 extension MessageBus: @retroactive Telemetry {
-    public func send(telemetry: DatadogInternal.TelemetryMessage) {
+    public func send(telemetry: FlashcatInternal.TelemetryMessage) {
         send(message: .telemetry(telemetry))
     }
 }

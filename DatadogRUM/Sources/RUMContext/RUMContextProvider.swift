@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol RUMContextProvider: AnyObject {
     /// The RUM context local to this provider.

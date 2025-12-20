@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Publishes the user consent to receiver.
 internal final class TrackingConsentPublisher: ContextValuePublisher {

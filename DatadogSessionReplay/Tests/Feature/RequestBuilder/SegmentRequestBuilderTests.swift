@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 
 @_spi(Internal)
 @testable import TestUtilities
@@ -70,7 +70,7 @@ class SegmentRequestBuilderTests: XCTestCase {
     func testItSetsQueryParameters() throws {
         // Given
         let builder = SegmentRequestBuilder(customUploadURL: nil, telemetry: TelemetryMock())
-        let context: DatadogContext = .mockRandom()
+        let context: FlashcatContext = .mockRandom()
 
         // When
         let request = try builder.request(for: mockEvents, with: context, execution: .mockWith(previousResponseCode: nil, attempt: 0))
@@ -91,7 +91,7 @@ class SegmentRequestBuilderTests: XCTestCase {
 
         // Given
         let builder = SegmentRequestBuilder(customUploadURL: nil, telemetry: TelemetryMock())
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             clientToken: randomClientToken,
             version: randomVersion,
             source: randomSource,

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// A controller responsible for managing "RUM Session Ended" metrics.
 internal final class SessionEndedMetricController {
@@ -58,7 +58,7 @@ internal final class SessionEndedMetricController {
     ///   - precondition: The precondition that led to starting this session.
     ///   - context: The SDK context at the moment of starting this session.
     /// - Returns: The newly created `SessionEndedMetric` instance.
-    func startMetric(sessionID: RUMUUID, precondition: RUMSessionPrecondition?, context: DatadogContext) {
+    func startMetric(sessionID: RUMUUID, precondition: RUMSessionPrecondition?, context: FlashcatContext) {
         guard sessionID != RUMUUID.nullUUID else {
             return // do not track metric when session is not sampled
         }
@@ -126,7 +126,7 @@ internal final class SessionEndedMetricController {
 
     /// Ends the metric for a given session, sending it to telemetry and removing it from pending metrics.
     /// - Parameter sessionID: The ID of the session to end the metric for.
-    func endMetric(sessionID: RUMUUID, with context: DatadogContext) {
+    func endMetric(sessionID: RUMUUID, with context: FlashcatContext) {
         _metricsBySessionID.mutate { metrics in
             guard let metric = metrics[sessionID] else {
                 return

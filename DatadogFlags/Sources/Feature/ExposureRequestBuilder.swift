@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct ExposureRequestBuilder: FeatureRequestBuilder {
     /// A custom RUM intake.
@@ -17,7 +17,7 @@ internal struct ExposureRequestBuilder: FeatureRequestBuilder {
     /// Telemetry interface.
     let telemetry: Telemetry
 
-    func request(for events: [Event], with context: DatadogContext, execution: ExecutionContext) throws -> URLRequest {
+    func request(for events: [Event], with context: FlashcatContext, execution: ExecutionContext) throws -> URLRequest {
         let builder = URLRequestBuilder(
             url: url(with: context),
             queryItems: [
@@ -42,7 +42,7 @@ internal struct ExposureRequestBuilder: FeatureRequestBuilder {
         return builder.uploadRequest(with: data, compress: false)
     }
 
-    private func url(with context: DatadogContext) -> URL {
+    private func url(with context: FlashcatContext) -> URL {
         customIntakeURL ?? context.site.endpoint.appendingPathComponent("api/v2/exposures")
     }
 }

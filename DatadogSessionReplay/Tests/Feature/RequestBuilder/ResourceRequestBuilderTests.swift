@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 @testable import DatadogSessionReplay
 @testable import TestUtilities
 
@@ -86,7 +86,7 @@ class ResourceRequestBuilderTests: XCTestCase {
 
         // Given
         let builder = ResourceRequestBuilder(customUploadURL: nil, telemetry: TelemetryMock())
-        let context: DatadogContext = .mockWith(
+        let context: FlashcatContext = .mockWith(
             clientToken: randomClientToken,
             version: randomVersion,
             source: randomSource,

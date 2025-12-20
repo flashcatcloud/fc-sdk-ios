@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Indicates the main directory for a given instance of the SDK.
 /// Each instance of `DatadogCore` creates its own `CoreDirectory` to manage data for registered Features.

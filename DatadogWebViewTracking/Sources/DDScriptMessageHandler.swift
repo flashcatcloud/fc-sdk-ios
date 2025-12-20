@@ -8,7 +8,7 @@
 
 import Foundation
 import WebKit
-import DatadogInternal
+import FlashcatInternal
 
 internal class DDScriptMessageHandler: NSObject, WKScriptMessageHandler {
     static let name = "DatadogEventBridge"

@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 import DatadogCrashReporting
 @testable import DatadogRUM
 

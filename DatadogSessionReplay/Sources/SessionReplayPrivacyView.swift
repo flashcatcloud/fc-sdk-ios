@@ -7,7 +7,7 @@
 #if os(iOS)
 
 import SwiftUI
-import DatadogInternal
+import FlashcatInternal
 
 /// A SwiftUI view that applies Session Replay privacy overrides to its content.
 ///
@@ -43,7 +43,7 @@ public struct SessionReplayPrivacyView<Content: View>: View {
     private let imagePrivacy: ImagePrivacyLevel?
     private let touchPrivacy: TouchPrivacyLevel?
     private let hide: Bool?
-    private let core: DatadogCoreProtocol
+    private let core: FlashcatCoreProtocol
     private let content: () -> Content
 
     /// Creates a new `SessionReplayPrivacyView` with specified privacy settings.
@@ -62,7 +62,7 @@ public struct SessionReplayPrivacyView<Content: View>: View {
         imagePrivacy: ImagePrivacyLevel? = nil,
         touchPrivacy: TouchPrivacyLevel? = nil,
         hide: Bool? = nil,
-        core: DatadogCoreProtocol = CoreRegistry.default,
+        core: FlashcatCoreProtocol = CoreRegistry.default,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.isActive = isActive

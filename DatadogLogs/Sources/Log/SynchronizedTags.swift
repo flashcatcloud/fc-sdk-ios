@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// A thread-safe container for managing tags in a set.
 /// This class allows concurrent access and modification of tags, ensuring data consistency

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal final class FatalAppHangsHandler {
     /// RUM feature scope.

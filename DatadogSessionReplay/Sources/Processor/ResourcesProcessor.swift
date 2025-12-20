@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal protocol ResourceProcessing {
     func process(resources: [Resource], context: EnrichedResource.Context)

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct FlagsFeature: DatadogRemoteFeature {
     static let name = "flags"

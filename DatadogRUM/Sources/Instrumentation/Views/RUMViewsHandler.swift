@@ -6,7 +6,7 @@
 
 import Foundation
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 // MARK: - RUMViewsHandler
 internal final class RUMViewsHandler {

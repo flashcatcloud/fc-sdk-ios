@@ -8,13 +8,13 @@
 
 import Foundation
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
-extension UIColor: DatadogExtended {}
+extension UIColor: FlashcatExtended {}
 
 private var identifierKey: UInt8 = 0
 
-extension DatadogExtension where ExtendedType: UIColor {
+extension FlashcatExtension where ExtendedType: UIColor {
     var identifier: String {
         if let hash = objc_getAssociatedObject(type, &identifierKey) as? String {
             return hash

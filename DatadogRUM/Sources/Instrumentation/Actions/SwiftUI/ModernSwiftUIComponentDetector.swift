@@ -6,7 +6,7 @@
 
 import Foundation
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 @available(iOS 18.0, tvOS 18.0, visionOS 2.0, *)
 internal final class ModernSwiftUIComponentDetector: SwiftUIComponentDetector {

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Lightweight representation of current RUM application state, used to compute `RUMOffViewEventsHandlingRule`.
 internal final class RUMApplicationState {

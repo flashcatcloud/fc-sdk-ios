@@ -9,7 +9,7 @@
 import XCTest
 import TestUtilities
 
-@testable import DatadogInternal
+@testable import FlashcatInternal
 @testable import DatadogSessionReplay
 
 class WebViewRecordReceiverTests: XCTestCase {

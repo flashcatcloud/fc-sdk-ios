@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 // MARK: - SwiftUIViewNameExtractor
 /// Protocol defining interface for extracting view names for SwiftUI views

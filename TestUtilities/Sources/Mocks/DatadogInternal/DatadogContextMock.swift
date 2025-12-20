@@ -5,10 +5,10 @@
  */
 
 import Foundation
-@testable import DatadogInternal
+@testable import FlashcatInternal
 
-extension DatadogContext: AnyMockable, RandomMockable {
-    public static func mockAny() -> DatadogContext { mockWith() }
+extension FlashcatContext: AnyMockable, RandomMockable {
+    public static func mockAny() -> FlashcatContext { mockWith() }
 
     public static func mockWith(
         site: FlashcatSite = .mockAny(),
@@ -42,8 +42,8 @@ extension DatadogContext: AnyMockable, RandomMockable {
         brightnessLevel: BrightnessLevel? = .mockAny(),
         isLowPowerModeEnabled: Bool = false,
         additionalContext: [AdditionalContext] = []
-    ) -> DatadogContext {
-        var context = DatadogContext(
+    ) -> FlashcatContext {
+        var context = FlashcatContext(
             site: site,
             clientToken: clientToken,
             service: service,
@@ -80,7 +80,7 @@ extension DatadogContext: AnyMockable, RandomMockable {
         return context
     }
 
-    public static func mockRandom() -> DatadogContext {
+    public static func mockRandom() -> FlashcatContext {
         .init(
             site: .mockRandom(),
             clientToken: .mockRandom(),

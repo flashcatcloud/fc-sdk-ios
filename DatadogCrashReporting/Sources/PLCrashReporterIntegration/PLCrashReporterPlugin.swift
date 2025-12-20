@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// The implementation of `Datadog.DDCrashReportingPluginType`.
 /// Pass its instance as the crash reporting plugin for Datadog SDK to enable crash reporting feature.

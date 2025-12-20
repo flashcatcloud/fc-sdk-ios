@@ -6,7 +6,7 @@
 
 import Foundation
 @testable import DatadogRUM
-@testable import DatadogInternal
+@testable import FlashcatInternal
 
 extension AccessibilityInfo: AnyMockable, RandomMockable {
     public static func mockAny() -> Self {

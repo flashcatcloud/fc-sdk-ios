@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Receives flag evaluation messages and adds them to RUM.
 internal struct FlagEvaluationReceiver: FeatureMessageReceiver {
@@ -13,7 +13,7 @@ internal struct FlagEvaluationReceiver: FeatureMessageReceiver {
     let monitor: Monitor
 
     /// Adds feature flag evaluation to the current RUM view.
-    func receive(message: FeatureMessage, from core: any DatadogCoreProtocol) -> Bool {
+    func receive(message: FeatureMessage, from core: any FlashcatCoreProtocol) -> Bool {
         guard case let .payload(flagEvaluation as RUMFlagEvaluationMessage) = message else {
             return false
         }

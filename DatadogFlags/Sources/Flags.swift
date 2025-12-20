@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Datadog Feature Flags SDK.
 ///
@@ -130,7 +130,7 @@ public enum Flags {
     ///   - core: The Datadog SDK core instance. Defaults to the global shared instance.
     public static func enable(
         with configuration: Flags.Configuration = .init(),
-        in core: DatadogCoreProtocol = CoreRegistry.default
+        in core: FlashcatCoreProtocol = CoreRegistry.default
     ) {
         do {
             // To ensure the correct registration order between Core and Features,
@@ -145,7 +145,7 @@ public enum Flags {
 
     internal static func enableOrThrow(
         with configuration: Flags.Configuration,
-        in core: DatadogCoreProtocol
+        in core: FlashcatCoreProtocol
     ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(

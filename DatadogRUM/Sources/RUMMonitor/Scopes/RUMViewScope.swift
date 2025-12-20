@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 import Foundation
 
 internal class RUMViewScope: RUMScope, RUMContextProvider {
@@ -204,7 +204,7 @@ internal class RUMViewScope: RUMScope, RUMContextProvider {
 // MARK: - RUMCommands Processing
 
 extension RUMViewScope {
-    func process(command: RUMCommand, context: DatadogContext, writer: Writer) -> Bool {
+    func process(command: RUMCommand, context: FlashcatContext, writer: Writer) -> Bool {
         // Tells if the View did change and an update event should be send.
         needsViewUpdate = false
 
@@ -475,7 +475,7 @@ extension RUMViewScope {
         userActionScope = createDiscreteUserActionScope(on: command)
     }
 
-    private func sendDiscreteCustomUserAction(on command: RUMAddUserActionCommand, context: DatadogContext, writer: Writer) {
+    private func sendDiscreteCustomUserAction(on command: RUMAddUserActionCommand, context: FlashcatContext, writer: Writer) {
         let customActionScope = createDiscreteUserActionScope(on: command)
         _ = customActionScope.process(
             command: RUMStopUserActionCommand(
@@ -500,7 +500,7 @@ extension RUMViewScope {
 
     // MARK: - Sending RUM Events
 
-    private func sendApplicationStartAction(on command: RUMApplicationStartCommand, context: DatadogContext, writer: Writer) {
+    private func sendApplicationStartAction(on command: RUMApplicationStartCommand, context: FlashcatContext, writer: Writer) {
         actionsCount += 1
 
         // Application start event attributes
@@ -591,7 +591,7 @@ extension RUMViewScope {
         }
     }
 
-    private func sendViewUpdateEvent(on command: RUMCommand, context: DatadogContext, writer: Writer) {
+    private func sendViewUpdateEvent(on command: RUMCommand, context: FlashcatContext, writer: Writer) {
         version += 1
 
         if let hasContextReplay = context.hasReplay {
@@ -813,7 +813,7 @@ extension RUMViewScope {
         }
     }
 
-    private func sendErrorEvent(on command: RUMErrorCommand, context: DatadogContext, writer: Writer) {
+    private func sendErrorEvent(on command: RUMErrorCommand, context: FlashcatContext, writer: Writer) {
         errorsCount += 1
         totalAppHangDuration += (command as? RUMAddCurrentViewAppHangCommand)?.hangDuration ?? 0
 
@@ -915,7 +915,7 @@ extension RUMViewScope {
         }
     }
 
-    private func sendLongTaskEvent(on command: RUMAddLongTaskCommand, context: DatadogContext, writer: Writer) {
+    private func sendLongTaskEvent(on command: RUMAddLongTaskCommand, context: FlashcatContext, writer: Writer) {
         let taskDurationInNs = command.duration.dd.toInt64Nanoseconds
         let isFrozenFrame = taskDurationInNs > Constants.frozenFrameThresholdInNs
 

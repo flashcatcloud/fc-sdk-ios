@@ -7,7 +7,7 @@
 #if os(iOS)
 import XCTest
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
 @testable import DatadogSessionReplay
 
@@ -17,7 +17,7 @@ class UIViewSessionReplayTests: XCTestCase {
             XCTAssertFalse(UIView().dd.usesDarkMode) // always false prior to iOS 13.x
             return
         }
-        class MockView: NSObject, DatadogExtended, UITraitEnvironment {
+        class MockView: NSObject, FlashcatExtended, UITraitEnvironment {
             var traitCollection: UITraitCollection = .init(userInterfaceStyle: .unspecified)
             func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {}
         }
@@ -37,7 +37,7 @@ class UIViewSessionReplayTests: XCTestCase {
 
     // swiftlint:disable opening_brace
     func testIsSensitiveText() {
-       class Mock: NSObject, DatadogExtended, UITextInputTraits {
+       class Mock: NSObject, FlashcatExtended, UITextInputTraits {
             var isSecureTextEntry = false
             var textContentType: UITextContentType! = nil // swiftlint:disable:this implicitly_unwrapped_optional
         }

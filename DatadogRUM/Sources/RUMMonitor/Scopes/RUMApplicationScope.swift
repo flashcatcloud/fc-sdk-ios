@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 import Foundation
 
 internal class RUMApplicationScope: RUMScope, RUMContextProvider {
@@ -74,7 +74,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     /// `task_role` or prewarming signals.
     ///
     /// - Returns: `true` to indicate that the Application Scope should remain active.
-    func process(command: RUMCommand, context: DatadogContext, writer: Writer) -> Bool {
+    func process(command: RUMCommand, context: FlashcatContext, writer: Writer) -> Bool {
         #if !os(tvOS) && !os(watchOS)
         guard context.launchInfo.launchReason != .uncertain else {
             if !didLogFallbackToResolver {
@@ -94,7 +94,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         return true
     }
 
-    private func _process(command: RUMCommand, context: DatadogContext, writer: Writer) {
+    private func _process(command: RUMCommand, context: FlashcatContext, writer: Writer) {
         // `RUMSDKInitCommand` forces the creation of the initial session
         // Added in https://github.com/DataDog/dd-sdk-ios/pull/1278 to ensure that logs and traces
         // can be correlated with valid RUM session id (even if occurring before any user interaction).
@@ -207,7 +207,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     private var didCreateInitialSessionCount = 0
 
     /// Starts initial RUM Session.
-    private func createInitialSession(with context: DatadogContext, on command: RUMCommand) {
+    private func createInitialSession(with context: FlashcatContext, on command: RUMCommand) {
         if didCreateInitialSessionCount > 0 { // Sanity check
             dependencies.telemetry.error("Creating initial session \(didCreateInitialSessionCount) extra time(s) due to \(type(of: command)) (previous end reason: \(lastSessionEndReason?.rawValue ?? "unknown"))")
         }
@@ -243,7 +243,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     }
 
     /// Starts new RUM Session immediately after previous one expires or time outs. It transfers some of the state from the expired session to the new one.
-    private func refresh(expiredSession: RUMSessionScope, on command: RUMCommand, context: DatadogContext, writer: Writer) -> RUMSessionScope {
+    private func refresh(expiredSession: RUMSessionScope, on command: RUMCommand, context: FlashcatContext, writer: Writer) -> RUMSessionScope {
         var startPrecondition: RUMSessionPrecondition? = nil
 
         if lastSessionEndReason == .timeOut {
@@ -275,7 +275,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         return refreshedSession
     }
 
-    private func startNewSession(on command: RUMCommand, context: DatadogContext, writer: Writer) {
+    private func startNewSession(on command: RUMCommand, context: FlashcatContext, writer: Writer) {
         var startPrecondition: RUMSessionPrecondition? = nil
 
         if lastSessionEndReason == .stopAPI {
@@ -329,7 +329,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     /// from creation of initial session due to receiving `RUMSDKInitCommand`. Starting from RUM-1649 the "application launch" view
     /// is started on SDK init only when the app is launched by user with no prewarming or when app was prewarmed but SDK was initialized
     /// after it became active.
-    private func startApplicationLaunchView(on command: RUMCommand, context: DatadogContext, writer: Writer) {
+    private func startApplicationLaunchView(on command: RUMCommand, context: FlashcatContext, writer: Writer) {
         applicationActive = true
 
         let isUserLaunch = context.launchInfo.launchReason == .userLaunch

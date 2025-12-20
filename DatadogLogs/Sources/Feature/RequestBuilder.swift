@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// The Logging URL Request Builder for formatting and configuring the `URLRequest`
 /// to upload logs data.
@@ -29,7 +29,7 @@ internal struct RequestBuilder: FeatureRequestBuilder {
 
     func request(
         for events: [Event],
-        with context: DatadogContext,
+        with context: FlashcatContext,
         execution: ExecutionContext
     ) -> URLRequest {
         let builder = URLRequestBuilder(
@@ -57,7 +57,7 @@ internal struct RequestBuilder: FeatureRequestBuilder {
         return builder.uploadRequest(with: data)
     }
 
-    private func url(with context: DatadogContext) -> URL {
+    private func url(with context: FlashcatContext) -> URL {
         customIntakeURL ?? context.site.endpoint.appendingPathComponent("api/v2/logs")
     }
 }

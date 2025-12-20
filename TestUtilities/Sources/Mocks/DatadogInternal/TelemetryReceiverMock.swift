@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// `FeatureMessageReceiver` that records received telemetry events.
 public class TelemetryReceiverMock: FeatureMessageReceiver {
@@ -14,7 +14,7 @@ public class TelemetryReceiverMock: FeatureMessageReceiver {
 
     public init() {}
 
-    public func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    public func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         guard case let .telemetry(message) = message else {
             return false
         }

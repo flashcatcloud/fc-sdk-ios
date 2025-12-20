@@ -6,7 +6,7 @@
 
 import Foundation
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 /// Publisher generating RUM Commands on `SwiftUI.View` events.
 internal protocol SwiftUIViewHandler: RUMCommandPublisher {

@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Builds SR records from VTS snapshots to transport wireframes (see `WireframesBuilder`).
 /// There are several types of records in SR format, including Full Snapshot Record (FSR contains all wireframes

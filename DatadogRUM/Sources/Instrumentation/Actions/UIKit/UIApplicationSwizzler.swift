@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
 internal final class UIApplicationSwizzler {
     let sendEvent: SendEvent

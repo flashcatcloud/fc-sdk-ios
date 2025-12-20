@@ -6,12 +6,12 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 
 @testable import DatadogTrace
 
 class ActiveSpansPoolTests: XCTestCase {
-    private var core: DatadogCoreProtocol! // swiftlint:disable:this implicitly_unwrapped_optional
+    private var core: FlashcatCoreProtocol! // swiftlint:disable:this implicitly_unwrapped_optional
 
     override func setUpWithError() throws {
         core = PassthroughCoreMock()

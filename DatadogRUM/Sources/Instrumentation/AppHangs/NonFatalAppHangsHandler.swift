@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal final class NonFatalAppHangsHandler: RUMCommandPublisher {
     /// Weak reference to RUM monitor for sending App Hang events.

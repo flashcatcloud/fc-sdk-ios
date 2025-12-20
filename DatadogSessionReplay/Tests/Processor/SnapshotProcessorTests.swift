@@ -7,7 +7,7 @@
 #if os(iOS)
 import XCTest
 import WebKit
-import DatadogInternal
+import FlashcatInternal
 @_spi(Internal)
 import TestUtilities
 @_spi(Internal)

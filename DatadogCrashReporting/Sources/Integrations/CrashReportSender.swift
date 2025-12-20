@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 /// An object for sending crash reports.
 internal protocol CrashReportSender {
@@ -28,7 +28,7 @@ internal struct MessageBusSender: CrashReportSender {
     ///
     /// It must be a weak reference to avoid retain cycle (the `CrashReportSender` is held by crash reporting
     /// integration kept by core).
-    weak var core: DatadogCoreProtocol?
+    weak var core: FlashcatCoreProtocol?
 
     /// Send the crash report et context on the bus of the core.
     ///
@@ -60,7 +60,7 @@ internal struct MessageBusSender: CrashReportSender {
     ///
     /// - Parameters:
     ///   - launch: The launch report.
-    func send(launch: DatadogInternal.LaunchReport) {
+    func send(launch: FlashcatInternal.LaunchReport) {
         core?.set(context: launch)
     }
 }

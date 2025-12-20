@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension HTTPHeadersReader: OTFormatReader {}
 extension W3CHTTPHeadersReader: OTFormatReader {}

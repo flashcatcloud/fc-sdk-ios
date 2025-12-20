@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Builder for constructing fatal errors (such as Crashes or Fatal App Hangs) that can be sent to the last RUM session in previous process.
 internal struct FatalErrorBuilder {
@@ -30,7 +30,7 @@ internal struct FatalErrorBuilder {
     }
 
     /// Current SDK context.
-    let context: DatadogContext
+    let context: FlashcatContext
 
     let error: FatalError
 

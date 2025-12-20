@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Simple `DateProvider` mock that returns given date.
 public final class DateProviderMock: DateProvider {
