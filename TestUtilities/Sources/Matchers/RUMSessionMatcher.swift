@@ -7,7 +7,7 @@
 import Foundation
 #if !DD_COMPILED_FOR_INTEGRATION_TESTS
 /// This file is compiled both for Unit and Integration tests.
-/// * The Unit Tests target can see `Datadog` by `@testable import DatadogCore`.
+/// * The Unit Tests target can see `Datadog` by `@testable import FlashcatCore`.
 /// * In Integration Tests target we want to compile `Datadog` in "Release" configuration, so testability is not possible.
 /// This compiler statement gives both targets the visibility of `RUMDataModels.swift` either by import or direct compilation.
 @testable import FlashcatInternal

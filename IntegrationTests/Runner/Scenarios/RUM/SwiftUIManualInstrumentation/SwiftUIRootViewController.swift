@@ -6,7 +6,7 @@
 
 import Foundation
 import SwiftUI
-import DatadogCore
+import FlashcatCore
 
 /// A custom SwiftUI Hosting controller for `RootView`.
 ///

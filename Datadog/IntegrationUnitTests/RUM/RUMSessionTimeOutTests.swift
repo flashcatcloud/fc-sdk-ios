@@ -7,7 +7,7 @@
 import XCTest
 import FlashcatInternal
 import TestUtilities
-@testable import DatadogCore
+@testable import FlashcatCore
 @testable import DatadogRUM
 
 class RUMSessionTimeOutTests: RUMSessionTestsBase {

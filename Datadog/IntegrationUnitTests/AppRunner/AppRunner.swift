@@ -7,7 +7,7 @@
 import XCTest
 import FlashcatInternal
 import TestUtilities
-@testable import DatadogCore
+@testable import FlashcatCore
 @testable import DatadogRUM
 
 /// A [Test Harness](https://en.wikipedia.org/wiki/Test_harness) that simulates the iOS app environment and manages SDK lifecycle.

@@ -6,7 +6,7 @@
 
 import SwiftUI
 
-import DatadogCore
+import FlashcatCore
 import DatadogRUM
 
 struct RUMManualScenario: Scenario {

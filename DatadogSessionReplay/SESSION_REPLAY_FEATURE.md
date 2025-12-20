@@ -15,7 +15,7 @@ Session Replay records and replays user sessions as video-like reproductions. It
 ## Quick Start Example
 
 ```swift
-import DatadogCore
+import FlashcatCore
 import DatadogRUM
 import DatadogSessionReplay
 

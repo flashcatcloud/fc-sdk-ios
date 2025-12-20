@@ -7,7 +7,7 @@
 import UIKit
 
 import FlashcatInternal
-import DatadogCore
+import FlashcatCore
 import DatadogBenchmarks
 
 @main

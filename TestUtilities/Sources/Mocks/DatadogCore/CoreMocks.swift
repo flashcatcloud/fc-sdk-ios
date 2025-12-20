@@ -10,7 +10,7 @@ import Foundation
 #if SPM_BUILD
 import DatadogPrivate
 #endif
-@testable import DatadogCore
+@testable import FlashcatCore
 @testable import FlashcatLogs
 
 // MARK: - Configuration Mocks

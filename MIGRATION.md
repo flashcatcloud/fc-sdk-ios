@@ -33,7 +33,7 @@ let package = Package(
       .target(
           ...
           dependencies: [
-              .product(name: "DatadogCore", package: "dd-sdk-ios"),
+              .product(name: "FlashcatCore", package: "dd-sdk-ios"),
               .product(name: "DatadogCrashReporting", package: "dd-sdk-ios"),
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "DatadogRUM", package: "dd-sdk-ios"),
@@ -97,7 +97,7 @@ DatadogWebViewTracking.xcframework
 The SDK should be initialized as early as possible in the app lifecycle, specifically in the `AppDelegate`'s `application(_:didFinishLaunchingWithOptions:)` callback. This ensures accurate measurement of all metrics, including application startup duration. For apps built with SwiftUI, use `@UIApplicationDelegateAdaptor` to access the `AppDelegate`.
 
 ```swift
-import DatadogCore
+import FlashcatCore
 
 Datadog.initialize(
     with: Datadog.Configuration(
@@ -214,7 +214,7 @@ let package = Package(
       .target(
           ...
           dependencies: [
-              .product(name: "DatadogCore", package: "dd-sdk-ios"),
+              .product(name: "FlashcatCore", package: "dd-sdk-ios"),
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "DatadogTrace", package: "dd-sdk-ios"),
               .product(name: "DatadogRUM", package: "dd-sdk-ios"),
@@ -304,7 +304,7 @@ Datadog.initialize(
 **V2 Initialization**
 
 ```swift
-import DatadogCore
+import FlashcatCore
 
 Datadog.initialize(
     with: Datadog.Configuration(
@@ -479,7 +479,7 @@ With version 2.0 we addressed this limitation:
 Here is an example illustrating how to initialize a secondary core instance and enable products:
 
 ```swift
-import DatadogCore
+import FlashcatCore
 import DatadogRUM
 import FlashcatLogs
 import DatadogTrace
@@ -505,7 +505,7 @@ Trace.enable(in: core)
 Once initialized, you can retrieve the named SDK instance by calling `Datadog.sdkInstance(named: "<name>")` and use it for accessing the products.
 
 ```swift
-import DatadogCore
+import FlashcatCore
 
 let core = Datadog.sdkInstance(named: "my-instance")
 ```

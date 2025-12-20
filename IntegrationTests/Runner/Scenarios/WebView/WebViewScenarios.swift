@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogCore
+import FlashcatCore
 import DatadogRUM
 import FlashcatLogs
 import DatadogSessionReplay

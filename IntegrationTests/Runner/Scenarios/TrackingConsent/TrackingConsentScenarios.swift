@@ -8,7 +8,7 @@ import Foundation
 import DatadogTrace
 import DatadogRUM
 import FlashcatLogs
-import DatadogCore
+import FlashcatCore
 
 internal class TrackingConsentBaseScenario {
     func configureFeatures() {

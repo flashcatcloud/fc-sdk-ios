@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogCore
+import FlashcatCore
 
 internal class CrashReportingViewController: UIViewController {
     @IBOutlet weak var sendingCrashReportLabel: UILabel!

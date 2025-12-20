@@ -10,7 +10,7 @@ import FlashcatInternal
 @testable import FlashcatLogs
 @testable import DatadogRUM
 @testable import DatadogCrashReporting
-@testable import DatadogCore
+@testable import FlashcatCore
 
 extension CrashReportingFeature {
     /// Mocks the Crash Reporting feature instance which doesn't load crash reports.

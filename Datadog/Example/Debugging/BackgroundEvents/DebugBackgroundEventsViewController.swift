@@ -5,7 +5,7 @@
  */
 
 import SwiftUI
-import DatadogCore
+import FlashcatCore
 
 @available(iOS 13, tvOS 13,*)
 internal class DebugBackgroundEventsViewController: UIHostingController<DebugBackgroundEventsView> {

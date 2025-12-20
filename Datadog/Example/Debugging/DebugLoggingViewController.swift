@@ -6,7 +6,7 @@
 
 import UIKit
 import FlashcatLogs
-import DatadogCore
+import FlashcatCore
 
 class DebugLoggingViewController: UIViewController {
     @IBOutlet weak var logLevelSegmentedControl: UISegmentedControl!

@@ -5,7 +5,7 @@
  */
 
 import Foundation
-@testable import DatadogCore
+@testable import FlashcatCore
 @testable import DatadogRUM
 
 extension AppRunStep {

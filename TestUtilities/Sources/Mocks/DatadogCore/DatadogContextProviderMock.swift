@@ -6,7 +6,7 @@
 
 import Foundation
 import FlashcatInternal
-@testable import DatadogCore
+@testable import FlashcatCore
 
 extension DatadogContextProvider: AnyMockable {
     public static func mockAny() -> Self { .mockWith() }

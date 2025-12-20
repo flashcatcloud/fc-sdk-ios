@@ -5,7 +5,7 @@
  */
 
 import SwiftUI
-import DatadogCore
+import FlashcatCore
 
 /// Marks current RUM session as ended by starting and stopping one more RUM View ("end view"):
 /// - starting the "end view" will mark the previous active view in the session as "eventually inactive",

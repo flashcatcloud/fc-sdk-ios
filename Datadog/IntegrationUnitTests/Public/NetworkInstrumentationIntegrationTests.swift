@@ -10,7 +10,7 @@ import FlashcatInternal
 
 @testable import DatadogRUM
 @testable import DatadogTrace
-@testable import DatadogCore
+@testable import FlashcatCore
 
 class NetworkInstrumentationIntegrationTests: XCTestCase {
     // swiftlint:disable implicitly_unwrapped_optional

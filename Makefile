@@ -221,7 +221,7 @@ spm-build-visionos:
 # Builds SPM package for watchOS
 spm-build-watchos:
 	# Build only compatible schemes for watchOS:
-	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogCore"
+	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatCore"
 	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatLogs"
 	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogTrace"
 
@@ -230,7 +230,7 @@ spm-build-macos:
 	# Whole package for Mac Catalyst:
 	@$(MAKE) spm-build SCHEME="Flashcat-Package" DESTINATION="platform=macOS,variant=Mac Catalyst"
 	# Only compatible schemes for macOS:
-	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogCore"
+	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatCore"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatLogs"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogTrace"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogCrashReporting"
@@ -453,7 +453,7 @@ set-ci-secret:
 
 bump:
 	@read -p "Enter version number: " version;  \
-	echo "// GENERATED FILE: Do not edit directly\n\ninternal let __sdkVersion = \"$$version\"" > DatadogCore/Sources/Versioning.swift; \
+	echo "// GENERATED FILE: Do not edit directly\n\ninternal let __sdkVersion = \"$$version\"" > FlashcatCore/Sources/Versioning.swift; \
 	./tools/podspec_bump_version.sh $$version; \
 	git add . ; \
 	git commit -m "Bumped version to $$version"; \

@@ -109,7 +109,7 @@ public enum Flags {
     /// This method must be called before creating any `FlagsClient` instances.
     ///
     /// ```swift
-    /// import DatadogCore
+    /// import FlashcatCore
     /// import DatadogFlags
     ///
     /// // Initialize Datadog SDK

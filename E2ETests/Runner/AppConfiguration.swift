@@ -6,7 +6,7 @@
 
 import Foundation
 import FlashcatInternal
-import DatadogCore
+import FlashcatCore
 
 /// Test info reads configuration from `Info.plist`.
 ///

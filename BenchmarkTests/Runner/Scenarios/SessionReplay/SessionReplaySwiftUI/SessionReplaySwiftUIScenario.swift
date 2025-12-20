@@ -8,7 +8,7 @@ import Foundation
 import UIKit
 import SwiftUI
 
-import DatadogCore
+import FlashcatCore
 import DatadogRUM
 import DatadogSessionReplay
 

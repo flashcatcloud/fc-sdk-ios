@@ -5,7 +5,7 @@
  */
 
 import Foundation
-@testable import DatadogCore
+@testable import FlashcatCore
 
 public class HTTPClientMock: HTTPClient {
     /// The queue to synchronise access to tracked requests.

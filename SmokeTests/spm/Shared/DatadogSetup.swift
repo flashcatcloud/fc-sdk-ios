@@ -4,7 +4,7 @@
 * Copyright 2019-Present Datadog, Inc.
 */
 
-import DatadogCore
+import FlashcatCore
 import FlashcatLogs
 import DatadogTrace
 import DatadogCrashReporting

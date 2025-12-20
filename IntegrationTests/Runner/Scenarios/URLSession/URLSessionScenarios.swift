@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogCore
+import FlashcatCore
 import DatadogTrace
 import DatadogRUM
 

@@ -175,8 +175,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D2CB6E0A27C50EAE00A62B57"
-            BuildableName = "DatadogCore.framework"
-            BlueprintName = "DatadogCore tvOS"
+            BuildableName = "FlashcatCore.framework"
+            BlueprintName = "FlashcatCore tvOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </CodeCoverageTargets>

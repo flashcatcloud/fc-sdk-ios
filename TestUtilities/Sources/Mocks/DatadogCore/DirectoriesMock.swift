@@ -5,7 +5,7 @@
  */
 
 import Foundation
-@testable import DatadogCore
+@testable import FlashcatCore
 
 /// `CoreDirectory` pointing to subfolders in `/var/folders/`.
 /// This location does not exist by default and should be created and deleted by calling `.create()` and `.delete()` in each test,

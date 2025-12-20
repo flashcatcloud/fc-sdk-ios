@@ -7,7 +7,7 @@
 import UIKit
 import DatadogRUM
 import DatadogSessionReplay
-import DatadogCore
+import FlashcatCore
 
 /// Scenario which navigates between multiple views in navigation view controller.
 /// - Each view is tracked with RUM and SR.

@@ -195,8 +195,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D2A783EE29A534F9003B03BB"
-               BuildableName = "FlaLogsTests tvOS.xctest"
-               BlueprintName = "FlaLogsTests tvOS"
+               BuildableName = "DatadogLogsTests tvOS.xctest"
+               BlueprintName = "DatadogLogsTests tvOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </TestableReference>

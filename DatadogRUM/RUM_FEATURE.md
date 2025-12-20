@@ -13,7 +13,7 @@ RUM tracks user interactions, views, resources, errors, and performance metrics 
 ## Quick Start Example
 
 ```swift
-import DatadogCore
+import FlashcatCore
 import DatadogRUM
 
 // 1. Initialize Core SDK first

@@ -6,7 +6,7 @@
 
 import UIKit
 
-import DatadogCore
+import FlashcatCore
 import DatadogRUM
 import DatadogCrashReporting
 

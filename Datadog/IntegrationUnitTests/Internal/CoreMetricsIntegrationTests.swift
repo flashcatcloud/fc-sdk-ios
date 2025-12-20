@@ -5,7 +5,7 @@
  */
 
 import XCTest
-@testable import DatadogCore
+@testable import FlashcatCore
 @testable import DatadogRUM
 @testable import FlashcatLogs
 @testable import DatadogTrace

@@ -7,7 +7,7 @@
 import Foundation
 import SwiftUI
 
-import DatadogCore
+import FlashcatCore
 import FlashcatLogs
 
 struct LogsCustomScenario: Scenario {

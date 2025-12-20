@@ -6,7 +6,7 @@
 
 import UIKit
 import WebKit
-import DatadogCore
+import FlashcatCore
 import DatadogWebViewTracking
 import class FlashcatInternal.CoreRegistry
 

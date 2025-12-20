@@ -34,7 +34,7 @@ let package = Package(
     products: [
         .library(
             name: "FlashcatCore",
-            targets: ["DatadogCore"]
+            targets: ["FlashcatCore"]
         ),
         .library(
             name: "FlashcatLogs",
@@ -71,12 +71,12 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "DatadogCore",
+            name: "FlashcatCore",
             dependencies: [
                 .target(name: "FlashcatInternal"),
                 .target(name: "DatadogPrivate"),
             ],
-            path: "DatadogCore",
+            path: "FlashcatCore",
             sources: ["Sources"],
             resources: [
                 .copy("Resources/PrivacyInfo.xcprivacy")
@@ -85,7 +85,7 @@ let package = Package(
         ),
         .target(
             name: "DatadogPrivate",
-            path: "DatadogCore/Private"
+            path: "FlashcatCore/Private"
         ),
 
         .target(
@@ -228,7 +228,7 @@ let package = Package(
         .target(
             name: "TestUtilities",
             dependencies: [
-                .target(name: "DatadogCore"),
+                .target(name: "FlashcatCore"),
                 .target(name: "DatadogPrivate"),
                 .target(name: "FlashcatInternal"),
                 .target(name: "FlashcatLogs"),

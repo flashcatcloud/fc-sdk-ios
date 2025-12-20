@@ -6,7 +6,7 @@
 
 import UIKit
 import DatadogRUM
-import DatadogCore
+import FlashcatCore
 import FlashcatInternal
 
 class DebugRUMViewController: UIViewController {
