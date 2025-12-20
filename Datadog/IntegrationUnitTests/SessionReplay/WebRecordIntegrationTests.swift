@@ -11,7 +11,7 @@ import WebKit
 
 import TestUtilities
 @testable import FlashcatRUM
-@testable import DatadogWebViewTracking
+@testable import FlashcatWebViewTracking
 @_spi(Internal)
 @testable import FlashcatSessionReplay
 

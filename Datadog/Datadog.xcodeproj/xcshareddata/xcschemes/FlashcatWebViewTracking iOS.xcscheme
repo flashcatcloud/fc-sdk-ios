@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "3CE119FD29F7BE0000202522"
-               BuildableName = "DatadogWebViewTracking.framework"
-               BlueprintName = "DatadogWebViewTracking iOS"
+               BuildableName = "FlashcatWebViewTracking.framework"
+               BlueprintName = "FlashcatWebViewTracking iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -29,8 +29,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "3CE11A0429F7BE0300202522"
-               BuildableName = "DatadogWebViewTrackingTests iOS.xctest"
-               BlueprintName = "DatadogWebViewTrackingTests iOS"
+               BuildableName = "FlashcatWebViewTrackingTests iOS.xctest"
+               BlueprintName = "FlashcatWebViewTrackingTests iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -47,8 +47,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3CE119FD29F7BE0000202522"
-            BuildableName = "DatadogWebViewTracking.framework"
-            BlueprintName = "DatadogWebViewTracking iOS"
+            BuildableName = "FlashcatWebViewTracking.framework"
+            BlueprintName = "FlashcatWebViewTracking iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -198,8 +198,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3CE119FD29F7BE0000202522"
-            BuildableName = "DatadogWebViewTracking.framework"
-            BlueprintName = "DatadogWebViewTracking iOS"
+            BuildableName = "FlashcatWebViewTracking.framework"
+            BlueprintName = "FlashcatWebViewTracking iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </CodeCoverageTargets>
@@ -209,8 +209,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "3CE11A0429F7BE0300202522"
-               BuildableName = "DatadogWebViewTrackingTests iOS.xctest"
-               BlueprintName = "DatadogWebViewTrackingTests iOS"
+               BuildableName = "FlashcatWebViewTrackingTests iOS.xctest"
+               BlueprintName = "FlashcatWebViewTrackingTests iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -237,8 +237,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3CE119FD29F7BE0000202522"
-            BuildableName = "DatadogWebViewTracking.framework"
-            BlueprintName = "DatadogWebViewTracking iOS"
+            BuildableName = "FlashcatWebViewTracking.framework"
+            BlueprintName = "FlashcatWebViewTracking iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </MacroExpansion>

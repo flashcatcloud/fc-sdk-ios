@@ -58,7 +58,7 @@ let package = Package(
         ),
         .library(
             name: "FlashcatWebViewTracking",
-            targets: ["DatadogWebViewTracking"]
+            targets: ["FlashcatWebViewTracking"]
         ),
         .library(
             name: "FlashcatFlags",
@@ -177,19 +177,19 @@ let package = Package(
         ),
 
         .target(
-            name: "DatadogWebViewTracking",
+            name: "FlashcatWebViewTracking",
             dependencies: [
                 .target(name: "FlashcatInternal"),
             ],
-            path: "DatadogWebViewTracking/Sources"
+            path: "FlashcatWebViewTracking/Sources"
         ),
         .testTarget(
             name: "DatadogWebViewTrackingTests",
             dependencies: [
-                .target(name: "DatadogWebViewTracking"),
+                .target(name: "FlashcatWebViewTracking"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogWebViewTracking/Tests"
+            path: "FlashcatWebViewTracking/Tests"
         ),
 
         .target(
@@ -236,7 +236,7 @@ let package = Package(
                 .target(name: "FlashcatSessionReplay"),
                 .target(name: "FlashcatTrace"),
                 .target(name: "FlashcatCrashReporting"),
-                .target(name: "DatadogWebViewTracking"),
+                .target(name: "FlashcatWebViewTracking"),
                 .target(name: "FlashcatFlags")
             ],
             path: "TestUtilities/Sources",

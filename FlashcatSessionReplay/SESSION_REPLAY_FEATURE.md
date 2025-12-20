@@ -242,7 +242,7 @@ SessionReplayPrivacyView(
 - **WebView Tracking**: Enables Session Replay in web views. Requires:
   - `WebViewTracking.enable(webView:hosts:)` called on the native side
   - Web page instrumented with Datadog Browser SDK
-  - See `DatadogWebViewTracking/Sources/WebViewTracking.swift`
+  - See `FlashcatWebViewTracking/Sources/WebViewTracking.swift`
 - **Tracking Consent**: Respects user consent settings from Core SDK
 
 ## Additional Context

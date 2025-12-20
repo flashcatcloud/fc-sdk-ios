@@ -5,7 +5,7 @@
 */
 
 #import <XCTest/XCTest.h>
-@import DatadogWebViewTracking;
+@import FlashcatWebViewTracking;
 @import WebKit;
 
 @interface WebViewMock: WKWebView

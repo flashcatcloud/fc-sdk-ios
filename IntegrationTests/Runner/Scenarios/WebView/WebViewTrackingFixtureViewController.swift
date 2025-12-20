@@ -7,7 +7,7 @@
 import UIKit
 import WebKit
 import FlashcatCore
-import DatadogWebViewTracking
+import FlashcatWebViewTracking
 import class FlashcatInternal.CoreRegistry
 
 class WebViewTrackingFixtureViewController: UIViewController, WKNavigationDelegate {

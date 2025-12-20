@@ -12,7 +12,7 @@ import FlashcatInternal
 import TestUtilities
 
 @testable import FlashcatRUM
-@testable import DatadogWebViewTracking
+@testable import FlashcatWebViewTracking
 
 class WebEventIntegrationTests: XCTestCase {
     private var core: DatadogCoreProxy! // swiftlint:disable:this implicitly_unwrapped_optional

@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogWebViewTracking
+@testable import FlashcatWebViewTracking
 
 class MessageEmitterTests: XCTestCase {
     // MARK: - Routing

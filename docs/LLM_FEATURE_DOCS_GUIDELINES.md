@@ -19,7 +19,7 @@ FlashcatRUM/RUM_FEATURE.md
 FlashcatSessionReplay/SESSION_REPLAY_FEATURE.md
 FlashcatTrace/TRACE_FEATURE.md          # (future)
 FlashcatLogs/LOGS_FEATURE.md            # (future)
-DatadogWebViewTracking/WEBVIEW_FEATURE.md  # (future)
+FlashcatWebViewTracking/WEBVIEW_FEATURE.md  # (future)
 ```
 
 Each feature documentation file contains a **"Key Files"** section listing all relevant source files for that feature. Use this section as the source of truth for which files to read during updates.

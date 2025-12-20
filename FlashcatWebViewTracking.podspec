@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name         = "DatadogWebViewTracking"
+  s.name         = "FlashcatWebViewTracking"
   s.version      = "3.3.0"
   s.summary      = "Datadog WebView Tracking Module."
 
@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
 
   s.source = { :git => "https://github.com/DataDog/dd-sdk-ios.git", :tag => s.version.to_s }
 
-  s.source_files = ["DatadogWebViewTracking/Sources/**/*.swift"]
+  s.source_files = ["FlashcatWebViewTracking/Sources/**/*.swift"]
 
   s.dependency 'FlashcatInternal', s.version.to_s
 

@@ -251,7 +251,7 @@ Event mappers allow modifying or dropping events before upload:
 - **WebView Tracking**: Enables RUM tracking in web views. Requires:
   - `WebViewTracking.enable(webView:hosts:)` called on the native side
   - Web page instrumented with Datadog Browser SDK
-  - See `DatadogWebViewTracking/Sources/WebViewTracking.swift`
+  - See `FlashcatWebViewTracking/Sources/WebViewTracking.swift`
 
 ## Additional Context
 

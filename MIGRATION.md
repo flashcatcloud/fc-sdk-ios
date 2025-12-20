@@ -39,7 +39,7 @@ let package = Package(
               .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
               .product(name: "FlashcatSessionReplay", package: "dd-sdk-ios"),
               .product(name: "FlashcatTrace", package: "dd-sdk-ios"),
-              .product(name: "DatadogWebViewTracking", package: "dd-sdk-ios"),
+              .product(name: "FlashcatWebViewTracking", package: "dd-sdk-ios"),
           ]
       ),
   ]
@@ -219,7 +219,7 @@ let package = Package(
               .product(name: "FlashcatTrace", package: "dd-sdk-ios"),
               .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
               .product(name: "FlashcatCrashReporting", package: "dd-sdk-ios"),
-              .product(name: "DatadogWebViewTracking", package: "dd-sdk-ios"),
+              .product(name: "FlashcatWebViewTracking", package: "dd-sdk-ios"),
           ]
       ),
   ]
@@ -457,7 +457,7 @@ To enable WebViewTracking, make sure to also enable RUM and/or Logs.
 
 ```swift
 import WebKit
-import DatadogWebViewTracking
+import FlashcatWebViewTracking
 
 let webView = WKWebView(...)
 WebViewTracking.enable(webView: webView)

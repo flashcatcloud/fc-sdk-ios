@@ -7,7 +7,7 @@
 import UIKit
 import WebKit
 import FlashcatRUM
-import DatadogWebViewTracking
+import FlashcatWebViewTracking
 
 class DebugWebviewViewController: UIViewController {
     @IBOutlet weak var rumServiceNameTextField: UITextField!

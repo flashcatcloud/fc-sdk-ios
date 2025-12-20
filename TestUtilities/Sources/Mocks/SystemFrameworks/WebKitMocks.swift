@@ -7,7 +7,7 @@
 #if !os(tvOS)
 import Foundation
 import WebKit
-@testable import DatadogWebViewTracking
+@testable import FlashcatWebViewTracking
 
 public final class WKUserContentControllerMock: WKUserContentController {
     private var handlers: [String: WKScriptMessageHandler] = [:]

@@ -10,7 +10,7 @@ import XCTest
 import WebKit
 import TestUtilities
 import FlashcatInternal
-@testable import DatadogWebViewTracking
+@testable import FlashcatWebViewTracking
 
 class WebViewTrackingTests: XCTestCase {
     func testItAddsUserScript() throws {
