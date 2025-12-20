@@ -18,8 +18,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "118248852D9094EA00E3D16F"
-            BuildableName = "DatadogIntegrationTests tvOS.xctest"
-            BlueprintName = "DatadogIntegrationTests tvOS"
+            BuildableName = "FlashcatIntegrationTests tvOS.xctest"
+            BlueprintName = "FlashcatIntegrationTests tvOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -186,8 +186,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "118248852D9094EA00E3D16F"
-               BuildableName = "DatadogIntegrationTests tvOS.xctest"
-               BlueprintName = "DatadogIntegrationTests tvOS"
+               BuildableName = "FlashcatIntegrationTests tvOS.xctest"
+               BlueprintName = "FlashcatIntegrationTests tvOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </TestableReference>

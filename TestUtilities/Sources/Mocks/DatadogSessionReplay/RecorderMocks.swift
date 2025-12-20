@@ -11,7 +11,7 @@ import WebKit
 
 import FlashcatInternal
 @_spi(Internal)
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 // MARK: - ViewTreeSnapshot Mocks
 

@@ -13,7 +13,7 @@ import TestUtilities
 @testable import FlashcatRUM
 @testable import DatadogWebViewTracking
 @_spi(Internal)
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 class WebRecordIntegrationTests: XCTestCase {
     // swiftlint:disable implicitly_unwrapped_optional

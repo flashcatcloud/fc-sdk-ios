@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 /// Convenient `Scheduler` for tests.
 /// It executes operations on a given queue right after started.

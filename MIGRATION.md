@@ -37,7 +37,7 @@ let package = Package(
               .product(name: "FlashcatCrashReporting", package: "dd-sdk-ios"),
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
-              .product(name: "DatadogSessionReplay", package: "dd-sdk-ios"),
+              .product(name: "FlashcatSessionReplay", package: "dd-sdk-ios"),
               .product(name: "FlashcatTrace", package: "dd-sdk-ios"),
               .product(name: "DatadogWebViewTracking", package: "dd-sdk-ios"),
           ]

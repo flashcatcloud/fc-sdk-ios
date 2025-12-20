@@ -10,7 +10,7 @@ import FlashcatLogs
 import FlashcatTrace
 import FlashcatRUM
 import FlashcatCrashReporting
-import DatadogSessionReplay  // it should compile for iOS and tvOS, but APIs are only available on iOS
+import FlashcatSessionReplay  // it should compile for iOS and tvOS, but APIs are only available on iOS
 import FlashcatFlags
 import OpenTelemetryApi
 

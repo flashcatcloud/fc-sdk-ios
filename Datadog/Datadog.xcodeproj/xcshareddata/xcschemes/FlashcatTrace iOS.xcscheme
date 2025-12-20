@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D25EE93329C4C3C300CE3839"
-               BuildableName = "DatadogTrace.framework"
+               BuildableName = "FlashcatTrace.framework"
                BlueprintName = "FlashcatTrace iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
@@ -33,7 +33,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D25EE93329C4C3C300CE3839"
-            BuildableName = "DatadogTrace.framework"
+            BuildableName = "FlashcatTrace.framework"
             BlueprintName = "FlashcatTrace iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
@@ -184,7 +184,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D25EE93329C4C3C300CE3839"
-            BuildableName = "DatadogTrace.framework"
+            BuildableName = "FlashcatTrace.framework"
             BlueprintName = "FlashcatTrace iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
@@ -223,7 +223,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D25EE93329C4C3C300CE3839"
-            BuildableName = "DatadogTrace.framework"
+            BuildableName = "FlashcatTrace.framework"
             BlueprintName = "FlashcatTrace iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>

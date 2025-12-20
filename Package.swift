@@ -50,7 +50,7 @@ let package = Package(
         ),
         .library(
             name: "FlashcatSessionReplay",
-            targets: ["DatadogSessionReplay"]
+            targets: ["FlashcatSessionReplay"]
         ),
         .library(
             name: "FlashcatCrashReporting",
@@ -193,17 +193,17 @@ let package = Package(
         ),
 
         .target(
-            name: "DatadogSessionReplay",
+            name: "FlashcatSessionReplay",
             dependencies: ["FlashcatInternal"],
-            path: "DatadogSessionReplay/Sources"
+            path: "FlashcatSessionReplay/Sources"
         ),
         .testTarget(
             name: "DatadogSessionReplayTests",
             dependencies: [
-                .target(name: "DatadogSessionReplay"),
+                .target(name: "FlashcatSessionReplay"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogSessionReplay/Tests",
+            path: "FlashcatSessionReplay/Tests",
             resources: [
                 .process("Resources/Assets.xcassets")
             ]
@@ -233,7 +233,7 @@ let package = Package(
                 .target(name: "FlashcatInternal"),
                 .target(name: "FlashcatLogs"),
                 .target(name: "FlashcatRUM"),
-                .target(name: "DatadogSessionReplay"),
+                .target(name: "FlashcatSessionReplay"),
                 .target(name: "FlashcatTrace"),
                 .target(name: "FlashcatCrashReporting"),
                 .target(name: "DatadogWebViewTracking"),

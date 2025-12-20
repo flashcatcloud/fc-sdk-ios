@@ -6,7 +6,7 @@
 
 import UIKit
 import FlashcatRUM
-import DatadogSessionReplay
+import FlashcatSessionReplay
 import FlashcatCore
 
 /// Scenario which navigates between multiple views in navigation view controller.

@@ -10,7 +10,7 @@ import XCTest
 @testable import FlashcatLogs
 @testable import FlashcatTrace
 #if !os(tvOS)
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 #endif
 
 class CoreMetricsIntegrationTests: XCTestCase {

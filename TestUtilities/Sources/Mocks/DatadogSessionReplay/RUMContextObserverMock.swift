@@ -8,7 +8,7 @@
 import Foundation
 import FlashcatInternal
 
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 class RUMContextObserverMock: RUMContextObserver {
     private var queue: Queue?

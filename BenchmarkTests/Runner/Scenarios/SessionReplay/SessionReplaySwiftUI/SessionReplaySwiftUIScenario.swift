@@ -10,7 +10,7 @@ import SwiftUI
 
 import FlashcatCore
 import FlashcatRUM
-import DatadogSessionReplay
+import FlashcatSessionReplay
 
 import CatalogSwiftUI
 

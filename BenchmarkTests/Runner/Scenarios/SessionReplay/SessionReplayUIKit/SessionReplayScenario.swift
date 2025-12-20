@@ -9,7 +9,7 @@ import UIKit
 
 import FlashcatCore
 import FlashcatRUM
-import DatadogSessionReplay
+import FlashcatSessionReplay
 
 import CatalogUIKit
 

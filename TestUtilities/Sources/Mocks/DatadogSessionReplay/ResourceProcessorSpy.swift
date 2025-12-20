@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 /// Spies the interaction with `Processing`.
 @_spi(Internal)

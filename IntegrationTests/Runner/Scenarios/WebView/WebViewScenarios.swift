@@ -8,7 +8,7 @@ import UIKit
 import FlashcatCore
 import FlashcatRUM
 import FlashcatLogs
-import DatadogSessionReplay
+import FlashcatSessionReplay
 
 private struct WebViewTrackingScenarioPredicate: UIKitRUMViewsPredicate {
     private let defaultPredicate = DefaultUIKitRUMViewsPredicate()

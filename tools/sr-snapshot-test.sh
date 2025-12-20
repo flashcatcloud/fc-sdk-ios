@@ -34,11 +34,11 @@ parse_args "$@"
 REPO_ROOT=$(realpath .)
 
 SNAPSHOTS_CLI_PATH="$REPO_ROOT/tools/sr-snapshots"
-SNAPSHOTS_DIR="$REPO_ROOT/DatadogSessionReplay/SRSnapshotTests/SRSnapshotTests/_snapshots_"
+SNAPSHOTS_DIR="$REPO_ROOT/FlashcatSessionReplay/SRSnapshotTests/SRSnapshotTests/_snapshots_"
 SNAPSHOTS_REPO_PATH="$REPO_ROOT/../dd-mobile-session-replay-snapshots"
 
 TEST_SCHEME="SRSnapshotTests"
-TEST_WORKSPACE="$REPO_ROOT/DatadogSessionReplay/SRSnapshotTests/SRSnapshotTests.xcworkspace"
+TEST_WORKSPACE="$REPO_ROOT/FlashcatSessionReplay/SRSnapshotTests/SRSnapshotTests.xcworkspace"
 TEST_ARTIFACTS_PATH="$REPO_ROOT/$artifacts_path/sr-snapshot-tests"
 
 pull_snapshots() {

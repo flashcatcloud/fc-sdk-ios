@@ -24,7 +24,7 @@ SR_SCHEMA_PATH = '/rum-events-format/schemas/session-replay-mobile-schema.json'
 # Generated file paths (relative to repository root)
 RUM_SWIFT_GENERATED_FILE_PATH = '/FlashcatInternal/Sources/Models/RUM/RUMDataModels.swift'
 RUM_OBJC_GENERATED_FILE_PATH = '/FlashcatRUM/Sources/DataModels/RUMDataModels+objc.swift'
-SR_SWIFT_GENERATED_FILE_PATH = '/DatadogSessionReplay/Sources/Models/SRDataModels.swift'
+SR_SWIFT_GENERATED_FILE_PATH = '/FlashcatSessionReplay/Sources/Models/SRDataModels.swift'
 
 @dataclass
 class Context:

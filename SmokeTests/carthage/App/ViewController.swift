@@ -12,7 +12,7 @@ import FlashcatRUM
 import FlashcatCrashReporting
 import FlashcatFlags
 #if os(iOS)
-import DatadogSessionReplay
+import FlashcatSessionReplay
 #endif
 import OpenTelemetryApi
 

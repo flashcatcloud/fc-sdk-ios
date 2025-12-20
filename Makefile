@@ -261,7 +261,7 @@ benchmark-tests-open:
 
 xcodeproj-session-replay:
 		@echo "⚙️  Generating 'DatadogSessionReplay.xcodeproj'..."
-		@cd DatadogSessionReplay/ && swift package generate-xcodeproj
+		@cd FlashcatSessionReplay/ && swift package generate-xcodeproj
 		@echo "OK 👌"
 
 templates:

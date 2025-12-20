@@ -6,7 +6,7 @@
 
 #import <XCTest/XCTest.h>
 
-@import DatadogSessionReplay;
+@import FlashcatSessionReplay;
 
 @interface DDSessionReplay_apiTests : XCTestCase
 @end
