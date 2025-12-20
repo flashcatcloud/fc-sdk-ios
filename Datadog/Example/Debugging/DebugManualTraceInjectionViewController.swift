@@ -5,7 +5,7 @@
  */
 
 import SwiftUI
-import DatadogTrace
+import FlashcatTrace
 import FlashcatInternal
 
 @available(iOS 14, *)

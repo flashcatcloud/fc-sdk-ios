@@ -6,7 +6,7 @@
 
 import Foundation
 import FlashcatCore
-import DatadogTrace
+import FlashcatTrace
 import FlashcatRUM
 
 /// Base scenario for `URLSession` and `NSURLSession` instrumentation.  It makes

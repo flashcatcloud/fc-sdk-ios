@@ -11,7 +11,7 @@ import TestUtilities
 @testable import FlashcatLogs
 @testable import FlashcatCore
 @_spi(objc)
-@testable import DatadogTrace
+@testable import FlashcatTrace
 
 class DDTracerTests: XCTestCase {
     private var core: DatadogCoreProxy! // swiftlint:disable:this implicitly_unwrapped_optional

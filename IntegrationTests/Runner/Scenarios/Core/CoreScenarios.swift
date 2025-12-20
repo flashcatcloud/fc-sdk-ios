@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogTrace
+import FlashcatTrace
 import FlashcatRUM
 import FlashcatLogs
 import FlashcatCore

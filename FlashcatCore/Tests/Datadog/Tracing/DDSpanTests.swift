@@ -9,7 +9,7 @@ import TestUtilities
 import FlashcatInternal
 
 @testable import FlashcatLogs
-@testable import DatadogTrace
+@testable import FlashcatTrace
 
 class DDSpanTests: XCTestCase {
     // MARK: - Sending Span Logs

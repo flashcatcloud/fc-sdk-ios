@@ -38,7 +38,7 @@ let package = Package(
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
               .product(name: "DatadogSessionReplay", package: "dd-sdk-ios"),
-              .product(name: "DatadogTrace", package: "dd-sdk-ios"),
+              .product(name: "FlashcatTrace", package: "dd-sdk-ios"),
               .product(name: "DatadogWebViewTracking", package: "dd-sdk-ios"),
           ]
       ),
@@ -216,7 +216,7 @@ let package = Package(
           dependencies: [
               .product(name: "FlashcatCore", package: "dd-sdk-ios"),
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
-              .product(name: "DatadogTrace", package: "dd-sdk-ios"),
+              .product(name: "FlashcatTrace", package: "dd-sdk-ios"),
               .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
               .product(name: "FlashcatCrashReporting", package: "dd-sdk-ios"),
               .product(name: "DatadogWebViewTracking", package: "dd-sdk-ios"),
@@ -368,7 +368,7 @@ API changes:
 All the classes related to Trace are now strictly in the `DatadogTrace` module. You first need to enable the product:
 
 ```swift
-import DatadogTrace
+import FlashcatTrace
 
 Trace.enable(
     with: Trace.Configuration(...)
@@ -378,7 +378,7 @@ Trace.enable(
 Then, you can access the shared Tracer instance:
 
 ```swift
-import DatadogTrace
+import FlashcatTrace
 
 let tracer = Tracer.shared()
 ```
@@ -482,7 +482,7 @@ Here is an example illustrating how to initialize a secondary core instance and 
 import FlashcatCore
 import FlashcatRUM
 import FlashcatLogs
-import DatadogTrace
+import FlashcatTrace
 
 let core = Datadog.initialize(
     with: configuration,

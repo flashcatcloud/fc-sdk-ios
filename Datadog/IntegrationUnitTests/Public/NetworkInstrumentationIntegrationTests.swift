@@ -9,7 +9,7 @@ import TestUtilities
 import FlashcatInternal
 
 @testable import FlashcatRUM
-@testable import DatadogTrace
+@testable import FlashcatTrace
 @testable import FlashcatCore
 
 class NetworkInstrumentationIntegrationTests: XCTestCase {

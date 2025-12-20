@@ -6,7 +6,7 @@
 
 import UIKit
 import FlashcatCore
-import DatadogTrace
+import FlashcatTrace
 
 internal class TSHomeViewController: UIViewController {
     override func viewDidLoad() {

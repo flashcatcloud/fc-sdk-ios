@@ -9,7 +9,7 @@ import FlashcatInternal
 import OpenTelemetryApi
 
 @testable import FlashcatLogs
-@testable import DatadogTrace
+@testable import FlashcatTrace
 @testable import FlashcatRUM
 @testable import FlashcatCore
 @testable import TestUtilities

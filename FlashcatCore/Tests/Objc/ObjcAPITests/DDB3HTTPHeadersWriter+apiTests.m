@@ -5,7 +5,7 @@
 */
 
 #import <XCTest/XCTest.h>
-@import DatadogTrace;
+@import FlashcatTrace;
 
 @interface DDB3HTTPHeadersWriter_apiTests : XCTestCase
 @end

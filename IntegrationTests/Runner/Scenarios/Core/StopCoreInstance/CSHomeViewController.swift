@@ -6,7 +6,7 @@
 
 import UIKit
 import FlashcatCore
-import DatadogTrace
+import FlashcatTrace
 
 internal class CSHomeViewController: UIViewController {
     @IBAction func didTapTestLogging(_ sender: UIButton) {

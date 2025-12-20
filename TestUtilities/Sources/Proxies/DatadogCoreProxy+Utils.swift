@@ -8,7 +8,7 @@ import Foundation
 
 @testable import FlashcatLogs
 @testable import FlashcatRUM
-@testable import DatadogTrace
+@testable import FlashcatTrace
 @testable import FlashcatInternal
 
 extension DatadogCoreProxy {

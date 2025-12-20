@@ -43,7 +43,7 @@
 		118246972D9066B800E3D16F /* FlashcatRUM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D23F8E9929DDCD28001CFAE8 /* FlashcatRUM.framework */; };
 		118246A12D90674900E3D16F /* FlashcatRUM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D29A9F3429DD84AA005C54A4 /* FlashcatRUM.framework */; };
 		118246B62D906C9A00E3D16F /* FlashcatCrashReporting.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 61B7885425C180CB002675B5 /* FlashcatCrashReporting.framework */; };
-		118246BE2D906F1500E3D16F /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */; };
+		118246BE2D906F1500E3D16F /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */; };
 		118246C42D906FF200E3D16F /* DatadogSDKTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 118246C32D906FF200E3D16F /* DatadogSDKTesting */; };
 		118246C62D906FFB00E3D16F /* DatadogSDKTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 118246C52D906FFB00E3D16F /* DatadogSDKTesting */; };
 		118246C72D9070FA00E3D16F /* TestUtilities.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D257953E298ABA65008A1BE5 /* TestUtilities.framework */; platformFilter = ios; };
@@ -53,7 +53,7 @@
 		118247D62D908BEF00E3D16F /* Datadog+MultipleInstancesIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6176991D2A8791880030022B /* Datadog+MultipleInstancesIntegrationTests.swift */; };
 		118248522D908BEF00E3D16F /* DatadogWebViewTracking.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CE119FE29F7BE0100202522 /* DatadogWebViewTracking.framework */; };
 		118248532D908BEF00E3D16F /* DatadogSessionReplay.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6133D1F52A6ED9E100384BEF /* DatadogSessionReplay.framework */; };
-		118248542D908BEF00E3D16F /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */; };
+		118248542D908BEF00E3D16F /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */; };
 		118248552D908BEF00E3D16F /* FlashcatRUM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D29A9F3429DD84AA005C54A4 /* FlashcatRUM.framework */; };
 		118248562D908BEF00E3D16F /* FlashcatCrashReporting.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 61B7885425C180CB002675B5 /* FlashcatCrashReporting.framework */; };
 		118248572D908BEF00E3D16F /* FlashcatLogs.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D207317C29A5226A00ECBF94 /* FlashcatLogs.framework */; };
@@ -74,7 +74,7 @@
 		118248702D908D1C00E3D16F /* CoreTelemetryIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610ABD4B2A6930CA00AFEA34 /* CoreTelemetryIntegrationTests.swift */; };
 		118248712D908D1C00E3D16F /* WebLogIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20FD9D52ACC0934004D3569 /* WebLogIntegrationTests.swift */; };
 		118248722D908D3400E3D16F /* CoreMetricsIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 618353BB2A69470A0085F84A /* CoreMetricsIntegrationTests.swift */; };
-		118249052D9094EA00E3D16F /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2C1A55A29C4F2DF00946C31 /* DatadogTrace.framework */; };
+		118249052D9094EA00E3D16F /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2C1A55A29C4F2DF00946C31 /* FlashcatTrace.framework */; };
 		118249062D9094EA00E3D16F /* FlashcatRUM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D23F8E9929DDCD28001CFAE8 /* FlashcatRUM.framework */; };
 		118249072D9094EA00E3D16F /* FlashcatCrashReporting.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2CB6FD127C5348200A62B57 /* FlashcatCrashReporting.framework */; };
 		118249082D9094EA00E3D16F /* FlashcatLogs.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D20731B429A5279D00ECBF94 /* FlashcatLogs.framework */; };
@@ -354,7 +354,7 @@
 		3C0D5DF62A5443B100446CF9 /* DataFormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0D5DF42A5443B100446CF9 /* DataFormatTests.swift */; };
 		3C2206F52AB9DB9000DE780C /* DatadogSessionReplay.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6133D1F52A6ED9E100384BEF /* DatadogSessionReplay.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3C2206F62AB9DBA700DE780C /* FlashcatRUM.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D29A9F3429DD84AA005C54A4 /* FlashcatRUM.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		3C2206F72AB9DBB600DE780C /* DatadogTrace.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		3C2206F72AB9DBB600DE780C /* FlashcatTrace.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3C2206F82AB9DBC600DE780C /* FlashcatInternal.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D23039A5298D513C001A1FA3 /* FlashcatInternal.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3C32359D2B55386C000B4258 /* OTelSpanLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C32359C2B55386C000B4258 /* OTelSpanLink.swift */; };
 		3C32359E2B55386C000B4258 /* OTelSpanLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C32359C2B55386C000B4258 /* OTelSpanLink.swift */; };
@@ -761,8 +761,8 @@
 		6147989A2A459B2E0095CB02 /* DDTraceConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614798982A459B2E0095CB02 /* DDTraceConfigurationTests.swift */; };
 		6147989C2A459E2B0095CB02 /* DDTrace+apiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6147989B2A459E2B0095CB02 /* DDTrace+apiTests.m */; };
 		6147989D2A459E2B0095CB02 /* DDTrace+apiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6147989B2A459E2B0095CB02 /* DDTrace+apiTests.m */; };
-		614798A22A45A48F0095CB02 /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2C1A55A29C4F2DF00946C31 /* DatadogTrace.framework */; };
-		614798A32A45A4980095CB02 /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */; };
+		614798A22A45A48F0095CB02 /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2C1A55A29C4F2DF00946C31 /* FlashcatTrace.framework */; };
+		614798A32A45A4980095CB02 /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */; };
 		614964472E7D7B0D00D9EFFF /* ExposureRequestBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614964442E7D7B0D00D9EFFF /* ExposureRequestBuilder.swift */; };
 		614964482E7D7B0D00D9EFFF /* FlagsFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614964452E7D7B0D00D9EFFF /* FlagsFeature.swift */; };
 		614964492E7D7B0D00D9EFFF /* ExposureRequestBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614964442E7D7B0D00D9EFFF /* ExposureRequestBuilder.swift */; };
@@ -1443,13 +1443,13 @@
 		D2579599298AD95F008A1BE5 /* TestUtilities.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D257953E298ABA65008A1BE5 /* TestUtilities.framework */; };
 		D257959A298AD967008A1BE5 /* TestUtilities.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D257958B298ABB83008A1BE5 /* TestUtilities.framework */; };
 		D25C834C2B8657CF008E73B1 /* SegmentJSONTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25C834B2B8657CF008E73B1 /* SegmentJSONTests.swift */; };
-		D25CFA9829C4F41900E3A43D /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2C1A55A29C4F2DF00946C31 /* DatadogTrace.framework */; };
+		D25CFA9829C4F41900E3A43D /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2C1A55A29C4F2DF00946C31 /* FlashcatTrace.framework */; };
 		D25CFA9929C4F41900E3A43D /* TestUtilities.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D257958B298ABB83008A1BE5 /* TestUtilities.framework */; };
-		D25CFA9C29C4FC6900E3A43D /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */; };
-		D25CFA9D29C4FC6E00E3A43D /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2C1A55A29C4F2DF00946C31 /* DatadogTrace.framework */; };
+		D25CFA9C29C4FC6900E3A43D /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */; };
+		D25CFA9D29C4FC6E00E3A43D /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2C1A55A29C4F2DF00946C31 /* FlashcatTrace.framework */; };
 		D25CFAA229C8644E00E3A43D /* Casting+Tracing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25CFAA129C8644E00E3A43D /* Casting+Tracing.swift */; };
 		D25CFAA329C8644E00E3A43D /* Casting+Tracing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25CFAA129C8644E00E3A43D /* Casting+Tracing.swift */; };
-		D25EE93C29C4C3C300CE3839 /* DatadogTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */; platformFilter = ios; };
+		D25EE93C29C4C3C300CE3839 /* FlashcatTrace.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */; platformFilter = ios; };
 		D2612F48290197C700509B7D /* LaunchInfoPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2C7E3AD28FEBDA10023B2CC /* LaunchInfoPublisher.swift */; };
 		D263BCAF29DAFFEB00FA0E21 /* PerformancePresetOverride.swift in Sources */ = {isa = PBXBuildFile; fileRef = D263BCAE29DAFFEB00FA0E21 /* PerformancePresetOverride.swift */; };
 		D263BCB029DAFFEB00FA0E21 /* PerformancePresetOverride.swift in Sources */ = {isa = PBXBuildFile; fileRef = D263BCAE29DAFFEB00FA0E21 /* PerformancePresetOverride.swift */; };
@@ -2480,7 +2480,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				3C2206F82AB9DBC600DE780C /* FlashcatInternal.framework in Embed Frameworks */,
-				3C2206F72AB9DBB600DE780C /* DatadogTrace.framework in Embed Frameworks */,
+				3C2206F72AB9DBB600DE780C /* FlashcatTrace.framework in Embed Frameworks */,
 				1434A4622B7F73110072E3BB /* OpenTelemetryApi.xcframework in Embed Frameworks */,
 				3C2206F62AB9DBA700DE780C /* FlashcatRUM.framework in Embed Frameworks */,
 				3C2206F52AB9DB9000DE780C /* DatadogSessionReplay.framework in Embed Frameworks */,
@@ -3444,8 +3444,8 @@
 		D25BADA029C1EF3000112069 /* TracingURLSessionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracingURLSessionHandler.swift; sourceTree = "<group>"; };
 		D25C834B2B8657CF008E73B1 /* SegmentJSONTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentJSONTests.swift; sourceTree = "<group>"; };
 		D25CFAA129C8644E00E3A43D /* Casting+Tracing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Casting+Tracing.swift"; sourceTree = "<group>"; };
-		D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = DatadogTrace.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		D25EE93B29C4C3C300CE3839 /* DatadogTraceTests iOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "DatadogTraceTests iOS.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = FlashcatTrace.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D25EE93B29C4C3C300CE3839 /* FlashcatTraceTests iOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "FlashcatTraceTests iOS.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D25FF2E729CC6B680063802D /* RUMFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMFeature.swift; sourceTree = "<group>"; };
 		D25FF2EA29CC6D6F0063802D /* RUMConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMConfiguration.swift; sourceTree = "<group>"; };
 		D25FF2ED29CC73240063802D /* RequestBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestBuilder.swift; sourceTree = "<group>"; };
@@ -3520,8 +3520,8 @@
 		D2BEEDB42B33607D0065F3AC /* URLSessionSwizzler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionSwizzler.swift; sourceTree = "<group>"; };
 		D2BEEDB72B3360F50065F3AC /* URLSessionTaskDelegateSwizzlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionTaskDelegateSwizzlerTests.swift; sourceTree = "<group>"; };
 		D2C179E02DD2388800556F68 /* SpanCoreContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpanCoreContext.swift; sourceTree = "<group>"; };
-		D2C1A55A29C4F2DF00946C31 /* DatadogTrace.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = DatadogTrace.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		D2C1A57329C4F2E800946C31 /* DatadogTraceTests tvOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "DatadogTraceTests tvOS.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2C1A55A29C4F2DF00946C31 /* FlashcatTrace.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = FlashcatTrace.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2C1A57329C4F2E800946C31 /* FlashcatTraceTests tvOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "FlashcatTraceTests tvOS.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2C5D52A2B84F6AB00B63F36 /* WebViewRecordReceiver.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebViewRecordReceiver.swift; sourceTree = "<group>"; };
 		D2C5D52C2B84F6D800B63F36 /* WebViewRecordReceiverTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebViewRecordReceiverTests.swift; sourceTree = "<group>"; };
 		D2C5D52F2B84F71200B63F36 /* WebRecordIntegrationTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebRecordIntegrationTests.swift; sourceTree = "<group>"; };
@@ -3595,7 +3595,7 @@
 			files = (
 				118248522D908BEF00E3D16F /* DatadogWebViewTracking.framework in Frameworks */,
 				118248532D908BEF00E3D16F /* DatadogSessionReplay.framework in Frameworks */,
-				118248542D908BEF00E3D16F /* DatadogTrace.framework in Frameworks */,
+				118248542D908BEF00E3D16F /* FlashcatTrace.framework in Frameworks */,
 				118248552D908BEF00E3D16F /* FlashcatRUM.framework in Frameworks */,
 				61E262D42EB2592C0041E70F /* FlashcatFlags.framework in Frameworks */,
 				118248562D908BEF00E3D16F /* FlashcatCrashReporting.framework in Frameworks */,
@@ -3609,7 +3609,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				118249052D9094EA00E3D16F /* DatadogTrace.framework in Frameworks */,
+				118249052D9094EA00E3D16F /* FlashcatTrace.framework in Frameworks */,
 				118249062D9094EA00E3D16F /* FlashcatRUM.framework in Frameworks */,
 				118249072D9094EA00E3D16F /* FlashcatCrashReporting.framework in Frameworks */,
 				118249082D9094EA00E3D16F /* FlashcatLogs.framework in Frameworks */,
@@ -3676,7 +3676,7 @@
 			files = (
 				D20FD9D12ACC02F9004D3569 /* DatadogWebViewTracking.framework in Frameworks */,
 				6175922B2A6FA8EE0073F431 /* DatadogSessionReplay.framework in Frameworks */,
-				614798A32A45A4980095CB02 /* DatadogTrace.framework in Frameworks */,
+				614798A32A45A4980095CB02 /* FlashcatTrace.framework in Frameworks */,
 				61A2CC302A4449CB0000FF25 /* FlashcatRUM.framework in Frameworks */,
 				D2D3199729E982A30004F169 /* FlashcatCrashReporting.framework in Frameworks */,
 				D24C9C4A29A7B35C002057CF /* FlashcatLogs.framework in Frameworks */,
@@ -3709,7 +3709,7 @@
 				6175922D2A6FADDD0073F431 /* DatadogSessionReplay.framework in Frameworks */,
 				61A2CC332A44A5F60000FF25 /* FlashcatRUM.framework in Frameworks */,
 				3CE11A1129F7BE0900202522 /* DatadogWebViewTracking.framework in Frameworks */,
-				D25CFA9C29C4FC6900E3A43D /* DatadogTrace.framework in Frameworks */,
+				D25CFA9C29C4FC6900E3A43D /* FlashcatTrace.framework in Frameworks */,
 				9E5BD8042819742200CB568E /* SwiftUI.framework in Frameworks */,
 				D240687827CF982B00C04F44 /* CrashReporter.xcframework in Frameworks */,
 				D240687B27CF982C00C04F44 /* FlashcatCore.framework in Frameworks */,
@@ -3802,7 +3802,7 @@
 			files = (
 				61A2CC342A44A6030000FF25 /* FlashcatRUM.framework in Frameworks */,
 				1434A4632B7F73170072E3BB /* OpenTelemetryApi.xcframework in Frameworks */,
-				D25CFA9D29C4FC6E00E3A43D /* DatadogTrace.framework in Frameworks */,
+				D25CFA9D29C4FC6E00E3A43D /* FlashcatTrace.framework in Frameworks */,
 				9E5BD8062819742C00CB568E /* SwiftUI.framework in Frameworks */,
 				D240687027CF971C00C04F44 /* CrashReporter.xcframework in Frameworks */,
 				D240687127CF971C00C04F44 /* FlashcatCore.framework in Frameworks */,
@@ -3821,7 +3821,7 @@
 				D26F741129ACBDA100D25622 /* FlashcatInternal.framework in Frameworks */,
 				11030D5F2D959EAD00732D5F /* FlashcatLogs.framework in Frameworks */,
 				D2579592298ABCED008A1BE5 /* XCTest.framework in Frameworks */,
-				118246BE2D906F1500E3D16F /* DatadogTrace.framework in Frameworks */,
+				118246BE2D906F1500E3D16F /* FlashcatTrace.framework in Frameworks */,
 				118246A12D90674900E3D16F /* FlashcatRUM.framework in Frameworks */,
 				117E52222D91A61A00A8E930 /* DatadogSessionReplay.framework in Frameworks */,
 				118246C62D906FFB00E3D16F /* DatadogSDKTesting in Frameworks */,
@@ -3855,7 +3855,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D25EE93C29C4C3C300CE3839 /* DatadogTrace.framework in Frameworks */,
+				D25EE93C29C4C3C300CE3839 /* FlashcatTrace.framework in Frameworks */,
 				D2C1A52829C4C8CB00946C31 /* TestUtilities.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -3899,7 +3899,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D25CFA9829C4F41900E3A43D /* DatadogTrace.framework in Frameworks */,
+				D25CFA9829C4F41900E3A43D /* FlashcatTrace.framework in Frameworks */,
 				D25CFA9929C4F41900E3A43D /* TestUtilities.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -3916,7 +3916,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				614798A22A45A48F0095CB02 /* DatadogTrace.framework in Frameworks */,
+				614798A22A45A48F0095CB02 /* FlashcatTrace.framework in Frameworks */,
 				61A2CC312A4449D70000FF25 /* FlashcatRUM.framework in Frameworks */,
 				D2D3199829E982AC0004F169 /* FlashcatCrashReporting.framework in Frameworks */,
 				D24C9C4B29A7B365002057CF /* FlashcatLogs.framework in Frameworks */,
@@ -5067,10 +5067,10 @@
 				D207318329A5226A00ECBF94 /* FlashcatLogsTests iOS.xctest */,
 				D20731B429A5279D00ECBF94 /* FlashcatLogs.framework */,
 				D2A7840129A534F9003B03BB /* DatadogLogsTests tvOS.xctest */,
-				D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */,
-				D25EE93B29C4C3C300CE3839 /* DatadogTraceTests iOS.xctest */,
-				D2C1A55A29C4F2DF00946C31 /* DatadogTrace.framework */,
-				D2C1A57329C4F2E800946C31 /* DatadogTraceTests tvOS.xctest */,
+				D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */,
+				D25EE93B29C4C3C300CE3839 /* FlashcatTraceTests iOS.xctest */,
+				D2C1A55A29C4F2DF00946C31 /* FlashcatTrace.framework */,
+				D2C1A57329C4F2E800946C31 /* FlashcatTraceTests tvOS.xctest */,
 				D29A9F3429DD84AA005C54A4 /* FlashcatRUM.framework */,
 				D29A9F3B29DD84AB005C54A4 /* FlashcatRUMTests iOS.xctest */,
 				D23F8E9929DDCD28001CFAE8 /* FlashcatRUM.framework */,
@@ -6837,7 +6837,7 @@
 				61C5A87A24509A0C00DA608C /* Utils */,
 			);
 			name = DatadogTrace;
-			path = ../DatadogTrace/Sources;
+			path = ../FlashcatTrace/Sources;
 			sourceTree = "<group>";
 		};
 		D25EE93F29C4C3C400CE3839 /* DatadogTraceTests */ = {
@@ -6857,7 +6857,7 @@
 				619CE7602A458D66005588CB /* TraceTests.swift */,
 			);
 			name = DatadogTraceTests;
-			path = ../DatadogTrace/Tests;
+			path = ../FlashcatTrace/Tests;
 			sourceTree = "<group>";
 		};
 		D25FF2E629CC6B320063802D /* Feature */ = {
@@ -7890,9 +7890,9 @@
 			productReference = D257958B298ABB83008A1BE5 /* TestUtilities.framework */;
 			productType = "com.apple.product-type.framework";
 		};
-		D25EE93329C4C3C300CE3839 /* DatadogTrace iOS */ = {
+		D25EE93329C4C3C300CE3839 /* FlashcatTrace iOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D25EE94929C4C3C400CE3839 /* Build configuration list for PBXNativeTarget "DatadogTrace iOS" */;
+			buildConfigurationList = D25EE94929C4C3C400CE3839 /* Build configuration list for PBXNativeTarget "FlashcatTrace iOS" */;
 			buildPhases = (
 				D25EE92F29C4C3C300CE3839 /* Headers */,
 				D25EE93029C4C3C300CE3839 /* Sources */,
@@ -7904,16 +7904,16 @@
 			dependencies = (
 				D2C1A51129C4C4EF00946C31 /* PBXTargetDependency */,
 			);
-			name = "DatadogTrace iOS";
+			name = "FlashcatTrace iOS";
 			packageProductDependencies = (
 			);
 			productName = DatadogTrace;
-			productReference = D25EE93429C4C3C300CE3839 /* DatadogTrace.framework */;
+			productReference = D25EE93429C4C3C300CE3839 /* FlashcatTrace.framework */;
 			productType = "com.apple.product-type.framework";
 		};
-		D25EE93A29C4C3C300CE3839 /* DatadogTraceTests iOS */ = {
+		D25EE93A29C4C3C300CE3839 /* FlashcatTraceTests iOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D25EE94A29C4C3C400CE3839 /* Build configuration list for PBXNativeTarget "DatadogTraceTests iOS" */;
+			buildConfigurationList = D25EE94A29C4C3C400CE3839 /* Build configuration list for PBXNativeTarget "FlashcatTraceTests iOS" */;
 			buildPhases = (
 				D25EE93729C4C3C300CE3839 /* Sources */,
 				D25EE93829C4C3C300CE3839 /* Frameworks */,
@@ -7924,11 +7924,11 @@
 			dependencies = (
 				D25EE93E29C4C3C300CE3839 /* PBXTargetDependency */,
 			);
-			name = "DatadogTraceTests iOS";
+			name = "FlashcatTraceTests iOS";
 			packageProductDependencies = (
 			);
 			productName = DatadogTraceTests;
-			productReference = D25EE93B29C4C3C300CE3839 /* DatadogTraceTests iOS.xctest */;
+			productReference = D25EE93B29C4C3C300CE3839 /* FlashcatTraceTests iOS.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		D29A9F3329DD84AA005C54A4 /* DatadogRUM iOS */ = {
@@ -7986,9 +7986,9 @@
 			productReference = D2A7840129A534F9003B03BB /* DatadogLogsTests tvOS.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		D2C1A53329C4F2DF00946C31 /* DatadogTrace tvOS */ = {
+		D2C1A53329C4F2DF00946C31 /* FlashcatTrace tvOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D2C1A55629C4F2DF00946C31 /* Build configuration list for PBXNativeTarget "DatadogTrace tvOS" */;
+			buildConfigurationList = D2C1A55629C4F2DF00946C31 /* Build configuration list for PBXNativeTarget "FlashcatTrace tvOS" */;
 			buildPhases = (
 				D2C1A53629C4F2DF00946C31 /* Headers */,
 				D2C1A53729C4F2DF00946C31 /* Sources */,
@@ -8000,14 +8000,14 @@
 			dependencies = (
 				D2C1A57729C4F30000946C31 /* PBXTargetDependency */,
 			);
-			name = "DatadogTrace tvOS";
+			name = "FlashcatTrace tvOS";
 			productName = DatadogTrace;
-			productReference = D2C1A55A29C4F2DF00946C31 /* DatadogTrace.framework */;
+			productReference = D2C1A55A29C4F2DF00946C31 /* FlashcatTrace.framework */;
 			productType = "com.apple.product-type.framework";
 		};
-		D2C1A55B29C4F2E800946C31 /* DatadogTraceTests tvOS */ = {
+		D2C1A55B29C4F2E800946C31 /* FlashcatTraceTests tvOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D2C1A56F29C4F2E800946C31 /* Build configuration list for PBXNativeTarget "DatadogTraceTests tvOS" */;
+			buildConfigurationList = D2C1A56F29C4F2E800946C31 /* Build configuration list for PBXNativeTarget "FlashcatTraceTests tvOS" */;
 			buildPhases = (
 				D2C1A55E29C4F2E800946C31 /* Sources */,
 				D2C1A56B29C4F2E800946C31 /* Frameworks */,
@@ -8018,9 +8018,9 @@
 			dependencies = (
 				D25CFA9B29C4F41F00E3A43D /* PBXTargetDependency */,
 			);
-			name = "DatadogTraceTests tvOS";
+			name = "FlashcatTraceTests tvOS";
 			productName = DatadogTraceTests;
-			productReference = D2C1A57329C4F2E800946C31 /* DatadogTraceTests tvOS.xctest */;
+			productReference = D2C1A57329C4F2E800946C31 /* FlashcatTraceTests tvOS.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		D2CB6E0A27C50EAE00A62B57 /* FlashcatCore tvOS */ = {
@@ -8267,10 +8267,10 @@
 				D207318229A5226A00ECBF94 /* FlashcatLogsTests iOS */,
 				D20731A429A5279D00ECBF94 /* FlashcatLogs tvOS */,
 				D2A783EE29A534F9003B03BB /* DatadogLogsTests tvOS */,
-				D25EE93329C4C3C300CE3839 /* DatadogTrace iOS */,
-				D25EE93A29C4C3C300CE3839 /* DatadogTraceTests iOS */,
-				D2C1A53329C4F2DF00946C31 /* DatadogTrace tvOS */,
-				D2C1A55B29C4F2E800946C31 /* DatadogTraceTests tvOS */,
+				D25EE93329C4C3C300CE3839 /* FlashcatTrace iOS */,
+				D25EE93A29C4C3C300CE3839 /* FlashcatTraceTests iOS */,
+				D2C1A53329C4F2DF00946C31 /* FlashcatTrace tvOS */,
+				D2C1A55B29C4F2E800946C31 /* FlashcatTraceTests tvOS */,
 				D29A9F3329DD84AA005C54A4 /* DatadogRUM iOS */,
 				D29A9F3A29DD84AB005C54A4 /* FlashcatRUMTests iOS */,
 				D23F8E4D29DDCD28001CFAE8 /* FlashcatRUM tvOS */,
@@ -10935,7 +10935,7 @@
 		};
 		118246C12D906F1500E3D16F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = D25EE93329C4C3C300CE3839 /* DatadogTrace iOS */;
+			target = D25EE93329C4C3C300CE3839 /* FlashcatTrace iOS */;
 			targetProxy = 118246C02D906F1500E3D16F /* PBXContainerItemProxy */;
 		};
 		118246CD2D90712D00E3D16F /* PBXTargetDependency */ = {
@@ -10970,7 +10970,7 @@
 		};
 		3C4D5FEF2A0115C600F1FF78 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = D2C1A53329C4F2DF00946C31 /* DatadogTrace tvOS */;
+			target = D2C1A53329C4F2DF00946C31 /* FlashcatTrace tvOS */;
 			targetProxy = 3C4D5FEE2A0115C600F1FF78 /* PBXContainerItemProxy */;
 		};
 		3C4D5FF12A0115CB00F1FF78 /* PBXTargetDependency */ = {
@@ -11131,13 +11131,13 @@
 		};
 		D25CFA9B29C4F41F00E3A43D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = D2C1A53329C4F2DF00946C31 /* DatadogTrace tvOS */;
+			target = D2C1A53329C4F2DF00946C31 /* FlashcatTrace tvOS */;
 			targetProxy = D25CFA9A29C4F41F00E3A43D /* PBXContainerItemProxy */;
 		};
 		D25EE93E29C4C3C300CE3839 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			platformFilter = ios;
-			target = D25EE93329C4C3C300CE3839 /* DatadogTrace iOS */;
+			target = D25EE93329C4C3C300CE3839 /* FlashcatTrace iOS */;
 			targetProxy = D25EE93D29C4C3C300CE3839 /* PBXContainerItemProxy */;
 		};
 		D26F741529ACBDAD00D25622 /* PBXTargetDependency */ = {
@@ -11172,7 +11172,7 @@
 		};
 		D2C1A52C29C4C92800946C31 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = D25EE93329C4C3C300CE3839 /* DatadogTrace iOS */;
+			target = D25EE93329C4C3C300CE3839 /* FlashcatTrace iOS */;
 			targetProxy = D2C1A52B29C4C92800946C31 /* PBXContainerItemProxy */;
 		};
 		D2C1A57729C4F30000946C31 /* PBXTargetDependency */ = {
@@ -13392,6 +13392,7 @@
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DD_CR_SDK_PRODUCT_NAME = FlashcatCrashReporting;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -13406,7 +13407,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.datadoghq.DatadogTrace;
-				PRODUCT_NAME = DatadogTrace;
+				PRODUCT_NAME = FlashcatTrace;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -13425,6 +13426,7 @@
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DD_CR_SDK_PRODUCT_NAME = FlashcatCrashReporting;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -13439,7 +13441,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.datadoghq.DatadogTrace;
-				PRODUCT_NAME = DatadogTrace;
+				PRODUCT_NAME = FlashcatTrace;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -13458,6 +13460,7 @@
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DD_CR_SDK_PRODUCT_NAME = FlashcatCrashReporting;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -13472,7 +13475,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.datadoghq.DatadogTrace;
-				PRODUCT_NAME = DatadogTrace;
+				PRODUCT_NAME = FlashcatTrace;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -13784,7 +13787,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.datadoghq.DatadogTrace;
-				PRODUCT_NAME = DatadogTrace;
+				PRODUCT_NAME = FlashcatTrace;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -13817,7 +13820,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.datadoghq.DatadogTrace;
-				PRODUCT_NAME = DatadogTrace;
+				PRODUCT_NAME = FlashcatTrace;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -13850,7 +13853,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.datadoghq.DatadogTrace;
-				PRODUCT_NAME = DatadogTrace;
+				PRODUCT_NAME = FlashcatTrace;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -14742,7 +14745,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D25EE94929C4C3C400CE3839 /* Build configuration list for PBXNativeTarget "DatadogTrace iOS" */ = {
+		D25EE94929C4C3C400CE3839 /* Build configuration list for PBXNativeTarget "FlashcatTrace iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D25EE94329C4C3C400CE3839 /* Debug */,
@@ -14752,7 +14755,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D25EE94A29C4C3C400CE3839 /* Build configuration list for PBXNativeTarget "DatadogTraceTests iOS" */ = {
+		D25EE94A29C4C3C400CE3839 /* Build configuration list for PBXNativeTarget "FlashcatTraceTests iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D25EE94629C4C3C400CE3839 /* Debug */,
@@ -14792,7 +14795,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D2C1A55629C4F2DF00946C31 /* Build configuration list for PBXNativeTarget "DatadogTrace tvOS" */ = {
+		D2C1A55629C4F2DF00946C31 /* Build configuration list for PBXNativeTarget "FlashcatTrace tvOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D2C1A55729C4F2DF00946C31 /* Debug */,
@@ -14802,7 +14805,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D2C1A56F29C4F2E800946C31 /* Build configuration list for PBXNativeTarget "DatadogTraceTests tvOS" */ = {
+		D2C1A56F29C4F2E800946C31 /* Build configuration list for PBXNativeTarget "FlashcatTraceTests tvOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D2C1A57029C4F2E800946C31 /* Debug */,

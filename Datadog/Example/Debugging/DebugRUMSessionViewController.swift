@@ -6,7 +6,7 @@
 
 import SwiftUI
 import FlashcatRUM
-import DatadogTrace
+import FlashcatTrace
 
 @available(iOS 13, *)
 internal class DebugRUMSessionViewController: UIHostingController<DebugRUMSessionView> {

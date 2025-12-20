@@ -9,7 +9,7 @@ import TestUtilities
 
 @testable import FlashcatInternal
 @testable import FlashcatLogs
-@testable import DatadogTrace
+@testable import FlashcatTrace
 
 class TracingURLSessionHandlerTests: XCTestCase {
     // swiftlint:disable implicitly_unwrapped_optional

@@ -223,7 +223,7 @@ spm-build-watchos:
 	# Build only compatible schemes for watchOS:
 	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatCore"
 	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatLogs"
-	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogTrace"
+	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatTrace"
 
 # Builds SPM package for macOS (and Mac Catalyst)
 spm-build-macos:
@@ -232,7 +232,7 @@ spm-build-macos:
 	# Only compatible schemes for macOS:
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatCore"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatLogs"
-	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogTrace"
+	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatTrace"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatCrashReporting"
 
 # Builds a new version of the E2E app and publishes it to synthetics.

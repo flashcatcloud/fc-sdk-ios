@@ -7,7 +7,7 @@
 import UIKit
 import FlashcatRUM
 import DatadogSessionReplay // it should compile for iOS and tvOS, but APIs are only available on iOS
-import DatadogTrace
+import FlashcatTrace
 import FlashcatFlags
 import OpenTelemetryApi
 

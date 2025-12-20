@@ -10,7 +10,7 @@ import FlashcatInternal
 import OpenTelemetryApi
 
 @testable import FlashcatLogs
-@testable import DatadogTrace
+@testable import FlashcatTrace
 
 final class OTelSpanTests: XCTestCase {
     func testAddEvent() {

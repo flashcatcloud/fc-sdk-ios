@@ -6,7 +6,7 @@
 
 import FlashcatCore
 import FlashcatLogs
-import DatadogTrace
+import FlashcatTrace
 import FlashcatCrashReporting
 
 enum DatadogSetup {

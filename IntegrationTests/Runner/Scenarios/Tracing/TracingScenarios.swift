@@ -5,7 +5,7 @@
  */
 
 import FlashcatCore
-import DatadogTrace
+import FlashcatTrace
 import FlashcatLogs
 
 /// Scenario which starts a view controller that sends bunch of spans using manual API of `Tracer`.

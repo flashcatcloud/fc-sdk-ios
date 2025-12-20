@@ -8,7 +8,7 @@ import XCTest
 @testable import FlashcatCore
 @testable import FlashcatRUM
 @testable import FlashcatLogs
-@testable import DatadogTrace
+@testable import FlashcatTrace
 #if !os(tvOS)
 @testable import DatadogSessionReplay
 #endif

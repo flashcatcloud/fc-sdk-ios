@@ -6,7 +6,7 @@
 
 import UIKit
 import FlashcatCore
-import DatadogTrace
+import FlashcatTrace
 
 internal class SendTracesFixtureViewController: UIViewController {
     private let backgroundQueue = DispatchQueue(label: "background-queue")

@@ -9,7 +9,7 @@ import TestUtilities
 @_spi(objc)
 import FlashcatInternal
 @_spi(objc)
-@testable import DatadogTrace
+@testable import FlashcatTrace
 
 class DDTraceConfigurationTests: XCTestCase {
     private var objc = objc_TraceConfiguration()

@@ -6,7 +6,7 @@
 
 import UIKit
 import FlashcatCore
-import DatadogTrace
+import FlashcatTrace
 
 internal class CSRootViewController: UIViewController {
     @IBAction func startCore(_ sender: UIButton) {

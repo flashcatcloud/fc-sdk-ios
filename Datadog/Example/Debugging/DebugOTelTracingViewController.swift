@@ -6,7 +6,7 @@
 
 import UIKit
 import FlashcatCore
-import DatadogTrace
+import FlashcatTrace
 import OpenTelemetryApi
 
 class DebugOTelTracingViewController: UIViewController {

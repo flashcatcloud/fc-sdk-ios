@@ -17,7 +17,7 @@ Each feature module contains a `*_FEATURE.md` file at its root:
 ```
 FlashcatRUM/RUM_FEATURE.md
 DatadogSessionReplay/SESSION_REPLAY_FEATURE.md
-DatadogTrace/TRACE_FEATURE.md          # (future)
+FlashcatTrace/TRACE_FEATURE.md          # (future)
 FlashcatLogs/LOGS_FEATURE.md            # (future)
 DatadogWebViewTracking/WEBVIEW_FEATURE.md  # (future)
 ```

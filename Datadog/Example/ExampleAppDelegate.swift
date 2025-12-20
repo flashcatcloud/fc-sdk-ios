@@ -7,7 +7,7 @@
 import UIKit
 import FlashcatCore
 import FlashcatLogs
-import DatadogTrace
+import FlashcatTrace
 import FlashcatRUM
 import FlashcatCrashReporting
 import OpenTelemetryApi

@@ -7,7 +7,7 @@
 #import <XCTest/XCTest.h>
 #include <sys/wait.h>
 @import FlashcatCore;
-@import DatadogTrace;
+@import FlashcatTrace;
 
 #import <Foundation/Foundation.h>
 

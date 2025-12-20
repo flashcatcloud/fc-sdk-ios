@@ -6,7 +6,7 @@
 
 import Foundation
 import UIKit
-import DatadogTrace
+import FlashcatTrace
 import FlashcatCore
 import OpenTelemetryApi
 

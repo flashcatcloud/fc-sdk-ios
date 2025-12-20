@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 @_spi(objc)
-@testable import DatadogTrace
+@testable import FlashcatTrace
 
 class DDTraceTests: XCTestCase {
     private var core: FeatureRegistrationCoreMock! // swiftlint:disable:this implicitly_unwrapped_optional

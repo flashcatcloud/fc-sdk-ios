@@ -9,7 +9,7 @@ import FlashcatInternal
 import TestUtilities
 
 @testable import FlashcatLogs
-@testable import DatadogTrace
+@testable import FlashcatTrace
 @testable import FlashcatCore
 
 class TracingWithLoggingIntegrationTests: XCTestCase {

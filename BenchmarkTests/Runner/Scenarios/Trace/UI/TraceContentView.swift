@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogTrace
+import FlashcatTrace
 import SwiftUI
 
 struct TraceContentView: View {

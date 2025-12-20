@@ -8,7 +8,7 @@ import Foundation
 import SwiftUI
 
 import FlashcatCore
-import DatadogTrace
+import FlashcatTrace
 
 struct TraceScenario: Scenario {
     var initialViewController: UIViewController {

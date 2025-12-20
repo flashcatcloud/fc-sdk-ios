@@ -7,7 +7,7 @@
 import Foundation
 import FlashcatInternal
 
-@testable import DatadogTrace
+@testable import FlashcatTrace
 
 // MARK: - Span Mocks
 

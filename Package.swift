@@ -42,7 +42,7 @@ let package = Package(
         ),
         .library(
             name: "FlashcatTrace",
-            targets: ["DatadogTrace"]
+            targets: ["FlashcatTrace"]
         ),
         .library(
             name: "FlashcatRUM",
@@ -119,20 +119,20 @@ let package = Package(
         ),
 
         .target(
-            name: "DatadogTrace",
+            name: "FlashcatTrace",
             dependencies: [
                 .target(name: "FlashcatInternal"),
                 .product(name: "OpenTelemetryApi", package: opentelemetry.name)
             ],
-            path: "DatadogTrace/Sources"
+            path: "FlashcatTrace/Sources"
         ),
         .testTarget(
             name: "DatadogTraceTests",
             dependencies: [
-                .target(name: "DatadogTrace"),
+                .target(name: "FlashcatTrace"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogTrace/Tests"
+            path: "FlashcatTrace/Tests"
         ),
 
         .target(
@@ -234,7 +234,7 @@ let package = Package(
                 .target(name: "FlashcatLogs"),
                 .target(name: "FlashcatRUM"),
                 .target(name: "DatadogSessionReplay"),
-                .target(name: "DatadogTrace"),
+                .target(name: "FlashcatTrace"),
                 .target(name: "FlashcatCrashReporting"),
                 .target(name: "DatadogWebViewTracking"),
                 .target(name: "FlashcatFlags")
