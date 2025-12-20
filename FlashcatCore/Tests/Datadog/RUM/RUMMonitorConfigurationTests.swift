@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 import FlashcatInternal
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class RUMMonitorConfigurationTests: XCTestCase {
     private let userInfo: UserInfo = .mockAny()

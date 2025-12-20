@@ -46,7 +46,7 @@ let package = Package(
         ),
         .library(
             name: "FlashcatRUM",
-            targets: ["DatadogRUM"]
+            targets: ["FlashcatRUM"]
         ),
         .library(
             name: "FlashcatSessionReplay",
@@ -136,11 +136,11 @@ let package = Package(
         ),
 
         .target(
-            name: "DatadogRUM",
+            name: "FlashcatRUM",
             dependencies: [
                 .target(name: "FlashcatInternal"),
             ],
-            path: "DatadogRUM",
+            path: "FlashcatRUM",
             sources: ["Sources"],
             resources: [
                 .copy("Resources/PrivacyInfo.xcprivacy")
@@ -149,10 +149,10 @@ let package = Package(
         .testTarget(
             name: "DatadogRUMTests",
             dependencies: [
-                .target(name: "DatadogRUM"),
+                .target(name: "FlashcatRUM"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogRUM/Tests"
+            path: "FlashcatRUM/Tests"
         ),
 
         .target(
@@ -232,7 +232,7 @@ let package = Package(
                 .target(name: "DatadogPrivate"),
                 .target(name: "FlashcatInternal"),
                 .target(name: "FlashcatLogs"),
-                .target(name: "DatadogRUM"),
+                .target(name: "FlashcatRUM"),
                 .target(name: "DatadogSessionReplay"),
                 .target(name: "DatadogTrace"),
                 .target(name: "DatadogCrashReporting"),

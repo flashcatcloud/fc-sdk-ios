@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogRUM
+import FlashcatRUM
 import FlashcatCore
 
 /// Scenario which starts a navigation controller. Each view controller pushed to this navigation

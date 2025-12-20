@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 @_spi(objc)
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class DDRUMConfigurationTests: XCTestCase {
     private var objc = objc_RUMConfiguration(applicationID: "app-id")

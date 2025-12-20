@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 @testable import FlashcatCore
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class RUMSessionStopTests: RUMSessionTestsBase {
     // MARK: - Foreground session "stop" → track in foreground

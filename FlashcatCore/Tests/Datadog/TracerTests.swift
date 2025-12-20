@@ -10,7 +10,7 @@ import FlashcatInternal
 @testable import DatadogTrace
 @testable import FlashcatLogs
 @testable import FlashcatCore
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import TestUtilities
 
 // swiftlint:disable multiline_arguments_brackets

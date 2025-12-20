@@ -6,7 +6,7 @@
 
 import XCTest
 import UIKit
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import FlashcatInternal
 
 class CustomSwiftViewController: UIViewController {}

@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import FlashcatCore
 
 class RUMEventFileOutputTests: XCTestCase {

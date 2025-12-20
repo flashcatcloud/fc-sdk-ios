@@ -5,7 +5,7 @@
  */
 
 import Foundation
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import FlashcatInternal
 
 extension AccessibilityInfo: AnyMockable, RandomMockable {

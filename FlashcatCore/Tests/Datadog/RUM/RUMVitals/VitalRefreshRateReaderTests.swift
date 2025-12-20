@@ -8,7 +8,7 @@ import TestUtilities
 import UIKit
 import XCTest
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 final class VitalRefreshRateReaderTests: XCTestCase {
     /* Rate representation

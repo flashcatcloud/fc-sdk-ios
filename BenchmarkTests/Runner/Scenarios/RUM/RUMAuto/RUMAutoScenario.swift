@@ -5,7 +5,7 @@
  */
 
 import FlashcatCore
-import DatadogRUM
+import FlashcatRUM
 import SwiftUI
 
 struct RUMAutoScenario: Scenario {

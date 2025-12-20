@@ -6,7 +6,7 @@
 
 import UIKit
 import WebKit
-import DatadogRUM
+import FlashcatRUM
 import DatadogWebViewTracking
 
 class DebugWebviewViewController: UIViewController {

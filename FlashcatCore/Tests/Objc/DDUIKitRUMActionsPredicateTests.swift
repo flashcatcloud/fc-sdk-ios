@@ -6,7 +6,7 @@
 
 import XCTest
 @_spi(objc)
-import DatadogRUM
+import FlashcatRUM
 
 #if canImport(SwiftUI)
 import SwiftUI

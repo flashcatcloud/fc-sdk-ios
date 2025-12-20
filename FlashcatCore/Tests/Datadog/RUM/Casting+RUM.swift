@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 internal extension RUMMonitorProtocol {
     var dd: Monitor { self as! Monitor }

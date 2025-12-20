@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogRUM
+import FlashcatRUM
 
 final class RUMFeatureOperationsNextViewController: UIViewController {
 

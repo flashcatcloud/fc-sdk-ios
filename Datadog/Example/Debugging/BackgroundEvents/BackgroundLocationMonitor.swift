@@ -7,7 +7,7 @@
 import Foundation
 import CoreLocation
 import UIKit.UIApplication
-import DatadogRUM
+import FlashcatRUM
 
 internal var backgroundLocationMonitor: BackgroundLocationMonitor?
 

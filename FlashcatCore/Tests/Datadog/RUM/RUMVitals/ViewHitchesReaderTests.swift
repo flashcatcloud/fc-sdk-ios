@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 final class ViewHitchesReaderTests: XCTestCase {
     /* View Hitches representation for 60FPS

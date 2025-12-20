@@ -15,7 +15,7 @@ These files serve as **LLM-optimized entry points** to the codebase. They are NO
 Each feature module contains a `*_FEATURE.md` file at its root:
 
 ```
-DatadogRUM/RUM_FEATURE.md
+FlashcatRUM/RUM_FEATURE.md
 DatadogSessionReplay/SESSION_REPLAY_FEATURE.md
 DatadogTrace/TRACE_FEATURE.md          # (future)
 FlashcatLogs/LOGS_FEATURE.md            # (future)

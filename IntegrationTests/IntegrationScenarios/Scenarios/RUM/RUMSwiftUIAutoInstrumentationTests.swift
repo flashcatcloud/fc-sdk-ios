@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 private extension ExampleApplication {
     func tapBackButton(_ buttonTitle: String) {

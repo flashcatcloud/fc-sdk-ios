@@ -5,7 +5,7 @@
  */
 
 import XCTest
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class VitalInfoTest: XCTestCase {
     func testItUpdatesVitalInfoOnFirstValue() {

@@ -7,7 +7,7 @@
 import Foundation
 import FlashcatCore
 import DatadogTrace
-import DatadogRUM
+import FlashcatRUM
 
 /// Base scenario for `URLSession` and `NSURLSession` instrumentation.  It makes
 /// both Swift and Objective-C tests share the same endpoints and SDK configuration.

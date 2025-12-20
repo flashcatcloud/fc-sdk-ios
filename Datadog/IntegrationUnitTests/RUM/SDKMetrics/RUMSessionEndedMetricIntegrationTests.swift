@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import FlashcatInternal
 
 class RUMSessionEndedMetricIntegrationTests: XCTestCase {

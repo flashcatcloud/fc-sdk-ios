@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogRUM
+import FlashcatRUM
 
 internal class SendRUMFixture3ViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {

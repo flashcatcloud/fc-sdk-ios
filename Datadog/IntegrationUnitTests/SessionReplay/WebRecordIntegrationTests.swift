@@ -10,7 +10,7 @@ import XCTest
 import WebKit
 
 import TestUtilities
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import DatadogWebViewTracking
 @_spi(Internal)
 @testable import DatadogSessionReplay

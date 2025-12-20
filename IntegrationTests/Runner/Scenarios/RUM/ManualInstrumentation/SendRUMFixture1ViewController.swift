@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogRUM
+import FlashcatRUM
 
 internal class SendRUMFixture1ViewController: UIViewController {
     @IBOutlet weak var pushNextScreenButton: UIButton!

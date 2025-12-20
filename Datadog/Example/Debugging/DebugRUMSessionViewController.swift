@@ -5,7 +5,7 @@
  */
 
 import SwiftUI
-import DatadogRUM
+import FlashcatRUM
 import DatadogTrace
 
 @available(iOS 13, *)

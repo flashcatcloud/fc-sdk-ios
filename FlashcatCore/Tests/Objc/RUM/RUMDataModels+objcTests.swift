@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 @_spi(objc)
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import FlashcatCore
 
 class RUMDataModels_objcTests: XCTestCase {

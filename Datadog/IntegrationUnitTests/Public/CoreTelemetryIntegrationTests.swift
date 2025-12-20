@@ -7,7 +7,7 @@
 import XCTest
 import FlashcatCore
 import FlashcatInternal
-@testable import DatadogRUM
+@testable import FlashcatRUM
 import TestUtilities
 
 class CoreTelemetryIntegrationTests: XCTestCase {

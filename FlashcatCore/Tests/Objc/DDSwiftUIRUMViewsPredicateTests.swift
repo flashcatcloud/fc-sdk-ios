@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 
 @_spi(objc)
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class DDSwiftUIRUMViewsPredicateTests: XCTestCase {
     func testGivenDefaultPredicate_whenAskingForExtractedViewName_itReturnsView() {

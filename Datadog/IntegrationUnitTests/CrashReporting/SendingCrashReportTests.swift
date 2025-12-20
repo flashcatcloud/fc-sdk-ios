@@ -9,7 +9,7 @@ import TestUtilities
 @testable import DatadogCrashReporting
 import FlashcatInternal
 @testable import FlashcatLogs
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 /// A crash reporter mock with two capabilities:
 /// - notifying a pending crash report found at SDK init,

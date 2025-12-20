@@ -9,7 +9,7 @@ import UIKit
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import DatadogCrashReporting
 @testable import FlashcatCore
 

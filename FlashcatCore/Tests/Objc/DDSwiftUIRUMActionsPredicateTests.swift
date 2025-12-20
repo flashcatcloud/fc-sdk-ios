@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 
 @_spi(objc)
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class DDSwiftUIRUMActionsPredicateTests: XCTestCase {
     func testGivenPredicateWithLegacyEnabled_onAnyiOSVersion_itReturnsAction() {

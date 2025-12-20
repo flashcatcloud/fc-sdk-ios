@@ -6,7 +6,7 @@
 
 import Foundation
 @testable import FlashcatCore
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 extension AppRunStep {
     // MARK: - App Lifecycle

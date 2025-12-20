@@ -7,7 +7,7 @@
 import Foundation
 
 @testable import FlashcatLogs
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import DatadogTrace
 @testable import FlashcatInternal
 

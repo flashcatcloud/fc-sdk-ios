@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 @testable import FlashcatCore
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class RUMSessionTrackingTests: RUMSessionTestsBase {
     private func enableRUM(_ launchType: AppRunner.ProcessLaunchType, rumSetup: AppRunner.RUMSetup? = nil) -> AppRun {

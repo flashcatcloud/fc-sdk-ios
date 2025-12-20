@@ -9,7 +9,7 @@ import TestUtilities
 import FlashcatInternal
 
 @testable import FlashcatCore
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class RUMFeatureTests: XCTestCase {
     override func setUp() {

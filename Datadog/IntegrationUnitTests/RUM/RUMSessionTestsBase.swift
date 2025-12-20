@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 @testable import FlashcatCore
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 /// Base class for RUM session tests.
 /// Provides common fixtures and helpers for simulating test scenarios.

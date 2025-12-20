@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogRUM
+import FlashcatRUM
 import TestUtilities
 
 #if canImport(SwiftUI)

@@ -96,7 +96,7 @@ check_pod_command_status() {
     # Example:
     # ```
     #  -> FlashcatInternal (2.11.1)
-    #     - ERROR | [iOS] unknown: Encountered an unknown error (CocoaPods could not find compatible versions for pod "DatadogRUM":
+    #     - ERROR | [iOS] unknown: Encountered an unknown error (CocoaPods could not find compatible versions for pod "FlashcatRUM":
     #   In Podfile:
     #     FlashcatInternal (from `/private/var/.../dd-sdk-ios/FlashcatInternal.podspec`) was resolved to 2.11.1, which depends on
     #       DatadogRUM (= 2.11.1)

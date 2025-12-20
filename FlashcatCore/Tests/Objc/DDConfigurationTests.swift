@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-import DatadogRUM
+import FlashcatRUM
 @_spi(objc)
 @testable import FlashcatCore
 

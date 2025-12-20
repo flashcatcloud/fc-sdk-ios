@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogRUM
+import FlashcatRUM
 import SwiftUI
 
 struct RUMManualContentView: View {

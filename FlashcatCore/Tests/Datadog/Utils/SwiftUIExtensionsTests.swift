@@ -9,7 +9,7 @@
 import XCTest
 import SwiftUI
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import FlashcatCore
 @testable import FlashcatInternal
 

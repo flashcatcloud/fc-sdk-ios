@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 extension DatadogCoreProxy {
     func waitAndReturnRUMEventMatchers(file: StaticString = #file, line: UInt = #line) throws -> [RUMEventMatcher] {

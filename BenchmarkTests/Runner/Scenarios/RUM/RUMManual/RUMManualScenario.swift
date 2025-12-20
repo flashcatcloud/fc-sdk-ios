@@ -7,7 +7,7 @@
 import SwiftUI
 
 import FlashcatCore
-import DatadogRUM
+import FlashcatRUM
 
 struct RUMManualScenario: Scenario {
     var initialViewController: UIViewController {

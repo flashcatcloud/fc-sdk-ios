@@ -11,7 +11,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import DatadogWebViewTracking
 
 class WebEventIntegrationTests: XCTestCase {

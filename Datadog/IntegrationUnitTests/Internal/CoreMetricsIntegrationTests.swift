@@ -6,7 +6,7 @@
 
 import XCTest
 @testable import FlashcatCore
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import FlashcatLogs
 @testable import DatadogTrace
 #if !os(tvOS)

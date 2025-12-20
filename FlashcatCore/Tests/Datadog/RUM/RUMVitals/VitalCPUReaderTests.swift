@@ -6,7 +6,7 @@
 
 import XCTest
 import UIKit.UIApplication
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class VitalCPUReaderTest: XCTestCase {
     let testNotificationCenter = NotificationCenter()

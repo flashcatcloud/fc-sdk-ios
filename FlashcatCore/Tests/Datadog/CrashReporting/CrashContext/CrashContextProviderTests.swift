@@ -13,7 +13,7 @@ import FlashcatInternal
 import TestUtilities
 
 @testable import FlashcatLogs
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import DatadogCrashReporting
 @testable import FlashcatCore
 

@@ -36,7 +36,7 @@ let package = Package(
               .product(name: "FlashcatCore", package: "dd-sdk-ios"),
               .product(name: "DatadogCrashReporting", package: "dd-sdk-ios"),
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
-              .product(name: "DatadogRUM", package: "dd-sdk-ios"),
+              .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
               .product(name: "DatadogSessionReplay", package: "dd-sdk-ios"),
               .product(name: "DatadogTrace", package: "dd-sdk-ios"),
               .product(name: "DatadogWebViewTracking", package: "dd-sdk-ios"),
@@ -217,7 +217,7 @@ let package = Package(
               .product(name: "FlashcatCore", package: "dd-sdk-ios"),
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "DatadogTrace", package: "dd-sdk-ios"),
-              .product(name: "DatadogRUM", package: "dd-sdk-ios"),
+              .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
               .product(name: "DatadogCrashReporting", package: "dd-sdk-ios"),
               .product(name: "DatadogWebViewTracking", package: "dd-sdk-ios"),
           ]
@@ -401,7 +401,7 @@ API changes:
 All the classes related to RUM are now strictly in the `DatadogRUM` module. You will first need to enable the product:
 
 ```swift
-import DatadogRUM
+import FlashcatRUM
 
 RUM.enable(
     with: RUM.Configuration(applicationID: "<RUM Application ID>")
@@ -411,7 +411,7 @@ RUM.enable(
 Then, you can access the shared RUM monitor instance:
 
 ```swift
-import DatadogRUM
+import FlashcatRUM
 
 let monitor = RUMMonitor.shared()
 ```
@@ -480,7 +480,7 @@ Here is an example illustrating how to initialize a secondary core instance and 
 
 ```swift
 import FlashcatCore
-import DatadogRUM
+import FlashcatRUM
 import FlashcatLogs
 import DatadogTrace
 
@@ -521,7 +521,7 @@ let logger = Logger.create(in: core)
 #### Trace
 
 ```swift
-import DatadogRUM
+import FlashcatRUM
 
 let monitor = RUMMonitor.shared(in: core)
 ```
@@ -529,7 +529,7 @@ let monitor = RUMMonitor.shared(in: core)
 #### RUM
 
 ```swift
-import DatadogRUM
+import FlashcatRUM
 
 let monitor = RUMMonitor.shared(in: core)
 ```

@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 @_spi(Experimental)
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import FlashcatInternal
 
 class RUMViewEndedMetricIntegrationTests: XCTestCase {

@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class TelemetryReceiverTests: XCTestCase {
     // MARK: - Thread safety

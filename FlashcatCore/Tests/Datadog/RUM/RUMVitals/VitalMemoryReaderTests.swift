@@ -5,7 +5,7 @@
  */
 
 import XCTest
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 private class Allocation {
     fileprivate let numberOfBytes: Int

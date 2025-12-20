@@ -8,7 +8,7 @@ import UIKit
 import FlashcatCore
 import FlashcatLogs
 import DatadogTrace
-import DatadogRUM
+import FlashcatRUM
 import DatadogCrashReporting
 import DatadogFlags
 #if os(iOS)

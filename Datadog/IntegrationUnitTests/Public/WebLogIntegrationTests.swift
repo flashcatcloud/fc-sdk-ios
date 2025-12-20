@@ -12,7 +12,7 @@ import FlashcatInternal
 import TestUtilities
 
 @testable import FlashcatLogs
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @testable import DatadogWebViewTracking
 
 class WebLogIntegrationTests: XCTestCase {

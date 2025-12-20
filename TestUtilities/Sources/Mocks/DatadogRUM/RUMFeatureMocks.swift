@@ -8,7 +8,7 @@ import Foundation
 import UIKit
 import FlashcatInternal
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 extension RUM.Configuration: AnyMockable, RandomMockable {
     public static func mockAny() -> RUM.Configuration {

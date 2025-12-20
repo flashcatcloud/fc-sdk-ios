@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 @_spi(objc)
-@testable import DatadogRUM
+@testable import FlashcatRUM
 @_spi(objc)
 @testable import FlashcatCore
 

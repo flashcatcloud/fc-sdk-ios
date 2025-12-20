@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 @testable import FlashcatCore
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 class RUMSessionTimeOutTests: RUMSessionTestsBase {
     // MARK: - Foreground session "time out" → track in foreground

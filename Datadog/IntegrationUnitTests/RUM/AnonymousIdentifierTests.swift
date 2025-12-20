@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 /// Test case covering scenarios of anonymous identifier generation.
 class AnonymousIdentifierTests: XCTestCase {
