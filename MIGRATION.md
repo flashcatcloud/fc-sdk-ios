@@ -35,7 +35,7 @@ let package = Package(
           dependencies: [
               .product(name: "DatadogCore", package: "dd-sdk-ios"),
               .product(name: "DatadogCrashReporting", package: "dd-sdk-ios"),
-              .product(name: "DatadogLogs", package: "dd-sdk-ios"),
+              .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "DatadogRUM", package: "dd-sdk-ios"),
               .product(name: "DatadogSessionReplay", package: "dd-sdk-ios"),
               .product(name: "DatadogTrace", package: "dd-sdk-ios"),
@@ -215,7 +215,7 @@ let package = Package(
           ...
           dependencies: [
               .product(name: "DatadogCore", package: "dd-sdk-ios"),
-              .product(name: "DatadogLogs", package: "dd-sdk-ios"),
+              .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "DatadogTrace", package: "dd-sdk-ios"),
               .product(name: "DatadogRUM", package: "dd-sdk-ios"),
               .product(name: "DatadogCrashReporting", package: "dd-sdk-ios"),
@@ -333,7 +333,7 @@ API changes:
 All the classes related to Logs are now strictly in the `DatadogLogs` module. You first need to enable the product:
 
 ```swift
-import DatadogLogs
+import FlashcatLogs
 
 Logs.enable(with: Logs.Configuration(...))
 ```
@@ -341,7 +341,7 @@ Logs.enable(with: Logs.Configuration(...))
 Then, you can create a logger instance:
 
 ```swift
-import DatadogLogs
+import FlashcatLogs
 
 let logger = Logger.create(
     with: Logger.Configuration(name: "<logger name>")
@@ -481,7 +481,7 @@ Here is an example illustrating how to initialize a secondary core instance and 
 ```swift
 import DatadogCore
 import DatadogRUM
-import DatadogLogs
+import FlashcatLogs
 import DatadogTrace
 
 let core = Datadog.initialize(
@@ -513,7 +513,7 @@ let core = Datadog.sdkInstance(named: "my-instance")
 #### Logs
 
 ```swift
-import DatadogLogs
+import FlashcatLogs
 
 let logger = Logger.create(in: core)
 ```

@@ -5,7 +5,7 @@
 */
 
 import DatadogCore
-import DatadogLogs
+import FlashcatLogs
 import DatadogTrace
 import DatadogCrashReporting
 

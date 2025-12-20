@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import OpenTelemetryApi
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogTrace
 @testable import DatadogRUM
 @testable import DatadogCore

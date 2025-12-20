@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 
 @testable import DatadogTrace
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogCore
 @testable import DatadogRUM
 @testable import TestUtilities

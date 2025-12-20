@@ -5,7 +5,7 @@
  */
 
 import SwiftUI
-import DatadogLogs
+import FlashcatLogs
 
 struct LogsHeavyTrafficContentView: View {
     @State private var logMessage: String

@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D20731A429A5279D00ECBF94"
-               BuildableName = "DatadogLogs.framework"
-               BlueprintName = "DatadogLogs tvOS"
+               BuildableName = "FlashcatLogs.framework"
+               BlueprintName = "FlashcatLogs tvOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -33,8 +33,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D20731A429A5279D00ECBF94"
-            BuildableName = "DatadogLogs.framework"
-            BlueprintName = "DatadogLogs tvOS"
+            BuildableName = "FlashcatLogs.framework"
+            BlueprintName = "FlashcatLogs tvOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -184,8 +184,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D20731A429A5279D00ECBF94"
-            BuildableName = "DatadogLogs.framework"
-            BlueprintName = "DatadogLogs tvOS"
+            BuildableName = "FlashcatLogs.framework"
+            BlueprintName = "FlashcatLogs tvOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </CodeCoverageTargets>
@@ -195,8 +195,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D2A783EE29A534F9003B03BB"
-               BuildableName = "DatadogLogsTests tvOS.xctest"
-               BlueprintName = "DatadogLogsTests tvOS"
+               BuildableName = "FlaLogsTests tvOS.xctest"
+               BlueprintName = "FlaLogsTests tvOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -223,8 +223,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D20731A429A5279D00ECBF94"
-            BuildableName = "DatadogLogs.framework"
-            BlueprintName = "DatadogLogs tvOS"
+            BuildableName = "FlashcatLogs.framework"
+            BlueprintName = "FlashcatLogs tvOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </MacroExpansion>

@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 import FlashcatInternal
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 class LogSanitizerTests: XCTestCase {
     /// Tracer Attributes shared with other Feature registered in core.

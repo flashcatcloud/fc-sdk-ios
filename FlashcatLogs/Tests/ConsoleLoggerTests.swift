@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 class ConsoleLoggerTests: XCTestCase {
     private let mock = PrintFunctionSpy()

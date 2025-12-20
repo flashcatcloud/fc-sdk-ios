@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 
 @testable import FlashcatInternal
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogTrace
 
 class TracingURLSessionHandlerTests: XCTestCase {

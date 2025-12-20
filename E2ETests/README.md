@@ -53,7 +53,7 @@ import Foundation
 import UIKit
 
 import DatadogCore
-import DatadogLogs
+import FlashcatLogs
 
 struct SessionReplayWebViewScenario: Scenario {
 

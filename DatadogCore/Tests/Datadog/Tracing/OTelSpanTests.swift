@@ -9,7 +9,7 @@ import TestUtilities
 import FlashcatInternal
 import OpenTelemetryApi
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogTrace
 
 final class OTelSpanTests: XCTestCase {

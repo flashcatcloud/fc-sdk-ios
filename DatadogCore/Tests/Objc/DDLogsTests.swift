@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 @_spi(objc)
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogCore
 
 // swiftlint:disable multiline_arguments_brackets

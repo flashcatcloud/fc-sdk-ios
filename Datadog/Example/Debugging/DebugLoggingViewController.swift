@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogLogs
+import FlashcatLogs
 import DatadogCore
 
 class DebugLoggingViewController: UIViewController {

@@ -5,7 +5,7 @@
  */
 
 import XCTest
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 final class SynchronizedTagsTests: XCTestCase {
     func testAddTag() {

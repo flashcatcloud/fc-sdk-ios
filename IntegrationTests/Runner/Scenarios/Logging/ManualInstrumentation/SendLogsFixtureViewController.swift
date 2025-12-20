@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogLogs
+import FlashcatLogs
 
 internal class SendLogsFixtureViewController: UIViewController {
     class MockError: LocalizedError {

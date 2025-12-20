@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 @_spi(objc)
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 class LogsDataModels_objcTests: XCTestCase {
     func testSwiftDDDevice_isEqualToObjCDDDevice() throws {

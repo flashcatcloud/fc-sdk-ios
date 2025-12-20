@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 class LoggerTests: XCTestCase {
     private var core: SingleFeatureCoreMock<LogsFeature>! // swiftlint:disable:this implicitly_unwrapped_optional

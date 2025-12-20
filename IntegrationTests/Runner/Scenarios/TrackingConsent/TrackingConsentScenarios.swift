@@ -7,7 +7,7 @@
 import Foundation
 import DatadogTrace
 import DatadogRUM
-import DatadogLogs
+import FlashcatLogs
 import DatadogCore
 
 internal class TrackingConsentBaseScenario {

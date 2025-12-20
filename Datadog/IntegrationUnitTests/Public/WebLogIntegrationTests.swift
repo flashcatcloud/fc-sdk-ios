@@ -11,7 +11,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogRUM
 @testable import DatadogWebViewTracking
 

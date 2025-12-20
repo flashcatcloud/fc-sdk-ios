@@ -222,7 +222,7 @@ spm-build-visionos:
 spm-build-watchos:
 	# Build only compatible schemes for watchOS:
 	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogCore"
-	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogLogs"
+	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatLogs"
 	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogTrace"
 
 # Builds SPM package for macOS (and Mac Catalyst)
@@ -231,7 +231,7 @@ spm-build-macos:
 	@$(MAKE) spm-build SCHEME="Flashcat-Package" DESTINATION="platform=macOS,variant=Mac Catalyst"
 	# Only compatible schemes for macOS:
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogCore"
-	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogLogs"
+	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatLogs"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogTrace"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogCrashReporting"
 

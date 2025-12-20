@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 class LogsTests: XCTestCase {
     func testDefaultConfiguration() {

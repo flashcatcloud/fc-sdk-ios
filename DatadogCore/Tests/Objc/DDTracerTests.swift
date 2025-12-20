@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogCore
 @_spi(objc)
 @testable import DatadogTrace

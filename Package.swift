@@ -38,7 +38,7 @@ let package = Package(
         ),
         .library(
             name: "FlashcatLogs",
-            targets: ["DatadogLogs"]
+            targets: ["FlashcatLogs"]
         ),
         .library(
             name: "FlashcatTrace",
@@ -103,19 +103,19 @@ let package = Package(
         ),
 
         .target(
-            name: "DatadogLogs",
+            name: "FlashcatLogs",
             dependencies: [
                 .target(name: "FlashcatInternal"),
             ],
-            path: "DatadogLogs/Sources"
+            path: "FlashcatLogs/Sources"
         ),
         .testTarget(
             name: "DatadogLogsTests",
             dependencies: [
-                .target(name: "DatadogLogs"),
+                .target(name: "FlashcatLogs"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogLogs/Tests"
+            path: "FlashcatLogs/Tests"
         ),
 
         .target(
@@ -231,7 +231,7 @@ let package = Package(
                 .target(name: "DatadogCore"),
                 .target(name: "DatadogPrivate"),
                 .target(name: "FlashcatInternal"),
-                .target(name: "DatadogLogs"),
+                .target(name: "FlashcatLogs"),
                 .target(name: "DatadogRUM"),
                 .target(name: "DatadogSessionReplay"),
                 .target(name: "DatadogTrace"),

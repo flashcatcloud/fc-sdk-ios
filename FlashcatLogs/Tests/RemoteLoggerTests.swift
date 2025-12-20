@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 import FlashcatInternal
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 class RemoteLoggerTests: XCTestCase {
     private let featureScope = FeatureScopeMock()

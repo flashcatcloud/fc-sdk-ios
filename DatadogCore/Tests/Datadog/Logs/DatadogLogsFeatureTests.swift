@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogCore
 
 class DatadogLogsFeatureTests: XCTestCase {

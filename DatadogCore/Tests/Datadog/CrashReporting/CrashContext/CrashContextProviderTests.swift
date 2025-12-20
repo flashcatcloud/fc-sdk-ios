@@ -12,7 +12,7 @@ import CoreTelephony
 import FlashcatInternal
 import TestUtilities
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 @testable import DatadogRUM
 @testable import DatadogCrashReporting
 @testable import DatadogCore

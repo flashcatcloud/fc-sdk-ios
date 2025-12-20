@@ -11,7 +11,7 @@ import Foundation
 import DatadogPrivate
 #endif
 @testable import DatadogCore
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 // MARK: - Configuration Mocks
 
