@@ -4047,6 +4047,7 @@
 				1182F9DB2DA2F827007FE71A /* HTTPClientMock.swift */,
 				1182F9DC2DA2F827007FE71A /* KronosClockMock.swift */,
 			);
+			name = FlashcatCore;
 			path = DatadogCore;
 			sourceTree = "<group>";
 		};
@@ -4334,7 +4335,7 @@
 				D29732462A5C108700827599 /* DDScriptMessageHandler.swift */,
 				D29732472A5C108700827599 /* MessageEmitter.swift */,
 			);
-			name = DatadogWebViewTracking;
+			name = FlashcatWebViewTracking;
 			path = ../FlashcatWebViewTracking/Sources;
 			sourceTree = "<group>";
 		};
@@ -4344,7 +4345,7 @@
 				D297324F2A5C109A00827599 /* MessageEmitterTests.swift */,
 				D29732502A5C109A00827599 /* WebViewTrackingTests.swift */,
 			);
-			name = DatadogWebViewTrackingTests;
+			name = FlashcatWebViewTrackingTests;
 			path = ../FlashcatWebViewTracking/Tests;
 			sourceTree = "<group>";
 		};
@@ -4409,7 +4410,7 @@
 				5BB294AA2E82864300CAA44B /* Models */,
 				5BA8C30F2E785A2000B1DA80 /* Flags.swift */,
 			);
-			name = DatadogFlags;
+			name = FlashcatFlags;
 			path = ../FlashcatFlags/Sources;
 			sourceTree = "<group>";
 		};
@@ -4420,7 +4421,7 @@
 				5B16A3682E83E40E0046A863 /* Models */,
 				5BA8C3122E785A5E00B1DA80 /* FlagsTests.swift */,
 			);
-			name = DatadogFlagsTests;
+			name = FlashcatFlagsTests;
 			path = ../FlashcatFlags/Tests;
 			sourceTree = "<group>";
 		};
@@ -4484,7 +4485,7 @@
 				A7B932F62B1F6A0A00AE6477 /* Models */,
 				61054E032A6EE10A00AAA894 /* Writers */,
 			);
-			name = DatadogSessionReplay;
+			name = FlashcatSessionReplay;
 			path = ../FlashcatSessionReplay/Sources;
 			sourceTree = "<group>";
 		};
@@ -4505,7 +4506,7 @@
 				D2A434AD2A8E426C0028E329 /* DDSessionReplayTests.swift */,
 				96E863752C9C7E800023BF78 /* DDSessionReplayOverridesTests.swift */,
 			);
-			name = DatadogSessionReplayTests;
+			name = FlashcatSessionReplayTests;
 			path = ../FlashcatSessionReplay/Tests;
 			sourceTree = "<group>";
 		};
@@ -5126,7 +5127,7 @@
 				6174D6082BFDDD1E00EC7469 /* SDKMetrics */,
 				61133BB72423979B00786299 /* Utils */,
 			);
-			name = DatadogCore;
+			name = FlashcatCore;
 			path = ../FlashcatCore/Sources;
 			sourceTree = "<group>";
 		};
@@ -5203,7 +5204,7 @@
 				61C3637E2436163400C4D4E6 /* DatadogPrivate */,
 				61133C442423990D00786299 /* Helpers */,
 			);
-			name = DatadogCoreTests;
+			name = FlashcatCoreTests;
 			path = ../FlashcatCore/Tests;
 			sourceTree = "<group>";
 		};
@@ -5752,7 +5753,7 @@
 				D24CA32F28B3BF0C007B26BF /* Integrations */,
 				61F2727225C9507C00D54BF8 /* PLCrashReporterIntegration */,
 			);
-			name = DatadogCrashReporting;
+			name = FlashcatCrashReporting;
 			path = ../FlashcatCrashReporting/Sources;
 			sourceTree = "<group>";
 		};
@@ -5762,7 +5763,7 @@
 				61B7886125C180CB002675B5 /* CrashReportingPluginTests.swift */,
 				61FCBFE525DBBE7D00CCF864 /* PLCrashReporterIntegration */,
 			);
-			name = DatadogCrashReportingTests;
+			name = FlashcatCrashReportingTests;
 			path = ../FlashcatCrashReporting/Tests;
 			sourceTree = "<group>";
 		};
@@ -6415,7 +6416,7 @@
 				6179FFD2254ADB1100556A0B /* ObjcAppLaunchHandler.m */,
 				9E68FB53244707FD0013A8AA /* ObjcExceptionHandler.m */,
 			);
-			name = DatadogPrivate;
+			name = FlashcatPrivate;
 			path = ../FlashcatCore/Private;
 			sourceTree = "<group>";
 		};
@@ -6503,7 +6504,7 @@
 				61133BC12423979B00786299 /* Log */,
 				D22C1F5A2714849700922024 /* Scrubbing */,
 			);
-			name = DatadogLogs;
+			name = FlashcatLogs;
 			path = ../FlashcatLogs/Sources;
 			sourceTree = "<group>";
 		};
@@ -6519,7 +6520,7 @@
 				D20FD9CE2AC6FF42004D3569 /* WebViewLogReceiverTests.swift */,
 				61133C3A2423990D00786299 /* Log */,
 			);
-			name = DatadogLogsTests;
+			name = FlashcatLogsTests;
 			path = ../FlashcatLogs/Tests;
 			sourceTree = "<group>";
 		};
@@ -6836,7 +6837,7 @@
 				61C5A8A324509FAA00DA608C /* Span */,
 				61C5A87A24509A0C00DA608C /* Utils */,
 			);
-			name = DatadogTrace;
+			name = FlashcatTrace;
 			path = ../FlashcatTrace/Sources;
 			sourceTree = "<group>";
 		};
@@ -6856,7 +6857,7 @@
 				61C5A89924509C1100DA608C /* Utils */,
 				619CE7602A458D66005588CB /* TraceTests.swift */,
 			);
-			name = DatadogTraceTests;
+			name = FlashcatTraceTests;
 			path = ../FlashcatTrace/Tests;
 			sourceTree = "<group>";
 		};
@@ -6925,7 +6926,7 @@
 				D29A9F8B29DD860A005C54A4 /* Utils */,
 				618DCFD524C7264100589570 /* UUIDs */,
 			);
-			name = DatadogRUM;
+			name = FlashcatRUM;
 			path = ../FlashcatRUM/Sources;
 			sourceTree = "<group>";
 		};
@@ -6951,7 +6952,7 @@
 				6174D6182BFE447600EC7469 /* SDKMetrics */,
 				61411B0E24EC15940012EAB2 /* Utils */,
 			);
-			name = DatadogRUMTests;
+			name = FlashcatRUMTests;
 			path = ../FlashcatRUM/Tests;
 			sourceTree = "<group>";
 		};
@@ -7240,6 +7241,7 @@
 				613F9C172BAC3527007C7606 /* DatadogCore+FeatureDataStoreTests.swift */,
 				D21C26D028A64599005DD405 /* MessageBusTests.swift */,
 			);
+			name = FlashcatCore;
 			path = DatadogCore;
 			sourceTree = "<group>";
 		};
