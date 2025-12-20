@@ -54,7 +54,7 @@ let package = Package(
         ),
         .library(
             name: "FlashcatCrashReporting",
-            targets: ["DatadogCrashReporting"]
+            targets: ["FlashcatCrashReporting"]
         ),
         .library(
             name: "FlashcatWebViewTracking",
@@ -156,12 +156,12 @@ let package = Package(
         ),
 
         .target(
-            name: "DatadogCrashReporting",
+            name: "FlashcatCrashReporting",
             dependencies: [
                 .target(name: "FlashcatInternal"),
                 .product(name: "CrashReporter", package: "PLCrashReporter"),
             ],
-            path: "DatadogCrashReporting",
+            path: "FlashcatCrashReporting",
             sources: ["Sources"],
             resources: [
                 .copy("Resources/PrivacyInfo.xcprivacy")
@@ -170,10 +170,10 @@ let package = Package(
         .testTarget(
             name: "DatadogCrashReportingTests",
             dependencies: [
-                .target(name: "DatadogCrashReporting"),
+                .target(name: "FlashcatCrashReporting"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogCrashReporting/Tests"
+            path: "FlashcatCrashReporting/Tests"
         ),
 
         .target(
@@ -235,7 +235,7 @@ let package = Package(
                 .target(name: "FlashcatRUM"),
                 .target(name: "DatadogSessionReplay"),
                 .target(name: "DatadogTrace"),
-                .target(name: "DatadogCrashReporting"),
+                .target(name: "FlashcatCrashReporting"),
                 .target(name: "DatadogWebViewTracking"),
                 .target(name: "FlashcatFlags")
             ],

@@ -9,7 +9,7 @@ import FlashcatCore
 import FlashcatLogs
 import DatadogTrace
 import FlashcatRUM
-import DatadogCrashReporting
+import FlashcatCrashReporting
 import OpenTelemetryApi
 
 let serviceName = "ios-sdk-example-app"

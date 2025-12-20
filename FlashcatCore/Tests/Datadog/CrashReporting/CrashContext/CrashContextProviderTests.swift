@@ -14,7 +14,7 @@ import TestUtilities
 
 @testable import FlashcatLogs
 @testable import FlashcatRUM
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 @testable import FlashcatCore
 
 /// This suite tests if `CrashContextProvider` gets updated by different SDK components, each updating

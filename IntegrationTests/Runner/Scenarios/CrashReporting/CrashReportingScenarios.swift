@@ -8,7 +8,7 @@ import UIKit
 
 import FlashcatCore
 import FlashcatRUM
-import DatadogCrashReporting
+import FlashcatCrashReporting
 
 /// Scenario that launches single-view app which can cause a crash and/or upload the crash report to Datadog.
 /// It includes the condition determined by crash report file presence:

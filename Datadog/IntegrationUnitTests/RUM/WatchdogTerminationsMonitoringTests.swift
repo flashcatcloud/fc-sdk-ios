@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 import FlashcatInternal
-import DatadogCrashReporting
+import FlashcatCrashReporting
 @testable import FlashcatRUM
 
 class WatchdogTerminationsMonitoringTests: XCTestCase {

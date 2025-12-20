@@ -7,7 +7,7 @@
 import XCTest
 import CrashReporter
 
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 
 class DDCrashReportExporterTests: XCTestCase {
     private let exporter = DDCrashReportExporter()

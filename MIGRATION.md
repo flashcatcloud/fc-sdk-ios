@@ -34,7 +34,7 @@ let package = Package(
           ...
           dependencies: [
               .product(name: "FlashcatCore", package: "dd-sdk-ios"),
-              .product(name: "DatadogCrashReporting", package: "dd-sdk-ios"),
+              .product(name: "FlashcatCrashReporting", package: "dd-sdk-ios"),
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
               .product(name: "DatadogSessionReplay", package: "dd-sdk-ios"),
@@ -218,7 +218,7 @@ let package = Package(
               .product(name: "FlashcatLogs", package: "dd-sdk-ios"),
               .product(name: "DatadogTrace", package: "dd-sdk-ios"),
               .product(name: "FlashcatRUM", package: "dd-sdk-ios"),
-              .product(name: "DatadogCrashReporting", package: "dd-sdk-ios"),
+              .product(name: "FlashcatCrashReporting", package: "dd-sdk-ios"),
               .product(name: "DatadogWebViewTracking", package: "dd-sdk-ios"),
           ]
       ),
@@ -442,7 +442,7 @@ API changes:
 To enable Crash Reporting, make sure to also enable RUM and/or Logs.
 
 ```swift
-import DatadogCrashReporting
+import FlashcatCrashReporting
 
 CrashReporting.enable()
 ```

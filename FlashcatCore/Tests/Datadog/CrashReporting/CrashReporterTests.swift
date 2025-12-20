@@ -10,7 +10,7 @@ import FlashcatInternal
 import FlashcatLogs
 
 @testable import FlashcatCore
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 
 class CrashReporterTests: XCTestCase {
     // MARK: - Sending Crash Report

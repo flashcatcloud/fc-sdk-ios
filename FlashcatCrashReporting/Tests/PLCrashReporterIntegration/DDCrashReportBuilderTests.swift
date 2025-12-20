@@ -7,7 +7,7 @@
 import XCTest
 import CrashReporter
 
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 
 class DDCrashReportBuilderTests: XCTestCase {
     func testItBuildsDDCrashReportFromPLCrashReport() throws {

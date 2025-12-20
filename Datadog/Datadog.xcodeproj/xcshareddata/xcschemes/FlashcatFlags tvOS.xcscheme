@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "5BA8C3182E785B6F00B1DA80"
-               BuildableName = "DatadogFlags.framework"
+               BuildableName = "FlashcatFlags.framework"
                BlueprintName = "FlashcatFlags tvOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
@@ -47,7 +47,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "5BA8C3182E785B6F00B1DA80"
-            BuildableName = "DatadogFlags.framework"
+            BuildableName = "FlashcatFlags.framework"
             BlueprintName = "FlashcatFlags tvOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
@@ -198,7 +198,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "5BA8C3182E785B6F00B1DA80"
-            BuildableName = "DatadogFlags.framework"
+            BuildableName = "FlashcatFlags.framework"
             BlueprintName = "FlashcatFlags tvOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
@@ -237,7 +237,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "5BA8C3182E785B6F00B1DA80"
-            BuildableName = "DatadogFlags.framework"
+            BuildableName = "FlashcatFlags.framework"
             BlueprintName = "FlashcatFlags tvOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>

@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 import CrashReporter
 
 class CrashReportTests: XCTestCase {

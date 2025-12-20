@@ -5,7 +5,7 @@
  */
 
 import XCTest
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 import CrashReporter
 
 class PLCrashReporterIntegrationTests: XCTestCase {

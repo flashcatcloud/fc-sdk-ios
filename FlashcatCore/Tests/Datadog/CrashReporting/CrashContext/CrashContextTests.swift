@@ -9,7 +9,7 @@ import FlashcatInternal
 import TestUtilities
 
 @testable import FlashcatCore
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 
 class CrashContextTests: XCTestCase {
     /// This must be the exact encoder used to encode `CrashContext` in production code.

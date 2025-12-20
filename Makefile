@@ -233,7 +233,7 @@ spm-build-macos:
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatCore"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatLogs"
 	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogTrace"
-	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogCrashReporting"
+	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatCrashReporting"
 
 # Builds a new version of the E2E app and publishes it to synthetics.
 e2e-upload:

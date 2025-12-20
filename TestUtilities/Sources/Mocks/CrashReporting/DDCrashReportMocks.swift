@@ -8,7 +8,7 @@ import Foundation
 import FlashcatInternal
 import CrashReporter
 
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 
 extension DDCrashReport: AnyMockable, RandomMockable {
     public static func mockAny() -> DDCrashReport {

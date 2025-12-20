@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name         = "DatadogCrashReporting"
+  s.name         = "FlashcatCrashReporting"
   s.version      = "3.3.0"
   s.summary      = "Official Datadog Crash Reporting SDK for iOS."
 
@@ -21,11 +21,11 @@ Pod::Spec.new do |s|
   s.source = { :git => 'https://github.com/DataDog/dd-sdk-ios.git', :tag => s.version.to_s }
   s.static_framework = true
 
-  s.source_files = "DatadogCrashReporting/Sources/**/*.swift"
+  s.source_files = "FlashcatCrashReporting/Sources/**/*.swift"
   s.dependency 'FlashcatInternal', s.version.to_s
   s.dependency 'PLCrashReporter', '~> 1.12.0'
 
   s.resource_bundle = {
-    "DatadogCrashReporting" => "DatadogCrashReporting/Resources/PrivacyInfo.xcprivacy"
+    "FlashcatCrashReporting" => "FlashcatCrashReporting/Resources/PrivacyInfo.xcprivacy"
   }
 end

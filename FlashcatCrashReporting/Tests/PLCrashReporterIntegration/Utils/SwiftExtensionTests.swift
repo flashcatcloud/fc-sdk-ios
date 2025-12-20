@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 
 class UInt64Tests: XCTestCase {
     func testSubtractIfNoOverflow() {

@@ -9,7 +9,7 @@ import FlashcatInternal
 
 @testable import FlashcatLogs
 @testable import FlashcatRUM
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 @testable import FlashcatCore
 
 extension CrashReportingFeature {

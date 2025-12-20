@@ -7,7 +7,7 @@
 import XCTest
 import FlashcatInternal
 @testable import FlashcatRUM
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 @testable import TestUtilities
 
 class CrashReportReceiverTests: XCTestCase {

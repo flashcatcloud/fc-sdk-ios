@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 
 class CrashReportingPluginTests: XCTestCase {
     override func setUp() {

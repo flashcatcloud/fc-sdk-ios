@@ -6,7 +6,7 @@
 
 #import <XCTest/XCTest.h>
 @import FlashcatCore;
-@import DatadogCrashReporting;
+@import FlashcatCrashReporting;
 
 // MARK: - DDDataEncryption
 

@@ -7,7 +7,7 @@
 import XCTest
 import TestUtilities
 import FlashcatInternal
-import DatadogCrashReporting
+import FlashcatCrashReporting
 @testable import FlashcatRUM
 
 /// Test case covering scenarios of App Hangs monitoring in RUM.

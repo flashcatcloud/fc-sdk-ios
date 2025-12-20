@@ -7,7 +7,7 @@
 import FlashcatCore
 import FlashcatLogs
 import DatadogTrace
-import DatadogCrashReporting
+import FlashcatCrashReporting
 
 enum DatadogSetup {
     static var logger: LoggerProtocol?

@@ -10,7 +10,7 @@ import TestUtilities
 import FlashcatInternal
 
 @testable import FlashcatRUM
-@testable import DatadogCrashReporting
+@testable import FlashcatCrashReporting
 @testable import FlashcatCore
 
 class RUMMonitorTests: XCTestCase {

@@ -9,7 +9,7 @@ import FlashcatCore
 import FlashcatLogs
 import DatadogTrace
 import FlashcatRUM
-import DatadogCrashReporting
+import FlashcatCrashReporting
 
 var logger: LoggerProtocol?
 var rumMonitor: RUMMonitorProtocol { RUMMonitor.shared() }
