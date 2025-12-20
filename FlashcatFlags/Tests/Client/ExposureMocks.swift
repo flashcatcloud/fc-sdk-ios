@@ -8,7 +8,7 @@ import XCTest
 import FlashcatInternal
 import TestUtilities
 
-@testable import DatadogFlags
+@testable import FlashcatFlags
 
 extension ExposureEvent: AnyMockable, RandomMockable {
     public static func mockAny() -> ExposureEvent {

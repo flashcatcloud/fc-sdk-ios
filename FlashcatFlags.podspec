@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name         = "DatadogFlags"
+  s.name         = "FlashcatFlags"
   s.version      = "3.3.0"
   s.summary      = "Official Datadog Feature Flags module of the Swift SDK."
 
@@ -15,7 +15,7 @@ Pod::Spec.new do |s|
 
   s.source = { :git => "https://github.com/DataDog/dd-sdk-ios.git", :tag => s.version.to_s }
 
-  s.source_files = "DatadogFlags/Sources/**/*.swift"
+  s.source_files = "FlashcatFlags/Sources/**/*.swift"
 
   s.dependency 'FlashcatInternal', s.version.to_s
 

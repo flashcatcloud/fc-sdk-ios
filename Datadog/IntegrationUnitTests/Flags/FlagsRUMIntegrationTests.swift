@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogFlags
+@testable import FlashcatFlags
 @testable import FlashcatRUM
 
 /// Covers integration scenarios between Flags and RUM features.

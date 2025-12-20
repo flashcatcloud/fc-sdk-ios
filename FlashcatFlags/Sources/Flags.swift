@@ -110,7 +110,7 @@ public enum Flags {
     ///
     /// ```swift
     /// import FlashcatCore
-    /// import DatadogFlags
+    /// import FlashcatFlags
     ///
     /// // Initialize Datadog SDK
     /// Datadog.initialize(

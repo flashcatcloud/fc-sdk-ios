@@ -10,7 +10,7 @@ import FlashcatLogs
 import DatadogTrace
 import FlashcatRUM
 import DatadogCrashReporting
-import DatadogFlags
+import FlashcatFlags
 #if os(iOS)
 import DatadogSessionReplay
 #endif

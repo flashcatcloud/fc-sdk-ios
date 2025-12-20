@@ -62,7 +62,7 @@ let package = Package(
         ),
         .library(
             name: "FlashcatFlags",
-            targets: ["DatadogFlags"]
+            targets: ["FlashcatFlags"]
         ),
     ],
     dependencies: [
@@ -210,19 +210,19 @@ let package = Package(
         ),
 
         .target(
-            name: "DatadogFlags",
+            name: "FlashcatFlags",
             dependencies: [
                 .target(name: "FlashcatInternal"),
             ],
-            path: "DatadogFlags/Sources"
+            path: "FlashcatFlags/Sources"
         ),
         .testTarget(
             name: "DatadogFlagsTests",
             dependencies: [
-                .target(name: "DatadogFlags"),
+                .target(name: "FlashcatFlags"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogFlags/Tests"
+            path: "FlashcatFlags/Tests"
         ),
 
         .target(
@@ -237,7 +237,7 @@ let package = Package(
                 .target(name: "DatadogTrace"),
                 .target(name: "DatadogCrashReporting"),
                 .target(name: "DatadogWebViewTracking"),
-                .target(name: "DatadogFlags")
+                .target(name: "FlashcatFlags")
             ],
             path: "TestUtilities/Sources",
             swiftSettings: [.define("SPM_BUILD")] + internalSwiftSettings

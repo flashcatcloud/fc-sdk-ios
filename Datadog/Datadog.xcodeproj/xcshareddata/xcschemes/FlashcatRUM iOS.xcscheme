@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D29A9F3329DD84AA005C54A4"
-               BuildableName = "DatadogRUM.framework"
+               BuildableName = "FlashcatRUM.framework"
                BlueprintName = "DatadogRUM iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
@@ -33,7 +33,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D29A9F3329DD84AA005C54A4"
-            BuildableName = "DatadogRUM.framework"
+            BuildableName = "FlashcatRUM.framework"
             BlueprintName = "DatadogRUM iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
@@ -184,7 +184,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D29A9F3329DD84AA005C54A4"
-            BuildableName = "DatadogRUM.framework"
+            BuildableName = "FlashcatRUM.framework"
             BlueprintName = "DatadogRUM iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
@@ -223,7 +223,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D29A9F3329DD84AA005C54A4"
-            BuildableName = "DatadogRUM.framework"
+            BuildableName = "FlashcatRUM.framework"
             BlueprintName = "DatadogRUM iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>

@@ -14,9 +14,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "5BA8C3182E785B6F00B1DA80"
-               BuildableName = "DatadogFlags.framework"
-               BlueprintName = "DatadogFlags tvOS"
+               BlueprintIdentifier = "5BA8C2EC2E784B3C00B1DA80"
+               BuildableName = "FlashcatFlags.framework"
+               BlueprintName = "FlashcatFlags iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -28,9 +28,9 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "5BA8C3202E785B6F00B1DA80"
-               BuildableName = "DatadogFlagsTests tvOS.xctest"
-               BlueprintName = "DatadogFlagsTests tvOS"
+               BlueprintIdentifier = "5BF228272E795D6500D79E8A"
+               BuildableName = "FlashcatFlagsTests iOS.xctest"
+               BlueprintName = "FlashcatFlagsTests iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -46,9 +46,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "5BA8C3182E785B6F00B1DA80"
-            BuildableName = "DatadogFlags.framework"
-            BlueprintName = "DatadogFlags tvOS"
+            BlueprintIdentifier = "5BA8C2EC2E784B3C00B1DA80"
+            BuildableName = "FlashcatFlags.framework"
+            BlueprintName = "FlashcatFlags iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -197,9 +197,9 @@
       <CodeCoverageTargets>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "5BA8C3182E785B6F00B1DA80"
-            BuildableName = "DatadogFlags.framework"
-            BlueprintName = "DatadogFlags tvOS"
+            BlueprintIdentifier = "5BA8C2EC2E784B3C00B1DA80"
+            BuildableName = "FlashcatFlags.framework"
+            BlueprintName = "FlashcatFlags iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </CodeCoverageTargets>
@@ -208,9 +208,9 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "5BA8C3202E785B6F00B1DA80"
-               BuildableName = "DatadogFlagsTests tvOS.xctest"
-               BlueprintName = "DatadogFlagsTests tvOS"
+               BlueprintIdentifier = "5BF228272E795D6500D79E8A"
+               BuildableName = "FlashcatFlagsTests iOS.xctest"
+               BlueprintName = "FlashcatFlagsTests iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -236,9 +236,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "5BA8C3182E785B6F00B1DA80"
-            BuildableName = "DatadogFlags.framework"
-            BlueprintName = "DatadogFlags tvOS"
+            BlueprintIdentifier = "5BA8C2EC2E784B3C00B1DA80"
+            BuildableName = "FlashcatFlags.framework"
+            BlueprintName = "FlashcatFlags iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </MacroExpansion>

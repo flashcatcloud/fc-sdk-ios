@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogFlags
+@testable import FlashcatFlags
 
 final class RUMFlagEvaluationReporterTests: XCTestCase {
     private let featureScope = FeatureScopeMock()

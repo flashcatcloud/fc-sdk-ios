@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogFlags
+import FlashcatFlags
 
 final class AnyValueTests: XCTestCase {
     struct Model: Codable, Equatable {

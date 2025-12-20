@@ -8,7 +8,7 @@ import XCTest
 import TestUtilities
 import FlashcatInternal
 
-@testable import DatadogFlags
+@testable import FlashcatFlags
 
 final class FlagAssignmentsRequestTests: XCTestCase {
     private let testURL = URL(string: "https://test.example.com/precompute-assignments")!

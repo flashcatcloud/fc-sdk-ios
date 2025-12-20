@@ -6,7 +6,7 @@
 
 import XCTest
 import TestUtilities
-@testable import DatadogFlags
+@testable import FlashcatFlags
 
 final class FlagsTests: XCTestCase {
     func testDefaultConfiguration() {
