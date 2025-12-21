@@ -225,11 +225,11 @@ internal class AppRunner {
     // MARK: - SDK Setup
 
     /// Typealias for SDK configuration closure.
-    typealias SDKSetup = (inout Datadog.Configuration) -> Void
+    typealias SDKSetup = (inout Flashcat.Configuration) -> Void
 
     /// Initializes the SDK using an optional setup block.
     func initializeSDK(_ sdkSetup: SDKSetup = { _ in }) {
-        var config = Datadog.Configuration(clientToken: "mock-client-token", env: "env")
+        var config = Flashcat.Configuration(clientToken: "mock-client-token", env: "env")
         config.systemDirectory = appDirectory
         config.processInfo = processInfo
         config.dateProvider = dateProvider

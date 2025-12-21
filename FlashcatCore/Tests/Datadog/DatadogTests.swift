@@ -14,12 +14,12 @@ import TestUtilities
 
 class DatadogTests: XCTestCase {
     private var printFunction: PrintFunctionSpy! // swiftlint:disable:this implicitly_unwrapped_optional
-    private var defaultConfig = Datadog.Configuration(clientToken: "abc-123", env: "tests")
+    private var defaultConfig = Flashcat.Configuration(clientToken: "abc-123", env: "tests")
 
     override func setUp() {
         super.setUp()
 
-        XCTAssertFalse(Datadog.isInitialized())
+        XCTAssertFalse(Flashcat.isInitialized())
         printFunction = PrintFunctionSpy()
         consolePrint = printFunction.print
     }
@@ -27,7 +27,7 @@ class DatadogTests: XCTestCase {
     override func tearDown() {
         consolePrint = { message, _ in print(message) }
         printFunction = nil
-        XCTAssertFalse(Datadog.isInitialized())
+        XCTAssertFalse(Flashcat.isInitialized())
         super.tearDown()
     }
 
@@ -48,11 +48,11 @@ class DatadogTests: XCTestCase {
         XCTAssertNil(configuration.encryption)
         XCTAssertTrue(configuration.serverDateProvider is DatadogNTPDateProvider)
 
-        Datadog.initialize(
+        Flashcat.initialize(
             with: configuration,
             trackingConsent: .granted
         )
-        defer { Datadog.flushAndDeinitialize() }
+        defer { Flashcat.flushAndDeinitialize() }
 
         let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         let urlSessionClient = try XCTUnwrap(core.httpClient as? URLSessionClient)
@@ -108,11 +108,11 @@ class DatadogTests: XCTestCase {
         XCTAssertTrue(configuration.encryption is DataEncryptionMock)
         XCTAssertTrue(configuration.serverDateProvider is ServerDateProviderMock)
 
-        Datadog.initialize(
+        Flashcat.initialize(
             with: configuration,
             trackingConsent: .pending
         )
-        defer { Datadog.flushAndDeinitialize() }
+        defer { Flashcat.flushAndDeinitialize() }
 
         let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         XCTAssertTrue(core.dateProvider is SystemDateProvider)
@@ -141,18 +141,18 @@ class DatadogTests: XCTestCase {
     }
 
     func testGivenDefaultConfiguration_itCanBeInitialized() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
-        XCTAssertTrue(Datadog.isInitialized())
-        Datadog.flushAndDeinitialize()
+        XCTAssertTrue(Flashcat.isInitialized())
+        Flashcat.flushAndDeinitialize()
     }
 
     func testGivenInvalidConfiguration_itPrintsError() {
-        let invalidConfiguration = Datadog.Configuration(clientToken: "", env: "tests")
+        let invalidConfiguration = Flashcat.Configuration(clientToken: "", env: "tests")
 
-        Datadog.initialize(
+        Flashcat.initialize(
             with: invalidConfiguration,
             trackingConsent: .mockRandom()
         )
@@ -161,16 +161,16 @@ class DatadogTests: XCTestCase {
             printFunction.printedMessage,
             "🔥 Datadog SDK usage error: `clientToken` cannot be empty."
         )
-        XCTAssertFalse(Datadog.isInitialized())
+        XCTAssertFalse(Flashcat.isInitialized())
     }
 
     func testGivenValidConfiguration_whenInitializedMoreThanOnce_itPrintsError() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
 
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
@@ -180,7 +180,7 @@ class DatadogTests: XCTestCase {
             "🔥 Datadog SDK usage error: The 'main' instance of SDK is already initialized."
         )
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     // MARK: - Public APIs
@@ -189,7 +189,7 @@ class DatadogTests: XCTestCase {
         let initialConsent: TrackingConsent = .mockRandom()
         let nextConsent: TrackingConsent = .mockRandom()
 
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: initialConsent
         )
@@ -197,15 +197,15 @@ class DatadogTests: XCTestCase {
         let core = CoreRegistry.default as? FlashcatCore
         XCTAssertEqual(core?.consentPublisher.consent, initialConsent)
 
-        Datadog.set(trackingConsent: nextConsent)
+        Flashcat.set(trackingConsent: nextConsent)
 
         XCTAssertEqual(core?.consentPublisher.consent, nextConsent)
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testUserInfo() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
@@ -217,7 +217,7 @@ class DatadogTests: XCTestCase {
         XCTAssertNil(core?.userInfoPublisher.current.name)
         XCTAssertEqual(core?.userInfoPublisher.current.extraInfo as? [String: Int], [:])
 
-        Datadog.setUserInfo(
+        Flashcat.setUserInfo(
             id: "foo",
             name: "bar",
             email: "foo@bar.com",
@@ -231,7 +231,7 @@ class DatadogTests: XCTestCase {
         XCTAssertEqual(core?.userInfoPublisher.current.email, "foo@bar.com")
         XCTAssertEqual(core?.userInfoPublisher.current.extraInfo as? [String: Int], ["abc": 123])
 
-        Datadog.clearUserInfo()
+        Flashcat.clearUserInfo()
 
         XCTAssertEqual(core?.userInfoPublisher.current.anonymousId, "anonymous-id")
         XCTAssertNil(core?.userInfoPublisher.current.id)
@@ -239,25 +239,25 @@ class DatadogTests: XCTestCase {
         XCTAssertNil(core?.userInfoPublisher.current.name)
         XCTAssertEqual(core?.userInfoPublisher.current.extraInfo as? [String: Int], [:])
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testAddUserProperties_mergesProperties() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
 
         let core = CoreRegistry.default as? FlashcatCore
 
-        Datadog.setUserInfo(
+        Flashcat.setUserInfo(
             id: "foo",
             name: "bar",
             email: "foo@bar.com",
             extraInfo: ["abc": 123]
         )
 
-        Datadog.addUserExtraInfo(["second": 667])
+        Flashcat.addUserExtraInfo(["second": 667])
 
         XCTAssertEqual(core?.userInfoPublisher.current.id, "foo")
         XCTAssertEqual(core?.userInfoPublisher.current.name, "bar")
@@ -267,61 +267,61 @@ class DatadogTests: XCTestCase {
             ["abc": 123, "second": 667]
         )
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testAddUserProperties_removesProperties() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
 
         let core = CoreRegistry.default as? FlashcatCore
 
-        Datadog.setUserInfo(
+        Flashcat.setUserInfo(
             id: "foo",
             name: "bar",
             email: "foo@bar.com",
             extraInfo: ["abc": 123]
         )
 
-        Datadog.addUserExtraInfo(["abc": nil, "second": 667])
+        Flashcat.addUserExtraInfo(["abc": nil, "second": 667])
 
         XCTAssertEqual(core?.userInfoPublisher.current.id, "foo")
         XCTAssertEqual(core?.userInfoPublisher.current.name, "bar")
         XCTAssertEqual(core?.userInfoPublisher.current.email, "foo@bar.com")
         XCTAssertEqual(core?.userInfoPublisher.current.extraInfo as? [String: Int], ["second": 667])
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testAddUserProperties_overwritesProperties() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
 
         let core = CoreRegistry.default as? FlashcatCore
 
-        Datadog.setUserInfo(
+        Flashcat.setUserInfo(
             id: "foo",
             name: "bar",
             email: "foo@bar.com",
             extraInfo: ["abc": 123]
         )
 
-        Datadog.addUserExtraInfo(["abc": 444])
+        Flashcat.addUserExtraInfo(["abc": 444])
 
         XCTAssertEqual(core?.userInfoPublisher.current.id, "foo")
         XCTAssertEqual(core?.userInfoPublisher.current.name, "bar")
         XCTAssertEqual(core?.userInfoPublisher.current.email, "foo@bar.com")
         XCTAssertEqual(core?.userInfoPublisher.current.extraInfo as? [String: Int], ["abc": 444])
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testAccountInfo() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
@@ -330,7 +330,7 @@ class DatadogTests: XCTestCase {
 
         XCTAssertNil(core?.accountInfoPublisher.current)
 
-        Datadog.setAccountInfo(
+        Flashcat.setAccountInfo(
             id: "foo",
             name: "bar",
             extraInfo: ["abc": 123]
@@ -340,24 +340,24 @@ class DatadogTests: XCTestCase {
         XCTAssertEqual(core?.accountInfoPublisher.current?.name, "bar")
         XCTAssertEqual(core?.accountInfoPublisher.current?.extraInfo as? [String: Int], ["abc": 123])
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testAddAccountProperties_mergesProperties() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
 
         let core = CoreRegistry.default as? FlashcatCore
 
-        Datadog.setAccountInfo(
+        Flashcat.setAccountInfo(
             id: "foo",
             name: "bar",
             extraInfo: ["abc": 123]
         )
 
-        Datadog.addAccountExtraInfo(["second": 667])
+        Flashcat.addAccountExtraInfo(["second": 667])
 
         XCTAssertEqual(core?.accountInfoPublisher.current?.id, "foo")
         XCTAssertEqual(core?.accountInfoPublisher.current?.name, "bar")
@@ -366,61 +366,61 @@ class DatadogTests: XCTestCase {
             ["abc": 123, "second": 667]
         )
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testAddAccountProperties_removesProperties() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
 
         let core = CoreRegistry.default as? FlashcatCore
 
-        Datadog.setAccountInfo(
+        Flashcat.setAccountInfo(
             id: "foo",
             name: "bar",
             extraInfo: ["abc": 123]
         )
 
-        Datadog.addAccountExtraInfo(["abc": nil, "second": 667])
+        Flashcat.addAccountExtraInfo(["abc": nil, "second": 667])
 
         XCTAssertEqual(core?.accountInfoPublisher.current?.id, "foo")
         XCTAssertEqual(core?.accountInfoPublisher.current?.name, "bar")
         XCTAssertEqual(core?.accountInfoPublisher.current?.extraInfo as? [String: Int], ["second": 667])
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testAddAccountProperties_overwritesProperties() {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
 
         let core = CoreRegistry.default as? FlashcatCore
 
-        Datadog.setAccountInfo(
+        Flashcat.setAccountInfo(
             id: "foo",
             name: "bar",
             extraInfo: ["abc": 123]
         )
 
-        Datadog.addAccountExtraInfo(["abc": 444])
+        Flashcat.addAccountExtraInfo(["abc": 444])
 
         XCTAssertEqual(core?.accountInfoPublisher.current?.id, "foo")
         XCTAssertEqual(core?.accountInfoPublisher.current?.name, "bar")
         XCTAssertEqual(core?.accountInfoPublisher.current?.extraInfo as? [String: Int], ["abc": 444])
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testDefaultVerbosityLevel() {
-        XCTAssertNil(Datadog.verbosityLevel)
+        XCTAssertNil(Flashcat.verbosityLevel)
     }
 
     func testGivenDataStoredInAllFeatureDirectories_whenClearAllDataIsUsed_allFilesAreRemoved() throws {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
@@ -454,7 +454,7 @@ class DatadogTests: XCTestCase {
         try allDirectories.forEach { directory in _ = try directory.createFile(named: .mockRandom()) }
 
         // When
-        Datadog.clearAllData()
+        Flashcat.clearAllData()
 
         // Wait for async clear completion in all features:
         core.readWriteQueue.sync {}
@@ -466,7 +466,7 @@ class DatadogTests: XCTestCase {
         })
         XCTAssertEqual(files, [], "All files must be removed")
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testServerDateProvider() throws {
@@ -476,7 +476,7 @@ class DatadogTests: XCTestCase {
         config.serverDateProvider = serverDateProvider
 
         // When
-        Datadog.initialize(
+        Flashcat.initialize(
             with: config,
             trackingConsent: .mockRandom()
         )
@@ -488,7 +488,7 @@ class DatadogTests: XCTestCase {
         let context = core.contextProvider.read()
         XCTAssertEqual(context.serverTimeOffset, -1)
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     func testRemoveV1DeprecatedFolders() throws {
@@ -500,12 +500,12 @@ class DatadogTests: XCTestCase {
         }
 
         // When
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
 
-        defer { Datadog.flushAndDeinitialize() }
+        defer { Flashcat.flushAndDeinitialize() }
 
         let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
         // Wait for async deletion
@@ -519,13 +519,13 @@ class DatadogTests: XCTestCase {
 
     func testCustomSDKInstance() throws {
         // When
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom(),
             instanceName: "test"
         )
 
-        defer { Datadog.flushAndDeinitialize(instanceName: "test") }
+        defer { Flashcat.flushAndDeinitialize(instanceName: "test") }
 
         // Then
         XCTAssertTrue(CoreRegistry.default is NOPDatadogCore)
@@ -534,7 +534,7 @@ class DatadogTests: XCTestCase {
 
     func testStopSDKInstance() throws {
         // Given
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom(),
             instanceName: "test"
@@ -544,30 +544,30 @@ class DatadogTests: XCTestCase {
         XCTAssertTrue(CoreRegistry.instance(named: "test") is FlashcatCore)
 
         // When
-        Datadog.stopInstance(named: "test")
+        Flashcat.stopInstance(named: "test")
 
         // Then
         XCTAssertTrue(CoreRegistry.instance(named: "test") is NOPDatadogCore)
     }
 
     func testGivenDefaultSDKInstanceInitialized_customOneCanBeInitializedAfterIt() throws {
-        let defaultConfig = Datadog.Configuration(clientToken: "abc-123", env: "default")
-        let customConfig = Datadog.Configuration(clientToken: "def-456", env: "custom")
+        let defaultConfig = Flashcat.Configuration(clientToken: "abc-123", env: "default")
+        let customConfig = Flashcat.Configuration(clientToken: "def-456", env: "custom")
 
         // Given
-        Datadog.initialize(
+        Flashcat.initialize(
             with: defaultConfig,
             trackingConsent: .mockRandom()
         )
-        defer { Datadog.flushAndDeinitialize() }
+        defer { Flashcat.flushAndDeinitialize() }
 
         // When
-        Datadog.initialize(
+        Flashcat.initialize(
             with: customConfig,
             trackingConsent: .mockRandom(),
             instanceName: "custom-instance"
         )
-        defer { Datadog.flushAndDeinitialize(instanceName: "custom-instance") }
+        defer { Flashcat.flushAndDeinitialize(instanceName: "custom-instance") }
 
         // Then
         XCTAssertTrue(CoreRegistry.default is FlashcatCore)

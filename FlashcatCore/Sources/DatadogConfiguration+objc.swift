@@ -31,7 +31,7 @@ public enum objc_BatchSize: Int {
     case medium
     case large
 
-    internal var swiftType: Datadog.Configuration.BatchSize {
+    internal var swiftType: Flashcat.Configuration.BatchSize {
         switch self {
         case .small: return .small
         case .medium: return .medium
@@ -39,7 +39,7 @@ public enum objc_BatchSize: Int {
         }
     }
 
-    internal init(swiftType: Datadog.Configuration.BatchSize) {
+    internal init(swiftType: Flashcat.Configuration.BatchSize) {
         switch swiftType {
         case .small: self = .small
         case .medium: self = .medium
@@ -55,7 +55,7 @@ public enum objc_UploadFrequency: Int {
     case average
     case rare
 
-    internal var swiftType: Datadog.Configuration.UploadFrequency {
+    internal var swiftType: Flashcat.Configuration.UploadFrequency {
         switch self {
         case .frequent: return .frequent
         case .average: return .average
@@ -63,7 +63,7 @@ public enum objc_UploadFrequency: Int {
         }
     }
 
-    internal init(swiftType: Datadog.Configuration.UploadFrequency) {
+    internal init(swiftType: Flashcat.Configuration.UploadFrequency) {
         switch swiftType {
         case .frequent: self = .frequent
         case .average: self = .average
@@ -79,7 +79,7 @@ public enum objc_BatchProcessingLevel: Int {
     case medium
     case high
 
-    internal var swiftType: Datadog.Configuration.BatchProcessingLevel {
+    internal var swiftType: Flashcat.Configuration.BatchProcessingLevel {
         switch self {
         case .low: return .low
         case .medium: return .medium
@@ -87,7 +87,7 @@ public enum objc_BatchProcessingLevel: Int {
         }
     }
 
-    internal init(swiftType: Datadog.Configuration.BatchProcessingLevel) {
+    internal init(swiftType: Flashcat.Configuration.BatchProcessingLevel) {
         switch swiftType {
         case .low: self = .low
         case .medium: self = .medium
@@ -150,7 +150,7 @@ internal struct DDServerDateProviderBridge: ServerDateProvider {
 @objcMembers
 @_spi(objc)
 public final class objc_Configuration: NSObject {
-    internal var sdkConfiguration: Datadog.Configuration
+    internal var sdkConfiguration: Flashcat.Configuration
 
     /// Either the RUM client token (which supports RUM, Logging and APM) or regular client token, only for Logging and APM.
     public var clientToken: String {

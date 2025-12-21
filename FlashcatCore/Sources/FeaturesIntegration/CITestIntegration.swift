@@ -64,7 +64,7 @@ internal class CITestIntegration {
         func attributeCallback(port: CFMessagePort?, msgid: Int32, data: CFData?, info: UnsafeMutableRawPointer?) -> Unmanaged<CFData>? {
             switch msgid {
             case DDCFMessageID.forceFlush:
-                Datadog.internalFlushAndDeinitialize()
+                Flashcat.internalFlushAndDeinitialize()
             default:
                 break
             }

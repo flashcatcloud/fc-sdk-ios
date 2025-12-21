@@ -7,7 +7,7 @@
 import Foundation
 import FlashcatInternal
 
-extension Datadog: InternalExtended {}
+extension Flashcat: InternalExtended {}
 
 /// This extension exposes internal methods that are used by other Datadog modules and cross platform
 /// frameworks. It is not meant for public use.
@@ -17,7 +17,7 @@ extension Datadog: InternalExtended {}
 ///
 /// Methods, members, and functionality of this class  are subject to change without notice, as they
 /// are not considered part of the public interface of the Datadog SDK.
-extension InternalExtension where ExtendedType == Datadog {
+extension InternalExtension where ExtendedType == Flashcat {
     /// Internal telemetry proxy.
     public static var telemetry: _TelemetryProxy {
         .init(telemetry: CoreRegistry.default.telemetry)
@@ -47,8 +47,8 @@ public struct _TelemetryProxy {
     }
 }
 
-extension Datadog.Configuration: InternalExtended { }
-extension InternalExtension where ExtendedType == Datadog.Configuration {
+extension Flashcat.Configuration: InternalExtended { }
+extension InternalExtension where ExtendedType == Flashcat.Configuration {
     /// Sets additional configuration attributes.
     /// This can be used to tweak internal features of the SDK.
     public var additionalConfiguration: [String: Any] {

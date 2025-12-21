@@ -37,7 +37,7 @@ public final class objc_Datadog: NSObject {
         configuration: objc_Configuration,
         trackingConsent: objc_TrackingConsent
     ) {
-        Datadog.initialize(
+        Flashcat.initialize(
             with: configuration.sdkConfiguration,
             trackingConsent: trackingConsent.sdkConsent
         )
@@ -45,16 +45,16 @@ public final class objc_Datadog: NSObject {
 
     public static func setVerbosityLevel(_ verbosityLevel: objc_CoreLoggerLevel) {
         switch verbosityLevel {
-        case .debug: Datadog.verbosityLevel = .debug
-        case .warn: Datadog.verbosityLevel = .warn
-        case .error: Datadog.verbosityLevel = .error
-        case .critical: Datadog.verbosityLevel = .critical
-        case .none: Datadog.verbosityLevel = nil
+        case .debug: Flashcat.verbosityLevel = .debug
+        case .warn: Flashcat.verbosityLevel = .warn
+        case .error: Flashcat.verbosityLevel = .error
+        case .critical: Flashcat.verbosityLevel = .critical
+        case .none: Flashcat.verbosityLevel = nil
         }
     }
 
     public static func verbosityLevel() -> objc_CoreLoggerLevel {
-        switch Datadog.verbosityLevel {
+        switch Flashcat.verbosityLevel {
         case .debug: return .debug
         case .warn: return .warn
         case .error: return .error
@@ -64,48 +64,48 @@ public final class objc_Datadog: NSObject {
     }
 
     public static func setUserInfo(userId: String, name: String? = nil, email: String? = nil, extraInfo: [String: Any] = [:]) {
-        Datadog.setUserInfo(id: userId, name: name, email: email, extraInfo: extraInfo.dd.swiftAttributes)
+        Flashcat.setUserInfo(id: userId, name: name, email: email, extraInfo: extraInfo.dd.swiftAttributes)
     }
 
     public static func clearUserInfo() {
-        Datadog.clearUserInfo()
+        Flashcat.clearUserInfo()
     }
 
     public static func addUserExtraInfo(_ extraInfo: [String: Any]) {
-        Datadog.addUserExtraInfo(extraInfo.dd.swiftAttributes)
+        Flashcat.addUserExtraInfo(extraInfo.dd.swiftAttributes)
     }
 
     public static func setAccountInfo(accountId: String, name: String? = nil, extraInfo: [String: Any] = [:]) {
-        Datadog.setAccountInfo(id: accountId, name: name, extraInfo: extraInfo.dd.swiftAttributes)
+        Flashcat.setAccountInfo(id: accountId, name: name, extraInfo: extraInfo.dd.swiftAttributes)
     }
 
     public static func addAccountExtraInfo(_ extraInfo: [String: Any]) {
-        Datadog.addAccountExtraInfo(extraInfo.dd.swiftAttributes)
+        Flashcat.addAccountExtraInfo(extraInfo.dd.swiftAttributes)
     }
 
     public static func clearAccountInfo() {
-        Datadog.clearAccountInfo()
+        Flashcat.clearAccountInfo()
     }
 
     public static func setTrackingConsent(consent: objc_TrackingConsent) {
-        Datadog.set(trackingConsent: consent.sdkConsent)
+        Flashcat.set(trackingConsent: consent.sdkConsent)
     }
 
     public static func isInitialized() -> Bool {
-        return Datadog.isInitialized()
+        return Flashcat.isInitialized()
     }
 
     public static func stopInstance() {
-        Datadog.stopInstance()
+        Flashcat.stopInstance()
     }
 
     public static func clearAllData() {
-        Datadog.clearAllData()
+        Flashcat.clearAllData()
     }
 
 #if DD_SDK_COMPILED_FOR_TESTING
     public static func flushAndDeinitialize() {
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 #endif
 }

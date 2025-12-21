@@ -15,8 +15,8 @@ import DatadogPrivate
 
 // MARK: - Configuration Mocks
 
-extension Datadog.Configuration: AnyMockable {
-    public static func mockAny() -> Datadog.Configuration { .mockWith() }
+extension Flashcat.Configuration: AnyMockable {
+    public static func mockAny() -> Flashcat.Configuration { .mockWith() }
 
     public static func mockWith(
         clientToken: String = .mockAny(),
@@ -45,7 +45,7 @@ extension Datadog.Configuration: AnyMockable {
     }
 }
 
-typealias BatchSize = Datadog.Configuration.BatchSize
+typealias BatchSize = Flashcat.Configuration.BatchSize
 
 extension BatchSize: RandomMockable {
     public static func mockRandom() -> Self {
@@ -53,7 +53,7 @@ extension BatchSize: RandomMockable {
     }
 }
 
-typealias UploadFrequency = Datadog.Configuration.UploadFrequency
+typealias UploadFrequency = Flashcat.Configuration.UploadFrequency
 
 extension UploadFrequency: RandomMockable {
     public static func mockRandom() -> Self {
@@ -61,7 +61,7 @@ extension UploadFrequency: RandomMockable {
     }
 }
 
-extension Datadog.Configuration.BatchProcessingLevel: RandomMockable {
+extension Flashcat.Configuration.BatchProcessingLevel: RandomMockable {
     public static func mockRandom() -> Self {
         allCases.randomElement()!
     }

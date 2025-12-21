@@ -31,7 +31,7 @@ import FlashcatInternal
 /// )
 /// ```
 ///     
-public enum Datadog {
+public enum Flashcat {
     /// Verbosity level of Datadog SDK. Can be used for debugging purposes.
     /// If set, internal events occurring inside SDK will be printed to debugger console if their level is equal or greater than `verbosityLevel`.
     /// Default is `nil`.
@@ -307,7 +307,7 @@ public enum Datadog {
             dateProvider: configuration.dateProvider,
             timeZone: .current,
             printFunction: consolePrint,
-            verbosityLevel: { Datadog.verbosityLevel }
+            verbosityLevel: { Flashcat.verbosityLevel }
         )
 
         return core
@@ -368,14 +368,14 @@ extension FlashcatCore {
     ///   - trackingConsent: The user's consent regarding data tracking for the SDK.
     ///   - instanceName: A unique name for this SDK instance.
     convenience init(
-        configuration: Datadog.Configuration,
+        configuration: Flashcat.Configuration,
         trackingConsent: TrackingConsent,
         instanceName: String
     ) throws {
         let debug = configuration.processInfo.arguments.contains(LaunchArguments.Debug)
         if debug {
             consolePrint("⚠️ Overriding verbosity, upload frequency, and sample rates due to \(LaunchArguments.Debug) launch argument", .warn)
-            Datadog.verbosityLevel = .debug
+            Flashcat.verbosityLevel = .debug
         }
 
         let applicationVersion = configuration.additionalConfiguration[CrossPlatformAttributes.version] as? String

@@ -105,8 +105,8 @@ class PerformancePresetTests: XCTestCase {
 
     func testPresetsConsistency() {
         let allPossiblePresets: [PerformancePreset] = zip(
-            zip(Datadog.Configuration.BatchSize.allCases, Datadog.Configuration.UploadFrequency.allCases),
-            zip(BundleType.allCases, Datadog.Configuration.BatchProcessingLevel.allCases)
+            zip(Flashcat.Configuration.BatchSize.allCases, Flashcat.Configuration.UploadFrequency.allCases),
+            zip(BundleType.allCases, Flashcat.Configuration.BatchProcessingLevel.allCases)
         )
             .map { PerformancePreset(batchSize: $0.0, uploadFrequency: $0.1, bundleType: $1.0, batchProcessingLevel: $1.1) }
 

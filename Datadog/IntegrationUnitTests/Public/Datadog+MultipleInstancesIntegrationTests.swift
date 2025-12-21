@@ -12,9 +12,9 @@ import FlashcatLogs
 
 class Datadog_MultipleInstancesIntegrationTests: XCTestCase {
     /// The configuraiton of default instance of SDK.
-    private var defaultInstanceConfig = Datadog.Configuration(clientToken: "main-token", env: "default-env")
+    private var defaultInstanceConfig = Flashcat.Configuration(clientToken: "main-token", env: "default-env")
     /// The configuraiton of custom instance of SDK.
-    private var customInstanceConfig = Datadog.Configuration(clientToken: "custom-token", env: "custom-env")
+    private var customInstanceConfig = Flashcat.Configuration(clientToken: "custom-token", env: "custom-env")
 
     override func setUp() {
         super.setUp()
@@ -42,14 +42,14 @@ class Datadog_MultipleInstancesIntegrationTests: XCTestCase {
         customInstanceConfig.bundle = .mockWith(bundleIdentifier: "com.bundle.custom", CFBundleShortVersionString: "1.0-custom")
 
         // Given
-        Datadog.initialize(with: defaultInstanceConfig, trackingConsent: .granted)
-        Datadog.initialize(with: customInstanceConfig, trackingConsent: .granted, instanceName: customInstanceName)
+        Flashcat.initialize(with: defaultInstanceConfig, trackingConsent: .granted)
+        Flashcat.initialize(with: customInstanceConfig, trackingConsent: .granted, instanceName: customInstanceName)
 
         Logs.enable(with: .init())
-        Logs.enable(with: .init(), in: Datadog.sdkInstance(named: customInstanceName))
+        Logs.enable(with: .init(), in: Flashcat.sdkInstance(named: customInstanceName))
 
         let defaultLogger = Logger.create()
-        let customLogger = Logger.create(in: Datadog.sdkInstance(named: customInstanceName))
+        let customLogger = Logger.create(in: Flashcat.sdkInstance(named: customInstanceName))
 
         // When
         for _ in 0..<numberOfLogs {
@@ -58,8 +58,8 @@ class Datadog_MultipleInstancesIntegrationTests: XCTestCase {
         }
 
         // Then
-        Datadog.flushAndDeinitialize()
-        Datadog.flushAndDeinitialize(instanceName: customInstanceName)
+        Flashcat.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize(instanceName: customInstanceName)
 
         let defaultInstanceRequests = defaultHTTPClient.requestsSent()
         let customInstanceRequests = customHTTPClient.requestsSent()

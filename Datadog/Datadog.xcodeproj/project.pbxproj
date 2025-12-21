@@ -1476,8 +1476,8 @@
 		D2777D9E29F6A75800FFBB40 /* TelemetryReceiverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2777D9C29F6A75800FFBB40 /* TelemetryReceiverTests.swift */; };
 		D284C7402C2059F3005142CC /* ObjcExceptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D284C73F2C2059F3005142CC /* ObjcExceptionTests.swift */; };
 		D284C7412C2059F3005142CC /* ObjcExceptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D284C73F2C2059F3005142CC /* ObjcExceptionTests.swift */; };
-		D286626E2A43487500852CE3 /* Datadog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D286626D2A43487500852CE3 /* Datadog.swift */; };
-		D286626F2A43487500852CE3 /* Datadog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D286626D2A43487500852CE3 /* Datadog.swift */; };
+		D286626E2A43487500852CE3 /* Flashcat.swift in Sources */ = {isa = PBXBuildFile; fileRef = D286626D2A43487500852CE3 /* Flashcat.swift */; };
+		D286626F2A43487500852CE3 /* Flashcat.swift in Sources */ = {isa = PBXBuildFile; fileRef = D286626D2A43487500852CE3 /* Flashcat.swift */; };
 		D28ABFD32CEB87C600623F27 /* UIHostingViewRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D28ABFD22CEB87C600623F27 /* UIHostingViewRecorderTests.swift */; };
 		D28F836529C9E69E00EF8EA2 /* DatadogTraceFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61AD4E3924534075006E34EA /* DatadogTraceFeatureTests.swift */; };
 		D28F836629C9E6A200EF8EA2 /* DatadogTraceFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61AD4E3924534075006E34EA /* DatadogTraceFeatureTests.swift */; };
@@ -3462,7 +3462,7 @@
 		D274FD1B2CBFEF6D005270B5 /* CGSize+SessionReplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGSize+SessionReplay.swift"; sourceTree = "<group>"; };
 		D2777D9C29F6A75800FFBB40 /* TelemetryReceiverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryReceiverTests.swift; sourceTree = "<group>"; };
 		D284C73F2C2059F3005142CC /* ObjcExceptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjcExceptionTests.swift; sourceTree = "<group>"; };
-		D286626D2A43487500852CE3 /* Datadog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Datadog.swift; sourceTree = "<group>"; };
+		D286626D2A43487500852CE3 /* Flashcat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Flashcat.swift; sourceTree = "<group>"; };
 		D28ABFD22CEB87C600623F27 /* UIHostingViewRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIHostingViewRecorderTests.swift; sourceTree = "<group>"; };
 		D28F836729C9E71C00EF8EA2 /* DDSpanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDSpanTests.swift; sourceTree = "<group>"; };
 		D28F836A29C9E7A300EF8EA2 /* TracingURLSessionHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracingURLSessionHandlerTests.swift; sourceTree = "<group>"; };
@@ -4037,7 +4037,7 @@
 			path = CrashReporting;
 			sourceTree = "<group>";
 		};
-		1182F9DD2DA2F827007FE71A /* DatadogCore */ = {
+		1182F9DD2DA2F827007FE71A /* FlashcatCore */ = {
 			isa = PBXGroup;
 			children = (
 				1182F9D72DA2F827007FE71A /* ContextValuePublisherMock.swift */,
@@ -4156,7 +4156,7 @@
 			children = (
 				1182FA172DA2F827007FE71A /* Mockable.swift */,
 				1182F9D62DA2F827007FE71A /* CrashReporting */,
-				1182F9DD2DA2F827007FE71A /* DatadogCore */,
+				1182F9DD2DA2F827007FE71A /* FlashcatCore */,
 				1182F9F52DA2F827007FE71A /* FlashcatInternal */,
 				1182F9F72DA2F827007FE71A /* DatadogLogs */,
 				1182F9FB2DA2F827007FE71A /* DatadogRUM */,
@@ -4327,7 +4327,7 @@
 			path = OpenTelemetry;
 			sourceTree = "<group>";
 		};
-		3CE11A3B29F7BEE700202522 /* DatadogWebViewTracking */ = {
+		3CE11A3B29F7BEE700202522 /* FlashcatWebViewTracking */ = {
 			isa = PBXGroup;
 			children = (
 				6174D6072BFCCDA400EC7469 /* ObjC */,
@@ -4339,7 +4339,7 @@
 			path = ../FlashcatWebViewTracking/Sources;
 			sourceTree = "<group>";
 		};
-		3CE11A3C29F7BEF300202522 /* DatadogWebViewTrackingTests */ = {
+		3CE11A3C29F7BEF300202522 /* FlashcatWebViewTrackingTests */ = {
 			isa = PBXGroup;
 			children = (
 				D297324F2A5C109A00827599 /* MessageEmitterTests.swift */,
@@ -4402,7 +4402,7 @@
 			path = Client;
 			sourceTree = "<group>";
 		};
-		5BA8C30E2E7859EC00B1DA80 /* DatadogFlags */ = {
+		5BA8C30E2E7859EC00B1DA80 /* FlashcatFlags */ = {
 			isa = PBXGroup;
 			children = (
 				5BD6C6542E8AC5D800F5D2CC /* Client */,
@@ -4414,7 +4414,7 @@
 			path = ../FlashcatFlags/Sources;
 			sourceTree = "<group>";
 		};
-		5BA8C3112E785A2D00B1DA80 /* DatadogFlagsTests */ = {
+		5BA8C3112E785A2D00B1DA80 /* FlashcatFlagsTests */ = {
 			isa = PBXGroup;
 			children = (
 				5B5B8CB42E8BCA3C00A6740E /* Client */,
@@ -4468,7 +4468,7 @@
 			path = BackgroundEvents;
 			sourceTree = "<group>";
 		};
-		61054E012A6EE0A400AAA894 /* DatadogSessionReplay */ = {
+		61054E012A6EE0A400AAA894 /* FlashcatSessionReplay */ = {
 			isa = PBXGroup;
 			children = (
 				61054E0C2A6EE10A00AAA894 /* SessionReplay.swift */,
@@ -4489,7 +4489,7 @@
 			path = ../FlashcatSessionReplay/Sources;
 			sourceTree = "<group>";
 		};
-		61054E022A6EE0DB00AAA894 /* DatadogSessionReplayTests */ = {
+		61054E022A6EE0DB00AAA894 /* FlashcatSessionReplayTests */ = {
 			isa = PBXGroup;
 			children = (
 				61054F882A6EE1BA00AAA894 /* Feature */,
@@ -5017,25 +5017,25 @@
 		61133B78242393DE00786299 = {
 			isa = PBXGroup;
 			children = (
-				61133B9C2423979B00786299 /* DatadogCore */,
-				9E68FB52244707FD0013A8AA /* DatadogPrivate */,
-				61133C122423990D00786299 /* DatadogCoreTests */,
+				61133B9C2423979B00786299 /* FlashcatCore */,
+				9E68FB52244707FD0013A8AA /* FlashcatPrivate */,
+				61133C122423990D00786299 /* FlashcatCoreTests */,
 				D23039A6298D513D001A1FA3 /* FlashcatInternal */,
 				D2DA238B298D588A00C6C7E6 /* FlashcatInternalTests */,
-				D207317D29A5226A00ECBF94 /* DatadogLogs */,
-				D207318729A5226B00ECBF94 /* DatadogLogsTests */,
-				D25EE93529C4C3C300CE3839 /* DatadogTrace */,
-				D25EE93F29C4C3C400CE3839 /* DatadogTraceTests */,
-				D29A9F3529DD84AA005C54A4 /* DatadogRUM */,
-				D29A9F3F29DD84AB005C54A4 /* DatadogRUMTests */,
-				61054E012A6EE0A400AAA894 /* DatadogSessionReplay */,
-				61054E022A6EE0DB00AAA894 /* DatadogSessionReplayTests */,
-				6170DC1325C1864B003AED5C /* DatadogCrashReporting */,
-				6170DC1425C18663003AED5C /* DatadogCrashReportingTests */,
-				3CE11A3B29F7BEE700202522 /* DatadogWebViewTracking */,
-				3CE11A3C29F7BEF300202522 /* DatadogWebViewTrackingTests */,
-				5BA8C30E2E7859EC00B1DA80 /* DatadogFlags */,
-				5BA8C3112E785A2D00B1DA80 /* DatadogFlagsTests */,
+				D207317D29A5226A00ECBF94 /* FlashcatLogs */,
+				D207318729A5226B00ECBF94 /* FlashcatLogsTests */,
+				D25EE93529C4C3C300CE3839 /* FlashcatTrace */,
+				D25EE93F29C4C3C400CE3839 /* FlashcatTraceTests */,
+				D29A9F3529DD84AA005C54A4 /* FlashcatRUM */,
+				D29A9F3F29DD84AB005C54A4 /* FlashcatRUMTests */,
+				61054E012A6EE0A400AAA894 /* FlashcatSessionReplay */,
+				61054E022A6EE0DB00AAA894 /* FlashcatSessionReplayTests */,
+				6170DC1325C1864B003AED5C /* FlashcatCrashReporting */,
+				6170DC1425C18663003AED5C /* FlashcatCrashReportingTests */,
+				3CE11A3B29F7BEE700202522 /* FlashcatWebViewTracking */,
+				3CE11A3C29F7BEF300202522 /* FlashcatWebViewTrackingTests */,
+				5BA8C30E2E7859EC00B1DA80 /* FlashcatFlags */,
+				5BA8C3112E785A2D00B1DA80 /* FlashcatFlagsTests */,
 				610ABD492A69309900AFEA34 /* IntegrationUnitTests */,
 				1182FA1F2DA2F827007FE71A /* TestUtilities */,
 				61133C07242397F200786299 /* TargetSupport */,
@@ -5109,10 +5109,10 @@
 			path = DatadogTests;
 			sourceTree = "<group>";
 		};
-		61133B9C2423979B00786299 /* DatadogCore */ = {
+		61133B9C2423979B00786299 /* FlashcatCore */ = {
 			isa = PBXGroup;
 			children = (
-				D286626D2A43487500852CE3 /* Datadog.swift */,
+				D286626D2A43487500852CE3 /* Flashcat.swift */,
 				D2FB125C292FBB56005B13F8 /* Datadog+Internal.swift */,
 				11BBF8DE2DC1268800875558 /* Datadog+objc.swift */,
 				11EA5C2C2DC3CC9900E8DFA2 /* DatadogConfiguration.swift */,
@@ -5195,7 +5195,7 @@
 			path = TargetSupport;
 			sourceTree = "<group>";
 		};
-		61133C122423990D00786299 /* DatadogCoreTests */ = {
+		61133C122423990D00786299 /* FlashcatCoreTests */ = {
 			isa = PBXGroup;
 			children = (
 				6184751626EFD01600C7C9C5 /* TestsObserver */,
@@ -5236,7 +5236,7 @@
 			isa = PBXGroup;
 			children = (
 				118246762D90412800E3D16F /* TestUtilities */,
-				D2EFA873286E010100F1FAA6 /* DatadogCore */,
+				D2EFA873286E010100F1FAA6 /* FlashcatCore */,
 				61133C412423990D00786299 /* DatadogTests.swift */,
 				61BBD19624ED50040023E65F /* DatadogConfigurationTests.swift */,
 				61133C382423990D00786299 /* LoggerTests.swift */,
@@ -5741,7 +5741,7 @@
 			path = DatadogCrashReportingTests;
 			sourceTree = "<group>";
 		};
-		6170DC1325C1864B003AED5C /* DatadogCrashReporting */ = {
+		6170DC1325C1864B003AED5C /* FlashcatCrashReporting */ = {
 			isa = PBXGroup;
 			children = (
 				D2A7A9012BA1C4B100F46845 /* PrivacyInfo.xcprivacy */,
@@ -5757,7 +5757,7 @@
 			path = ../FlashcatCrashReporting/Sources;
 			sourceTree = "<group>";
 		};
-		6170DC1425C18663003AED5C /* DatadogCrashReportingTests */ = {
+		6170DC1425C18663003AED5C /* FlashcatCrashReportingTests */ = {
 			isa = PBXGroup;
 			children = (
 				61B7886125C180CB002675B5 /* CrashReportingPluginTests.swift */,
@@ -6409,7 +6409,7 @@
 			path = include;
 			sourceTree = "<group>";
 		};
-		9E68FB52244707FD0013A8AA /* DatadogPrivate */ = {
+		9E68FB52244707FD0013A8AA /* FlashcatPrivate */ = {
 			isa = PBXGroup;
 			children = (
 				9E47010324471027000073A4 /* include */,
@@ -6488,7 +6488,7 @@
 			path = RUMVitals;
 			sourceTree = "<group>";
 		};
-		D207317D29A5226A00ECBF94 /* DatadogLogs */ = {
+		D207317D29A5226A00ECBF94 /* FlashcatLogs */ = {
 			isa = PBXGroup;
 			children = (
 				6194E4BB2878AF7600EB6307 /* ConsoleLogger.swift */,
@@ -6508,7 +6508,7 @@
 			path = ../FlashcatLogs/Sources;
 			sourceTree = "<group>";
 		};
-		D207318729A5226B00ECBF94 /* DatadogLogsTests */ = {
+		D207318729A5226B00ECBF94 /* FlashcatLogsTests */ = {
 			isa = PBXGroup;
 			children = (
 				6194D51B287ECDC00091547D /* ConsoleLoggerTests.swift */,
@@ -6817,7 +6817,7 @@
 			path = WebViewTracking;
 			sourceTree = "<group>";
 		};
-		D25EE93529C4C3C300CE3839 /* DatadogTrace */ = {
+		D25EE93529C4C3C300CE3839 /* FlashcatTrace */ = {
 			isa = PBXGroup;
 			children = (
 				D2546BF029AF4F550054E00B /* DatadogTracer.swift */,
@@ -6841,7 +6841,7 @@
 			path = ../FlashcatTrace/Sources;
 			sourceTree = "<group>";
 		};
-		D25EE93F29C4C3C400CE3839 /* DatadogTraceTests */ = {
+		D25EE93F29C4C3C400CE3839 /* FlashcatTraceTests */ = {
 			isa = PBXGroup;
 			children = (
 				3C6C7FF12B459AB3006F5CBC /* OpenTelemetry */,
@@ -6898,7 +6898,7 @@
 			path = Upload;
 			sourceTree = "<group>";
 		};
-		D29A9F3529DD84AA005C54A4 /* DatadogRUM */ = {
+		D29A9F3529DD84AA005C54A4 /* FlashcatRUM */ = {
 			isa = PBXGroup;
 			children = (
 				61DA6F6B2BB57E32009537E5 /* FatalErrorBuilder.swift */,
@@ -6930,7 +6930,7 @@
 			path = ../FlashcatRUM/Sources;
 			sourceTree = "<group>";
 		};
-		D29A9F3F29DD84AB005C54A4 /* DatadogRUMTests */ = {
+		D29A9F3F29DD84AB005C54A4 /* FlashcatRUMTests */ = {
 			isa = PBXGroup;
 			children = (
 				D29A9FCB29DDBCC5005C54A4 /* DDTAssertValidRUMUUID.swift */,
@@ -7232,7 +7232,7 @@
 			path = Context;
 			sourceTree = "<group>";
 		};
-		D2EFA873286E010100F1FAA6 /* DatadogCore */ = {
+		D2EFA873286E010100F1FAA6 /* FlashcatCore */ = {
 			isa = PBXGroup;
 			children = (
 				617699162A8608C20030022B /* Context */,
@@ -9020,7 +9020,7 @@
 				61D3E0D6277B23F1008BE766 /* KronosClock.swift in Sources */,
 				D2A7841129A53B2F003B03BB /* File.swift in Sources */,
 				D2E6E8FB2D8039BB00FF1398 /* BenchmarkURLSessionTaskDelegate.swift in Sources */,
-				D286626E2A43487500852CE3 /* Datadog.swift in Sources */,
+				D286626E2A43487500852CE3 /* Flashcat.swift in Sources */,
 				61F930C22BA1C41A005F0EE2 /* TLVBlockReader.swift in Sources */,
 				613E793B2577B6EE00DFCC17 /* DataReader.swift in Sources */,
 				D2B3F04D282A85FD00C2B5EE /* FlashcatCore.swift in Sources */,
@@ -10448,7 +10448,7 @@
 				D2CB6E6627C50EAE00A62B57 /* Reader.swift in Sources */,
 				D2CB6E6927C50EAE00A62B57 /* KronosDNSResolver.swift in Sources */,
 				D2E6E8FC2D8039BB00FF1398 /* BenchmarkURLSessionTaskDelegate.swift in Sources */,
-				D286626F2A43487500852CE3 /* Datadog.swift in Sources */,
+				D286626F2A43487500852CE3 /* Flashcat.swift in Sources */,
 				61F930C32BA1C41A005F0EE2 /* TLVBlockReader.swift in Sources */,
 				D2A7841229A53B2F003B03BB /* File.swift in Sources */,
 				D2CB6E7627C50EAE00A62B57 /* KronosClock.swift in Sources */,

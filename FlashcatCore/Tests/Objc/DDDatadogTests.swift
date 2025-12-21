@@ -16,11 +16,11 @@ import TestUtilities
 class DDDatadogTests: XCTestCase {
     override func setUp() {
         super.setUp()
-        XCTAssertFalse(Datadog.isInitialized())
+        XCTAssertFalse(Flashcat.isInitialized())
     }
 
     override func tearDown() {
-        XCTAssertFalse(Datadog.isInitialized())
+        XCTAssertFalse(Flashcat.isInitialized())
         super.tearDown()
     }
 
@@ -39,13 +39,13 @@ class DDDatadogTests: XCTestCase {
             trackingConsent: randomConsent().objc
         )
 
-        XCTAssertTrue(Datadog.isInitialized())
+        XCTAssertTrue(Flashcat.isInitialized())
 
         let context = try XCTUnwrap(CoreRegistry.default as? FlashcatCore).contextProvider.read()
         XCTAssertEqual(context.applicationName, "app-name")
         XCTAssertEqual(context.env, "tests")
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
 
         XCTAssertNil(CoreRegistry.default.get(feature: LogsFeature.self))
     }
@@ -66,7 +66,7 @@ class DDDatadogTests: XCTestCase {
 
         XCTAssertTrue(objc_Datadog.isInitialized())
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
 
         XCTAssertNil(CoreRegistry.default.get(feature: LogsFeature.self))
     }
@@ -84,11 +84,11 @@ class DDDatadogTests: XCTestCase {
             trackingConsent: randomConsent().objc
         )
 
-        XCTAssertTrue(Datadog.isInitialized())
+        XCTAssertTrue(Flashcat.isInitialized())
 
         objc_Datadog.stopInstance()
 
-        XCTAssertFalse(Datadog.isInitialized())
+        XCTAssertFalse(Flashcat.isInitialized())
 
         XCTAssertNil(CoreRegistry.default.get(feature: LogsFeature.self))
     }
@@ -111,7 +111,7 @@ class DDDatadogTests: XCTestCase {
 
         XCTAssertEqual(core?.consentPublisher.consent, nextConsent.swift)
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     // MARK: - Setting user info
@@ -151,7 +151,7 @@ class DDDatadogTests: XCTestCase {
         XCTAssertNil(userInfo.current.email)
         XCTAssertTrue(userInfo.current.extraInfo.isEmpty)
 
-        Datadog.flushAndDeinitialize()
+        Flashcat.flushAndDeinitialize()
     }
 
     // MARK: - Changing SDK verbosity level
@@ -164,19 +164,19 @@ class DDDatadogTests: XCTestCase {
     ]
 
     func testItForwardsSettingVerbosityLevelToSwift() {
-        defer { Datadog.verbosityLevel = nil }
+        defer { Flashcat.verbosityLevel = nil }
 
         zip(swiftVerbosityLevels, objcVerbosityLevels).forEach { swiftLevel, objcLevel in
             objc_Datadog.setVerbosityLevel(objcLevel)
-            XCTAssertEqual(Datadog.verbosityLevel, swiftLevel)
+            XCTAssertEqual(Flashcat.verbosityLevel, swiftLevel)
         }
     }
 
     func testItGetsVerbosityLevelFromSwift() {
-        defer { Datadog.verbosityLevel = nil }
+        defer { Flashcat.verbosityLevel = nil }
 
         zip(swiftVerbosityLevels, objcVerbosityLevels).forEach { swiftLevel, objcLevel in
-            Datadog.verbosityLevel = swiftLevel
+            Flashcat.verbosityLevel = swiftLevel
             XCTAssertEqual(objc_Datadog.verbosityLevel(), objcLevel)
         }
     }

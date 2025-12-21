@@ -7,7 +7,7 @@
 import Foundation
 import FlashcatInternal
 
-extension Datadog {
+extension Flashcat {
     /// Configuration of Datadog SDK.
     public struct Configuration {
         /// Defines the Datadog SDK policy when batching data together before uploading it to Datadog servers.

@@ -34,7 +34,7 @@ class InternalProxyTests: XCTestCase {
         let message: String = .mockAny()
 
         // When
-        Datadog._internal.telemetry.debug(id: id, message: message)
+        Flashcat._internal.telemetry.debug(id: id, message: message)
 
         // Then
         XCTAssertEqual(telemetry.messages.count, 1)
@@ -54,7 +54,7 @@ class InternalProxyTests: XCTestCase {
         let kind: String = .mockAny()
 
         // When
-        Datadog._internal.telemetry.error(id: id, message: message, kind: kind, stack: stack)
+        Flashcat._internal.telemetry.error(id: id, message: message, kind: kind, stack: stack)
 
         // Then
         XCTAssertEqual(telemetry.messages.count, 1)
@@ -73,8 +73,8 @@ class InternalProxyTests: XCTestCase {
         // When
         let randomDebugMessage: String = .mockRandom()
         let randomErrorMessage: String = .mockRandom()
-        Datadog._internal.telemetry.debug(id: .mockAny(), message: randomDebugMessage)
-        Datadog._internal.telemetry.error(id: .mockAny(), message: randomErrorMessage, kind: .mockAny(), stack: .mockAny())
+        Flashcat._internal.telemetry.debug(id: .mockAny(), message: randomDebugMessage)
+        Flashcat._internal.telemetry.error(id: .mockAny(), message: randomErrorMessage, kind: .mockAny(), stack: .mockAny())
 
         // Then
         XCTAssertEqual(telemetry.messages.count, 2)
@@ -88,15 +88,15 @@ class InternalProxyTests: XCTestCase {
 
     func testWhenNewVersionIsSetInConfigurationProxy_thenItChangesAppVersionInCore() throws {
         // Given
-        Datadog.initialize(
+        Flashcat.initialize(
             with: .mockAny(),
             trackingConsent: .mockRandom()
         )
-        defer { Datadog.flushAndDeinitialize() }
+        defer { Flashcat.flushAndDeinitialize() }
 
         // When
         let randomVersion: String = .mockRandom()
-        Datadog._internal.set(customVersion: randomVersion)
+        Flashcat._internal.set(customVersion: randomVersion)
 
         // Then
         let core = try XCTUnwrap(CoreRegistry.default as? FlashcatCore)
