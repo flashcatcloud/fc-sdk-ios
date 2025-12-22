@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 extension RUMSessionState: AnyMockable, RandomMockable {
     public static func mockAny() -> RUMSessionState {

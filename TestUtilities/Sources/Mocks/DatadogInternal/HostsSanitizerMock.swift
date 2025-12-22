@@ -4,7 +4,7 @@
  * Copyright 2019-2020 Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 public class HostsSanitizerMock: HostsSanitizing {
     public private(set) var sanitizations = [(hosts: Set<String>, warningMessage: String)]()

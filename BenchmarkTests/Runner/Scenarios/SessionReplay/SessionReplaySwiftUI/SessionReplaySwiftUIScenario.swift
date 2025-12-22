@@ -8,9 +8,9 @@ import Foundation
 import UIKit
 import SwiftUI
 
-import DatadogCore
-import DatadogRUM
-import DatadogSessionReplay
+import FlashcatCore
+import FlashcatRUM
+import FlashcatSessionReplay
 
 import CatalogSwiftUI
 

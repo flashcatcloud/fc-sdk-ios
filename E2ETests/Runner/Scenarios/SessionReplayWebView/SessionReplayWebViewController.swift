@@ -6,7 +6,7 @@
 
 import UIKit
 import WebKit
-import DatadogWebViewTracking
+import FlashcatWebViewTracking
 
 class SessionReplayWebViewController: UIViewController, WKUIDelegate {
     var webView: WKWebView! // swiftlint:disable:this implicitly_unwrapped_optional

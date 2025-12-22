@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 // MARK: - Global Dependencies Mocks
 

@@ -6,8 +6,8 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
-@testable import DatadogRUM
+import FlashcatInternal
+@testable import FlashcatRUM
 
 class ViewLoadingMetricsTests: XCTestCase {
     private var core: DatadogCoreProxy! // swiftlint:disable:this implicitly_unwrapped_optional

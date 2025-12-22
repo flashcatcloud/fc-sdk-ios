@@ -4,10 +4,10 @@
 * Copyright 2019-Present Datadog, Inc.
 */
 
-import DatadogCore
-import DatadogLogs
-import DatadogTrace
-import DatadogCrashReporting
+import FlashcatCore
+import FlashcatLogs
+import FlashcatTrace
+import FlashcatCrashReporting
 
 enum DatadogSetup {
     static var logger: LoggerProtocol?

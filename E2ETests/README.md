@@ -52,8 +52,8 @@ Here is a simple example of a scenario using Logs:
 import Foundation
 import UIKit
 
-import DatadogCore
-import DatadogLogs
+import FlashcatCore
+import FlashcatLogs
 
 struct SessionReplayWebViewScenario: Scenario {
 

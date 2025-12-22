@@ -7,7 +7,7 @@
 #if os(iOS)
 import Foundation
 @_spi(Internal)
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 // MARK: - `ViewTreeSnapshotProducer` Mocks
 

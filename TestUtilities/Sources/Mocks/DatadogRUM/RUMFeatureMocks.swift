@@ -6,9 +6,9 @@
 
 import Foundation
 import UIKit
-import DatadogInternal
+import FlashcatInternal
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 extension RUM.Configuration: AnyMockable, RandomMockable {
     public static func mockAny() -> RUM.Configuration {
@@ -1098,7 +1098,7 @@ extension RUMSessionScope {
         parent: RUMContextProvider = RUMContextProviderMock(),
         startTime: Date = .mockAny(),
         startPrecondition: RUMSessionPrecondition? = .userAppLaunch,
-        context: DatadogContext = .mockAny(),
+        context: FlashcatContext = .mockAny(),
         dependencies: RUMScopeDependencies = .mockAny(),
         applicationState: RUMApplicationState = .mockAny(),
         hasReplay: Bool? = .mockAny()

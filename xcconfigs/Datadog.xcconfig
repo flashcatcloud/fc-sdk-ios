@@ -12,4 +12,4 @@ CUSTOM_TRACE_URL=// Do NOT add https! example: foo.com/api/v2/spans
 CUSTOM_RUM_URL=// Do NOT add https! example: foo.com/api/v2/rum
 
 // Overwrite with secrets
-#include? "Datadog.local.xcconfig"
+#include? "Flashcat.local.xcconfig"

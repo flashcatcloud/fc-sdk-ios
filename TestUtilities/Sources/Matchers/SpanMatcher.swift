@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Implemented by types allowed to represent span attribute `.*` value in JSON.
 protocol AllowedSpanAttributeValue {}

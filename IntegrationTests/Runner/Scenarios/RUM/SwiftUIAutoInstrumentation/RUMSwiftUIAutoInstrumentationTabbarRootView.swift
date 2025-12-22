@@ -7,7 +7,7 @@
 
 import Foundation
 import SwiftUI
-import DatadogRUM
+import FlashcatRUM
 
 // MARK: - SwiftUIAutoInstrumentationTabbarRootView
 

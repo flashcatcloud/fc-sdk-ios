@@ -5,10 +5,10 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
-@testable import DatadogCore
-@testable import DatadogRUM
+@testable import FlashcatCore
+@testable import FlashcatRUM
 
 class RUMSessionTrackingTests: RUMSessionTestsBase {
     private func enableRUM(_ launchType: AppRunner.ProcessLaunchType, rumSetup: AppRunner.RUMSetup? = nil) -> AppRun {

@@ -8,7 +8,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 import XCTest
 
 public enum DDAssertError: Error {

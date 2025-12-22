@@ -29,40 +29,40 @@ let internalSwiftSettings: [SwiftSetting] = ProcessInfo.processInfo.environment[
     [.define("DD_BENCHMARK")] : []
 
 let package = Package(
-    name: "Datadog",
+    name: "Flashcat",
     platforms: platforms,
     products: [
         .library(
-            name: "DatadogCore",
-            targets: ["DatadogCore"]
+            name: "FlashcatCore",
+            targets: ["FlashcatCore"]
         ),
         .library(
-            name: "DatadogLogs",
-            targets: ["DatadogLogs"]
+            name: "FlashcatLogs",
+            targets: ["FlashcatLogs"]
         ),
         .library(
-            name: "DatadogTrace",
-            targets: ["DatadogTrace"]
+            name: "FlashcatTrace",
+            targets: ["FlashcatTrace"]
         ),
         .library(
-            name: "DatadogRUM",
-            targets: ["DatadogRUM"]
+            name: "FlashcatRUM",
+            targets: ["FlashcatRUM"]
         ),
         .library(
-            name: "DatadogSessionReplay",
-            targets: ["DatadogSessionReplay"]
+            name: "FlashcatSessionReplay",
+            targets: ["FlashcatSessionReplay"]
         ),
         .library(
-            name: "DatadogCrashReporting",
-            targets: ["DatadogCrashReporting"]
+            name: "FlashcatCrashReporting",
+            targets: ["FlashcatCrashReporting"]
         ),
         .library(
-            name: "DatadogWebViewTracking",
-            targets: ["DatadogWebViewTracking"]
+            name: "FlashcatWebViewTracking",
+            targets: ["FlashcatWebViewTracking"]
         ),
         .library(
-            name: "DatadogFlags",
-            targets: ["DatadogFlags"]
+            name: "FlashcatFlags",
+            targets: ["FlashcatFlags"]
         ),
     ],
     dependencies: [
@@ -71,12 +71,12 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "DatadogCore",
+            name: "FlashcatCore",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .target(name: "DatadogPrivate"),
             ],
-            path: "DatadogCore",
+            path: "FlashcatCore",
             sources: ["Sources"],
             resources: [
                 .copy("Resources/PrivacyInfo.xcprivacy")
@@ -85,62 +85,62 @@ let package = Package(
         ),
         .target(
             name: "DatadogPrivate",
-            path: "DatadogCore/Private"
+            path: "FlashcatCore/Private"
         ),
 
         .target(
-            name: "DatadogInternal",
-            path: "DatadogInternal/Sources",
+            name: "FlashcatInternal",
+            path: "FlashcatInternal/Sources",
             swiftSettings: internalSwiftSettings
         ),
         .testTarget(
-            name: "DatadogInternalTests",
+            name: "FlashcatInternalTests",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogInternal/Tests"
+            path: "FlashcatInternal/Tests"
         ),
 
         .target(
-            name: "DatadogLogs",
+            name: "FlashcatLogs",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
             ],
-            path: "DatadogLogs/Sources"
+            path: "FlashcatLogs/Sources"
         ),
         .testTarget(
             name: "DatadogLogsTests",
             dependencies: [
-                .target(name: "DatadogLogs"),
+                .target(name: "FlashcatLogs"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogLogs/Tests"
+            path: "FlashcatLogs/Tests"
         ),
 
         .target(
-            name: "DatadogTrace",
+            name: "FlashcatTrace",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .product(name: "OpenTelemetryApi", package: opentelemetry.name)
             ],
-            path: "DatadogTrace/Sources"
+            path: "FlashcatTrace/Sources"
         ),
         .testTarget(
             name: "DatadogTraceTests",
             dependencies: [
-                .target(name: "DatadogTrace"),
+                .target(name: "FlashcatTrace"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogTrace/Tests"
+            path: "FlashcatTrace/Tests"
         ),
 
         .target(
-            name: "DatadogRUM",
+            name: "FlashcatRUM",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
             ],
-            path: "DatadogRUM",
+            path: "FlashcatRUM",
             sources: ["Sources"],
             resources: [
                 .copy("Resources/PrivacyInfo.xcprivacy")
@@ -149,19 +149,19 @@ let package = Package(
         .testTarget(
             name: "DatadogRUMTests",
             dependencies: [
-                .target(name: "DatadogRUM"),
+                .target(name: "FlashcatRUM"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogRUM/Tests"
+            path: "FlashcatRUM/Tests"
         ),
 
         .target(
-            name: "DatadogCrashReporting",
+            name: "FlashcatCrashReporting",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
                 .product(name: "CrashReporter", package: "PLCrashReporter"),
             ],
-            path: "DatadogCrashReporting",
+            path: "FlashcatCrashReporting",
             sources: ["Sources"],
             resources: [
                 .copy("Resources/PrivacyInfo.xcprivacy")
@@ -170,74 +170,74 @@ let package = Package(
         .testTarget(
             name: "DatadogCrashReportingTests",
             dependencies: [
-                .target(name: "DatadogCrashReporting"),
+                .target(name: "FlashcatCrashReporting"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogCrashReporting/Tests"
+            path: "FlashcatCrashReporting/Tests"
         ),
 
         .target(
-            name: "DatadogWebViewTracking",
+            name: "FlashcatWebViewTracking",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
             ],
-            path: "DatadogWebViewTracking/Sources"
+            path: "FlashcatWebViewTracking/Sources"
         ),
         .testTarget(
             name: "DatadogWebViewTrackingTests",
             dependencies: [
-                .target(name: "DatadogWebViewTracking"),
+                .target(name: "FlashcatWebViewTracking"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogWebViewTracking/Tests"
+            path: "FlashcatWebViewTracking/Tests"
         ),
 
         .target(
-            name: "DatadogSessionReplay",
-            dependencies: ["DatadogInternal"],
-            path: "DatadogSessionReplay/Sources"
+            name: "FlashcatSessionReplay",
+            dependencies: ["FlashcatInternal"],
+            path: "FlashcatSessionReplay/Sources"
         ),
         .testTarget(
             name: "DatadogSessionReplayTests",
             dependencies: [
-                .target(name: "DatadogSessionReplay"),
+                .target(name: "FlashcatSessionReplay"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogSessionReplay/Tests",
+            path: "FlashcatSessionReplay/Tests",
             resources: [
                 .process("Resources/Assets.xcassets")
             ]
         ),
 
         .target(
-            name: "DatadogFlags",
+            name: "FlashcatFlags",
             dependencies: [
-                .target(name: "DatadogInternal"),
+                .target(name: "FlashcatInternal"),
             ],
-            path: "DatadogFlags/Sources"
+            path: "FlashcatFlags/Sources"
         ),
         .testTarget(
             name: "DatadogFlagsTests",
             dependencies: [
-                .target(name: "DatadogFlags"),
+                .target(name: "FlashcatFlags"),
                 .target(name: "TestUtilities"),
             ],
-            path: "DatadogFlags/Tests"
+            path: "FlashcatFlags/Tests"
         ),
 
         .target(
             name: "TestUtilities",
             dependencies: [
-                .target(name: "DatadogCore"),
+                .target(name: "FlashcatCore"),
                 .target(name: "DatadogPrivate"),
-                .target(name: "DatadogInternal"),
-                .target(name: "DatadogLogs"),
-                .target(name: "DatadogRUM"),
-                .target(name: "DatadogSessionReplay"),
-                .target(name: "DatadogTrace"),
-                .target(name: "DatadogCrashReporting"),
-                .target(name: "DatadogWebViewTracking"),
-                .target(name: "DatadogFlags")
+                .target(name: "FlashcatInternal"),
+                .target(name: "FlashcatLogs"),
+                .target(name: "FlashcatRUM"),
+                .target(name: "FlashcatSessionReplay"),
+                .target(name: "FlashcatTrace"),
+                .target(name: "FlashcatCrashReporting"),
+                .target(name: "FlashcatWebViewTracking"),
+                .target(name: "FlashcatFlags")
             ],
             path: "TestUtilities/Sources",
             swiftSettings: [.define("SPM_BUILD")] + internalSwiftSettings

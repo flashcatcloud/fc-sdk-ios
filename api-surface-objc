@@ -20,14 +20,9 @@ public final class objc_Datadog: NSObject
     public static func isInitialized() -> Bool
     public static func stopInstance()
     public static func clearAllData()
-public final class objc_DatadogSite: NSObject
-    public static func us1() -> objc_DatadogSite
-    public static func us3() -> objc_DatadogSite
-    public static func us5() -> objc_DatadogSite
-    public static func eu1() -> objc_DatadogSite
-    public static func ap1() -> objc_DatadogSite
-    public static func ap2() -> objc_DatadogSite
-    public static func us1_fed() -> objc_DatadogSite
+public final class objc_FlashcatSite: NSObject
+    public static func cn() -> objc_FlashcatSite
+    public static func staging() -> objc_FlashcatSite
 public enum objc_BatchSize: Int
     case small
     case medium
@@ -48,7 +43,7 @@ public protocol objc_ServerDateProvider: AnyObject
 public final class objc_Configuration: NSObject
     public var clientToken: String
     public var env: String
-    public var site: objc_DatadogSite
+    public var site: objc_FlashcatSite
     public var service: String?
     public var version: String?
     public var batchSize: objc_BatchSize

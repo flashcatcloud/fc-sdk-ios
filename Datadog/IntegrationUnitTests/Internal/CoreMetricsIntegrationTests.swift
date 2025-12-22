@@ -5,12 +5,12 @@
  */
 
 import XCTest
-@testable import DatadogCore
-@testable import DatadogRUM
-@testable import DatadogLogs
-@testable import DatadogTrace
+@testable import FlashcatCore
+@testable import FlashcatRUM
+@testable import FlashcatLogs
+@testable import FlashcatTrace
 #if !os(tvOS)
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 #endif
 
 class CoreMetricsIntegrationTests: XCTestCase {

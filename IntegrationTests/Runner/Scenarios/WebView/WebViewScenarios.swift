@@ -5,10 +5,10 @@
  */
 
 import UIKit
-import DatadogCore
-import DatadogRUM
-import DatadogLogs
-import DatadogSessionReplay
+import FlashcatCore
+import FlashcatRUM
+import FlashcatLogs
+import FlashcatSessionReplay
 
 private struct WebViewTrackingScenarioPredicate: UIKitRUMViewsPredicate {
     private let defaultPredicate = DefaultUIKitRUMViewsPredicate()

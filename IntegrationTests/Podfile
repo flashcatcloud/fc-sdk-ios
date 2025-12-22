@@ -10,7 +10,7 @@ target 'Runner iOS' do
     pod 'DatadogWebViewTracking', :path => '..'
 
     target 'IntegrationScenarios' do
-        pod 'DatadogInternal', :path => '..'
+        pod 'FlashcatInternal', :path => '..'
         pod 'TestUtilities', :path => '..'
     end
 end

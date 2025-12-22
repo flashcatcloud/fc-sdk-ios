@@ -6,8 +6,8 @@
 
 import UIKit
 
-import DatadogInternal
-import DatadogCore
+import FlashcatInternal
+import FlashcatCore
 import DatadogBenchmarks
 
 @main
@@ -86,7 +86,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private func stop() {
         vitals = nil // stop collecting vitals
         Datadog.stopInstance() // stop runner instrumentation
-        DatadogInternal.bench = (NOPBench(), NOPBench()) // stop profiling the sdk
+        FlashcatInternal.bench = (NOPBench(), NOPBench()) // stop profiling the sdk
         window?.rootViewController = UIViewController()
     }
 
@@ -146,7 +146,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             )
         )
 
-        DatadogInternal.bench = (profiler, meter) // Inject profiler and meter to collect telemetry
+        FlashcatInternal.bench = (profiler, meter) // Inject profiler and meter to collect telemetry
     }
 }
 

@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 class MultipartBuilderSpy: MultipartFormDataBuilder {
     var formFields: [String: String] = [:]

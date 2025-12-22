@@ -5,10 +5,10 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
-@testable import DatadogCore
-@testable import DatadogRUM
+@testable import FlashcatCore
+@testable import FlashcatRUM
 
 /// A [Test Harness](https://en.wikipedia.org/wiki/Test_harness) that simulates the iOS app environment and manages SDK lifecycle.
 /// Used for testing how the SDK responds to different app states and events.
@@ -225,11 +225,11 @@ internal class AppRunner {
     // MARK: - SDK Setup
 
     /// Typealias for SDK configuration closure.
-    typealias SDKSetup = (inout Datadog.Configuration) -> Void
+    typealias SDKSetup = (inout Flashcat.Configuration) -> Void
 
     /// Initializes the SDK using an optional setup block.
     func initializeSDK(_ sdkSetup: SDKSetup = { _ in }) {
-        var config = Datadog.Configuration(clientToken: "mock-client-token", env: "env")
+        var config = Flashcat.Configuration(clientToken: "mock-client-token", env: "env")
         config.systemDirectory = appDirectory
         config.processInfo = processInfo
         config.dateProvider = dateProvider
@@ -240,7 +240,7 @@ internal class AppRunner {
         sdkSetup(&config)
         do {
             core = DatadogCoreProxy(
-                core: try DatadogCore(configuration: config, trackingConsent: .granted, instanceName: .mockAny())
+                core: try FlashcatCore(configuration: config, trackingConsent: .granted, instanceName: .mockAny())
             )
         } catch {
             preconditionFailure("\(error)")

@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "118247B32D908BEF00E3D16F"
-               BuildableName = "DatadogIntegrationTests iOS.xctest"
-               BlueprintName = "DatadogIntegrationTests iOS"
+               BuildableName = "FlashcatIntegrationTests iOS.xctest"
+               BlueprintName = "FlashcatIntegrationTests iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -34,8 +34,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "118247B32D908BEF00E3D16F"
-            BuildableName = "DatadogIntegrationTests iOS.xctest"
-            BlueprintName = "DatadogIntegrationTests iOS"
+            BuildableName = "FlashcatIntegrationTests iOS.xctest"
+            BlueprintName = "FlashcatIntegrationTests iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -191,8 +191,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "61133B81242393DE00786299"
-            BuildableName = "DatadogCore.framework"
-            BlueprintName = "DatadogCore iOS"
+            BuildableName = "FlashcatCore.framework"
+            BlueprintName = "FlashcatCore iOS"
             ReferencedContainer = "container:Datadog.xcodeproj">
          </BuildableReference>
       </CodeCoverageTargets>
@@ -202,8 +202,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "118247B32D908BEF00E3D16F"
-               BuildableName = "DatadogIntegrationTests iOS.xctest"
-               BlueprintName = "DatadogIntegrationTests iOS"
+               BuildableName = "FlashcatIntegrationTests iOS.xctest"
+               BlueprintName = "FlashcatIntegrationTests iOS"
                ReferencedContainer = "container:Datadog.xcodeproj">
             </BuildableReference>
          </TestableReference>

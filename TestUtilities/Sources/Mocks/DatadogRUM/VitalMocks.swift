@@ -6,7 +6,7 @@
 
 import Foundation
 
-@testable import DatadogRUM
+@testable import FlashcatRUM
 
 public struct FrameInfoProviderMock: FrameInfoProvider {
     public var maximumDeviceFramesPerSecond: Int

@@ -5,10 +5,10 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
-@testable import DatadogCore
-@testable import DatadogRUM
+@testable import FlashcatCore
+@testable import FlashcatRUM
 
 class RUMSessionStartInBackgroundTests: RUMSessionTestsBase {
     // MARK: - Scenarios for enabling RUM in background

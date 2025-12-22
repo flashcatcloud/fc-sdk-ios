@@ -5,7 +5,7 @@
  */
 
 import UIKit
-import DatadogRUM
+import FlashcatRUM
 
 enum Operation: String {
     case login = "login_flow"

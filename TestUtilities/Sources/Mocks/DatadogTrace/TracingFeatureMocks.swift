@@ -5,19 +5,19 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
-@testable import DatadogTrace
+@testable import FlashcatTrace
 
 // MARK: - Span Mocks
 
 public struct NOPSpanWriteContext: SpanWriteContext {
     public init() {}
-    public func spanWriteContext(_ block: @escaping (DatadogContext, Writer) -> Void) {}
+    public func spanWriteContext(_ block: @escaping (FlashcatContext, Writer) -> Void) {}
 }
 
 extension DDSpan {
-    public static func mockAny(in core: DatadogCoreProtocol) -> DDSpan {
+    public static func mockAny(in core: FlashcatCoreProtocol) -> DDSpan {
         return mockWith(core: core)
     }
 
@@ -42,7 +42,7 @@ extension DDSpan {
     }
 
     public static func mockWith(
-        core: DatadogCoreProtocol,
+        core: FlashcatCoreProtocol,
         context: DDSpanContext = .mockAny(),
         operationName: String = .mockAny(),
         startTime: Date = .mockAny(),
@@ -95,12 +95,12 @@ extension BaggageItems {
 // MARK: - Component Mocks
 
 extension DatadogTracer {
-    public static func mockAny(in core: DatadogCoreProtocol) -> DatadogTracer {
+    public static func mockAny(in core: FlashcatCoreProtocol) -> DatadogTracer {
         return mockWith(core: core)
     }
 
     public static func mockWith(
-        core: DatadogCoreProtocol,
+        core: FlashcatCoreProtocol,
         localTraceSampler: Sampler = .mockKeepAll(),
         tags: [String: Encodable] = [:],
         traceIDGenerator: TraceIDGenerator = DefaultTraceIDGenerator(),

@@ -5,14 +5,14 @@
 */
 
 import UIKit
-import DatadogCore
-import DatadogLogs
-import DatadogTrace
-import DatadogRUM
-import DatadogCrashReporting
-import DatadogFlags
+import FlashcatCore
+import FlashcatLogs
+import FlashcatTrace
+import FlashcatRUM
+import FlashcatCrashReporting
+import FlashcatFlags
 #if os(iOS)
-import DatadogSessionReplay
+import FlashcatSessionReplay
 #endif
 import OpenTelemetryApi
 

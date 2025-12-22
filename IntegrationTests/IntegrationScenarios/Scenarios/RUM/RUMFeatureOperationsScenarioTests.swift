@@ -7,7 +7,7 @@
 import HTTPServerMock
 import TestUtilities
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 
 private extension ExampleApplication {
     func tapStartLoginFlow() {

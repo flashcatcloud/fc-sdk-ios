@@ -7,8 +7,8 @@
 import XCTest
 import TestUtilities
 @_spi(Experimental)
-@testable import DatadogRUM
-@testable import DatadogInternal
+@testable import FlashcatRUM
+@testable import FlashcatInternal
 
 class RUMViewEndedMetricIntegrationTests: XCTestCase {
     private let dateProvider = DateProviderMock()

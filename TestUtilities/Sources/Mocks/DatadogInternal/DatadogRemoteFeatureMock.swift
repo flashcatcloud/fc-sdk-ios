@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal struct DatadogRemoteFeatureMock: DatadogRemoteFeature {
     static let name = "mock"

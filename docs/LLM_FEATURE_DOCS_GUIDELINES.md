@@ -15,11 +15,11 @@ These files serve as **LLM-optimized entry points** to the codebase. They are NO
 Each feature module contains a `*_FEATURE.md` file at its root:
 
 ```
-DatadogRUM/RUM_FEATURE.md
-DatadogSessionReplay/SESSION_REPLAY_FEATURE.md
-DatadogTrace/TRACE_FEATURE.md          # (future)
-DatadogLogs/LOGS_FEATURE.md            # (future)
-DatadogWebViewTracking/WEBVIEW_FEATURE.md  # (future)
+FlashcatRUM/RUM_FEATURE.md
+FlashcatSessionReplay/SESSION_REPLAY_FEATURE.md
+FlashcatTrace/TRACE_FEATURE.md          # (future)
+FlashcatLogs/LOGS_FEATURE.md            # (future)
+FlashcatWebViewTracking/WEBVIEW_FEATURE.md  # (future)
 ```
 
 Each feature documentation file contains a **"Key Files"** section listing all relevant source files for that feature. Use this section as the source of truth for which files to read during updates.

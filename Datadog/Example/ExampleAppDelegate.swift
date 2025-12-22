@@ -5,11 +5,11 @@
 */
 
 import UIKit
-import DatadogCore
-import DatadogLogs
-import DatadogTrace
-import DatadogRUM
-import DatadogCrashReporting
+import FlashcatCore
+import FlashcatLogs
+import FlashcatTrace
+import FlashcatRUM
+import FlashcatCrashReporting
 import OpenTelemetryApi
 
 let serviceName = "ios-sdk-example-app"
@@ -36,8 +36,8 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         // Initialize Datadog SDK
-        Datadog.initialize(
-            with: Datadog.Configuration(
+        Flashcat.initialize(
+            with: Flashcat.Configuration(
                 clientToken: Environment.readClientToken(),
                 env: "tests",
                 service: serviceName,
@@ -48,10 +48,10 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
         )
 
         // Set user information
-        Datadog.setUserInfo(id: "abcd-1234", name: "foo", email: "foo@example.com", extraInfo: ["key-extraUserInfo": "value-extraUserInfo"])
+        Flashcat.setUserInfo(id: "abcd-1234", name: "foo", email: "foo@example.com", extraInfo: ["key-extraUserInfo": "value-extraUserInfo"])
 
         // Set account information
-        Datadog.setAccountInfo(id: "account-1234", name: "account-US")
+        Flashcat.setAccountInfo(id: "account-1234", name: "account-US")
 
         // Enable Logs
         Logs.enable(
@@ -64,7 +64,7 @@ class ExampleAppDelegate: UIResponder, UIApplicationDelegate {
         CrashReporting.enable()
 
         // Set highest verbosity level to see debugging logs from the SDK
-        Datadog.verbosityLevel = .debug
+        Flashcat.verbosityLevel = .debug
 
         // Enable Trace
         Trace.enable(

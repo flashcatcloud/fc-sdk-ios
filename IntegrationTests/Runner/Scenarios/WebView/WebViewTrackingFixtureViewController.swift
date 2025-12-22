@@ -6,9 +6,9 @@
 
 import UIKit
 import WebKit
-import DatadogCore
-import DatadogWebViewTracking
-import class DatadogInternal.CoreRegistry
+import FlashcatCore
+import FlashcatWebViewTracking
+import class FlashcatInternal.CoreRegistry
 
 class WebViewTrackingFixtureViewController: UIViewController, WKNavigationDelegate {
     override func viewDidAppear(_ animated: Bool) {

@@ -4,8 +4,8 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogCore
-import DatadogRUM
+import FlashcatCore
+import FlashcatRUM
 import SwiftUI
 
 struct RUMAutoScenario: Scenario {

@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 extension EnrichedResource: RandomMockable, AnyMockable {
     public static func mockAny() -> EnrichedResource {

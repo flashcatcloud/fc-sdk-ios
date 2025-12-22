@@ -8,7 +8,7 @@ import Foundation
 #if !os(tvOS)
 import WebKit
 
-@testable import DatadogWebViewTracking
+@testable import FlashcatWebViewTracking
 
 public final class DDUserContentController: WKUserContentController {
     public typealias NameHandlerPair = (name: String, handler: WKScriptMessageHandler)

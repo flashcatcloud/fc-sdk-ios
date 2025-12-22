@@ -5,10 +5,10 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
-@testable import DatadogCore
-@testable import DatadogRUM
+@testable import FlashcatCore
+@testable import FlashcatRUM
 
 class RUMSessionWithNoViewTests: RUMSessionTestsBase {
     // MARK: - Scenarios for session with no view

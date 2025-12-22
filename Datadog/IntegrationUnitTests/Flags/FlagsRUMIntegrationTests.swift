@@ -6,10 +6,10 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
+import FlashcatInternal
 
-@testable import DatadogFlags
-@testable import DatadogRUM
+@testable import FlashcatFlags
+@testable import FlashcatRUM
 
 /// Covers integration scenarios between Flags and RUM features.
 final class FlagsRUMIntegrationTests: XCTestCase {

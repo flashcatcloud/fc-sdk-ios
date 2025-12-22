@@ -5,13 +5,13 @@
 */
 
 import UIKit
-import DatadogCore
-import DatadogLogs
-import DatadogTrace
-import DatadogRUM
-import DatadogCrashReporting
-import DatadogSessionReplay  // it should compile for iOS and tvOS, but APIs are only available on iOS
-import DatadogFlags
+import FlashcatCore
+import FlashcatLogs
+import FlashcatTrace
+import FlashcatRUM
+import FlashcatCrashReporting
+import FlashcatSessionReplay  // it should compile for iOS and tvOS, but APIs are only available on iOS
+import FlashcatFlags
 import OpenTelemetryApi
 
 internal class ViewController: UIViewController {

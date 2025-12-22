@@ -8,7 +8,7 @@
 
 import Foundation
 @_spi(objc)
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 extension objc_TextAndInputPrivacyLevelOverride: AnyMockable, RandomMockable {
     public static func mockAny() -> Self {

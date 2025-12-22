@@ -20,7 +20,7 @@ check_for_help "$@"
 parse_args "$@"
 
 REPO_PATH="$artifacts_path/dd-sdk-ios"
-SDK_VERSION_FILE="$REPO_PATH/DatadogCore/Sources/Versioning.swift"
+SDK_VERSION_FILE="$REPO_PATH/FlashcatCore/Sources/Versioning.swift"
 
 check_sdk_version () {
     echo_subtitle "Check 'sdk_version'"

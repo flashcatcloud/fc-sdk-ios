@@ -6,9 +6,9 @@
 
 #if os(iOS)
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 class RUMContextObserverMock: RUMContextObserver {
     private var queue: Queue?

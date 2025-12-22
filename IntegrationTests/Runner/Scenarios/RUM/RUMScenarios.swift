@@ -5,8 +5,8 @@
  */
 
 import UIKit
-import DatadogRUM
-import DatadogCore
+import FlashcatRUM
+import FlashcatCore
 
 /// Scenario which starts a navigation controller. Each view controller pushed to this navigation
 /// uses the RUM manual instrumentation API to send RUM events to the server.

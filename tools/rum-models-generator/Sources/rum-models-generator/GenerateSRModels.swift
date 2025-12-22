@@ -20,7 +20,7 @@ internal func generateSRSwiftModels(from schema: URL) throws -> String {
              */
 
             #if os(iOS)
-            import DatadogInternal
+            import FlashcatInternal
 
             // This file was generated from JSON Schema. Do not modify it directly.
 

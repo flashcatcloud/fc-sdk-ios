@@ -31,7 +31,7 @@ Pod::Spec.new do |s|
   ]
 
   s.dependency 'DatadogCore'
-  s.dependency 'DatadogInternal'
+  s.dependency 'FlashcatInternal'
   s.dependency 'DatadogLogs'
   s.dependency 'DatadogRUM'
   s.dependency 'DatadogSessionReplay'

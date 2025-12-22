@@ -15,19 +15,19 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(name: "Datadog", path: ".."),
+        .package(name: "Flashcat", path: ".."),
     ],
     targets: [
         .target(
             name: "TestUtilities",
             dependencies: [
-                .product(name: "DatadogCore", package: "Datadog"),
-                .product(name: "DatadogRUM", package: "Datadog"),
-                .product(name: "DatadogLogs",package: "Datadog"),
-                .product(name: "DatadogTrace",package: "Datadog"),
-                .product(name: "DatadogCrashReporting",package: "Datadog"),
-                .product(name: "DatadogSessionReplay", package: "Datadog"),
-                .product(name: "DatadogWebViewTracking",package: "Datadog")
+                .product(name: "FlashcatCore", package: "Flashcat"),
+                .product(name: "FlashcatRUM", package: "Flashcat"),
+                .product(name: "FlashcatLogs", package: "Flashcat"),
+                .product(name: "FlashcatTrace", package: "Flashcat"),
+                .product(name: "FlashcatCrashReporting", package: "Flashcat"),
+                .product(name: "FlashcatSessionReplay", package: "Flashcat"),
+                .product(name: "FlashcatWebViewTracking", package: "Flashcat")
             ],
             path: ".",
             sources: ["Sources"],

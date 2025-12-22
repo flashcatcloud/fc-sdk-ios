@@ -5,9 +5,9 @@
  */
 
 import XCTest
-import DatadogCore
-import DatadogInternal
-@testable import DatadogRUM
+import FlashcatCore
+import FlashcatInternal
+@testable import FlashcatRUM
 import TestUtilities
 
 class CoreTelemetryIntegrationTests: XCTestCase {

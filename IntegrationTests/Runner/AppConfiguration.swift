@@ -5,11 +5,11 @@
  */
 
 import UIKit
-import DatadogCore
-import DatadogLogs
-import DatadogTrace
-import DatadogRUM
-import DatadogCrashReporting
+import FlashcatCore
+import FlashcatLogs
+import FlashcatTrace
+import FlashcatRUM
+import FlashcatCrashReporting
 
 var logger: LoggerProtocol?
 var rumMonitor: RUMMonitorProtocol { RUMMonitor.shared() }

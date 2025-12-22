@@ -5,10 +5,10 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 import TestUtilities
-@testable import DatadogCore
-@testable import DatadogRUM
+@testable import FlashcatCore
+@testable import FlashcatRUM
 
 class RUMSessionStartInForegroundTests: RUMSessionTestsBase {
     // MARK: - Scenarios for enabling RUM vs application state and launch type

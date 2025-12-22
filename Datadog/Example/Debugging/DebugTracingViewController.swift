@@ -5,8 +5,8 @@
  */
 
 import UIKit
-import DatadogCore
-import DatadogTrace
+import FlashcatCore
+import FlashcatTrace
 
 class DebugTracingViewController: UIViewController {
     @IBOutlet weak var serviceNameTextField: UITextField!

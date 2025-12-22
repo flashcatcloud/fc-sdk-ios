@@ -5,8 +5,8 @@
  */
 
 import SwiftUI
-import DatadogTrace
-import DatadogInternal
+import FlashcatTrace
+import FlashcatInternal
 
 @available(iOS 14, *)
 internal class DebugManualTraceInjectionViewController: UIHostingController<DebugManualTraceInjectionView> {

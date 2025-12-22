@@ -3,7 +3,7 @@
 // Copyright 2023-Present Datadog, Inc.
 
 import UIKit
-import DatadogRUM
+import FlashcatRUM
 
 internal class KioskSendEventsViewController: UIViewController {
     @IBOutlet private var doneButton: UIButton!

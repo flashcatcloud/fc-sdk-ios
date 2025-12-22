@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 
 extension DDThread: AnyMockable, RandomMockable {
     public static func mockAny() -> DDThread {

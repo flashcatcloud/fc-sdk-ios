@@ -5,7 +5,7 @@
  */
 
 #if os(iOS)
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 import SwiftUI
 import CoreGraphics
 

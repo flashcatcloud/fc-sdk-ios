@@ -6,8 +6,8 @@
 
 import Foundation
 import UIKit
-import DatadogTrace
-import DatadogCore
+import FlashcatTrace
+import FlashcatCore
 import OpenTelemetryApi
 
 struct TraceScenario: Scenario {

@@ -5,7 +5,7 @@
  */
 
 import XCTest
-import DatadogInternal
+import FlashcatInternal
 
 /// An utility header, added to each request by the `ServerMock` and removed while intercepting through `ServerMockProtocol`.
 /// It transmits an unique identifier of the `URLSession` instance obtained from `ServerMock`. It is used for consistency check

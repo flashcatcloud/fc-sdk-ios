@@ -5,10 +5,10 @@
  */
 
 import Foundation
-import DatadogTrace
-import DatadogRUM
-import DatadogLogs
-import DatadogCore
+import FlashcatTrace
+import FlashcatRUM
+import FlashcatLogs
+import FlashcatCore
 
 internal class TrackingConsentBaseScenario {
     func configureFeatures() {

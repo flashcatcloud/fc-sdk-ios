@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Single-Feature core mock is a `PassthroughCoreMock` with the ability to register
 /// a single Feature instance.
@@ -26,7 +26,7 @@ import DatadogInternal
 ///     try core.register(feature: feature)
 ///     core.get(feature: MyCustomFeature.self) // returns feature instance
 ///
-public final class SingleFeatureCoreMock<Feature>: PassthroughCoreMock, @unchecked Sendable where Feature: DatadogFeature {
+public final class SingleFeatureCoreMock<Feature>: PassthroughCoreMock, @unchecked Sendable where Feature: FlashcatFeature {
     /// The single Feature.
     private var feature: Feature?
 
@@ -38,7 +38,7 @@ public final class SingleFeatureCoreMock<Feature>: PassthroughCoreMock, @uncheck
     ///   - expectation: The test exepection to fullfill when `eventWriteContext`
     ///                  is invoked.
     public required init(
-        context: DatadogContext = .mockAny(),
+        context: FlashcatContext = .mockAny(),
         dataStore: DataStore = NOPDataStore(),
         feature: Feature? = nil,
         messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver()
@@ -59,7 +59,7 @@ public final class SingleFeatureCoreMock<Feature>: PassthroughCoreMock, @uncheck
     ///   - expectation: The test exepection to fullfill when `eventWriteContext`
     ///                  is invoked.
     public required init(
-        context: DatadogContext = .mockAny(),
+        context: FlashcatContext = .mockAny(),
         dataStore: DataStore = NOPDataStore(),
         messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver()
     ) {
@@ -72,7 +72,7 @@ public final class SingleFeatureCoreMock<Feature>: PassthroughCoreMock, @uncheck
         )
     }
 
-    override public func register<T>(feature: T) throws where T: DatadogFeature {
+    override public func register<T>(feature: T) throws where T: FlashcatFeature {
         self.feature = feature as? Feature
     }
 
@@ -80,7 +80,7 @@ public final class SingleFeatureCoreMock<Feature>: PassthroughCoreMock, @uncheck
         feature as? T
     }
 
-    override public func scope<T>(for featureType: T.Type) -> FeatureScope where T: DatadogFeature {
+    override public func scope<T>(for featureType: T.Type) -> FeatureScope where T: FlashcatFeature {
         guard T.name == Feature.name else {
             return NOPFeatureScope()
         }

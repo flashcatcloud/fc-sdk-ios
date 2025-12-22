@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 internal class MockFeature: DatadogRemoteFeature {
     static var name = "mock-feature"
@@ -15,7 +15,7 @@ internal class MockFeature: DatadogRemoteFeature {
 }
 
 internal class MockRequestBuilder: FeatureRequestBuilder {
-    func request(for events: [DatadogInternal.Event], with context: DatadogInternal.DatadogContext, execution: DatadogInternal.ExecutionContext) throws -> URLRequest {
+    func request(for events: [FlashcatInternal.Event], with context: FlashcatInternal.FlashcatContext, execution: FlashcatInternal.ExecutionContext) throws -> URLRequest {
         URLRequest.mockAny()
     }
 }

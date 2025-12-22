@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 public struct FeatureMessageReceiverMock: FeatureMessageReceiver {
     public typealias ReceiverClosure = (FeatureMessage) -> Void
@@ -24,7 +24,7 @@ public struct FeatureMessageReceiverMock: FeatureMessageReceiver {
         self.receiver = receiver
     }
 
-    public func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    public func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         messages.append(message)
         receiver?(message)
         return true

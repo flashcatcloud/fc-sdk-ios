@@ -7,9 +7,9 @@
 import Foundation
 import UIKit
 
-import DatadogCore
-import DatadogRUM
-import DatadogSessionReplay
+import FlashcatCore
+import FlashcatRUM
+import FlashcatSessionReplay
 
 struct SessionReplayWebViewScenario: Scenario {
     func start(info: TestInfo) -> UIViewController {

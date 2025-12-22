@@ -6,8 +6,8 @@
 
 import XCTest
 import TestUtilities
-import DatadogCrashReporting
-@testable import DatadogInternal
+import FlashcatCrashReporting
+@testable import FlashcatInternal
 
 /// Tests integration of `DatadogCore` and `DatadogCrashReporting` for backtrace generation.
 class GeneratingBacktraceTests: XCTestCase {

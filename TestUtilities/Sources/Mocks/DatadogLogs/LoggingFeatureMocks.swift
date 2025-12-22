@@ -5,9 +5,9 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
-@testable import DatadogLogs
+@testable import FlashcatLogs
 
 extension RemoteLogger.Configuration: AnyMockable {
     public static func mockAny() -> Self { .mockWith() }

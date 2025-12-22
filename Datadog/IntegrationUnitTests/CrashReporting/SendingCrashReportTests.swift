@@ -6,10 +6,10 @@
 
 import XCTest
 import TestUtilities
-@testable import DatadogCrashReporting
-import DatadogInternal
-@testable import DatadogLogs
-@testable import DatadogRUM
+@testable import FlashcatCrashReporting
+import FlashcatInternal
+@testable import FlashcatLogs
+@testable import FlashcatRUM
 
 /// A crash reporter mock with two capabilities:
 /// - notifying a pending crash report found at SDK init,

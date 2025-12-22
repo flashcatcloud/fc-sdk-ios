@@ -6,7 +6,7 @@
 
 #if os(iOS)
 import Foundation
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 /// A queue that executes synchronously on the caller thread.
 public class NoQueue: Queue {

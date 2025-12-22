@@ -5,17 +5,17 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
-@testable import DatadogLogs
-@testable import DatadogRUM
-@testable import DatadogCrashReporting
-@testable import DatadogCore
+@testable import FlashcatLogs
+@testable import FlashcatRUM
+@testable import FlashcatCrashReporting
+@testable import FlashcatCore
 
 extension CrashReportingFeature {
     /// Mocks the Crash Reporting feature instance which doesn't load crash reports.
     public static func mockNoOp(
-            core: DatadogCoreProtocol = NOPDatadogCore(),
+            core: FlashcatCoreProtocol = NOPDatadogCore(),
             crashReportingPlugin: CrashReportingPlugin = NOPCrashReportingPlugin()
     ) -> Self {
         return .mockWith(
@@ -105,13 +105,13 @@ public class CrashReportSenderMock: CrashReportSender {
 
     public var didSendCrashReport: (() -> Void)?
 
-    public func send(launch: DatadogInternal.LaunchReport) {}
+    public func send(launch: FlashcatInternal.LaunchReport) {}
 }
 
 public class CrashReceiverMock: FeatureMessageReceiver {
     public var receivedCrash: Crash?
 
-    public func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+    public func receive(message: FeatureMessage, from core: FlashcatCoreProtocol) -> Bool {
         guard case let .payload(crash as Crash) = message else {
             return false
         }

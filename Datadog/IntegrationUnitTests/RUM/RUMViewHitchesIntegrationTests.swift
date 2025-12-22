@@ -6,8 +6,8 @@
 
 import XCTest
 import TestUtilities
-@testable import DatadogRUM
-@testable import DatadogInternal
+@testable import FlashcatRUM
+@testable import FlashcatInternal
 
 final class RUMViewHitchesIntegrationTests: XCTestCase {
     private var core: DatadogCoreProxy! // swiftlint:disable:this implicitly_unwrapped_optional

@@ -9,9 +9,9 @@ import Foundation
 import UIKit
 import WebKit
 
-import DatadogInternal
+import FlashcatInternal
 @_spi(Internal)
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 // MARK: - ViewTreeSnapshot Mocks
 

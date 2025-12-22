@@ -5,7 +5,7 @@
  */
 
 import Foundation
-import DatadogInternal
+import FlashcatInternal
 
 /// Simple `AppStateProvider` mock that returns given state.
 public final class AppStateProviderMock: AppStateProvider {

@@ -95,7 +95,7 @@ test-ios:
 # Run unit tests for all iOS schemes
 test-ios-all:
 	@$(MAKE) test-ios SCHEME="DatadogCore iOS"
-	@$(MAKE) test-ios SCHEME="DatadogInternal iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatInternal iOS"
 	@$(MAKE) test-ios SCHEME="DatadogRUM iOS"
 	@$(MAKE) test-ios SCHEME="DatadogSessionReplay iOS"
 	@$(MAKE) test-ios SCHEME="DatadogLogs iOS"
@@ -116,7 +116,7 @@ test-tvos:
 # Run unit tests for all tvOS schemes
 test-tvos-all:
 	@$(MAKE) test-tvos SCHEME="DatadogCore tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogInternal tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatInternal tvOS"
 	@$(MAKE) test-tvos SCHEME="DatadogRUM tvOS"
 	@$(MAKE) test-tvos SCHEME="DatadogLogs tvOS"
 	@$(MAKE) test-tvos SCHEME="DatadogTrace tvOS"
@@ -208,32 +208,32 @@ spm-build:
 
 # Builds SPM package for iOS
 spm-build-ios:
-	@$(MAKE) spm-build SCHEME="Datadog-Package" DESTINATION="generic/platform=ios"
+	@$(MAKE) spm-build SCHEME="Flashcat-Package" DESTINATION="generic/platform=ios"
 
 # Builds SPM package for tvOS
 spm-build-tvos:
-	@$(MAKE) spm-build SCHEME="Datadog-Package" DESTINATION="generic/platform=tvOS"
+	@$(MAKE) spm-build SCHEME="Flashcat-Package" DESTINATION="generic/platform=tvOS"
 
 # Builds SPM package for visionOS
 spm-build-visionos:
-	@$(MAKE) spm-build SCHEME="Datadog-Package" DESTINATION="generic/platform=visionOS"
+	@$(MAKE) spm-build SCHEME="Flashcat-Package" DESTINATION="generic/platform=visionOS"
 
 # Builds SPM package for watchOS
 spm-build-watchos:
 	# Build only compatible schemes for watchOS:
-	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogCore"
-	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogLogs"
-	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="DatadogTrace"
+	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatCore"
+	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatLogs"
+	@$(MAKE) spm-build DESTINATION="generic/platform=watchOS" SCHEME="FlashcatTrace"
 
 # Builds SPM package for macOS (and Mac Catalyst)
 spm-build-macos:
 	# Whole package for Mac Catalyst:
-	@$(MAKE) spm-build SCHEME="Datadog-Package" DESTINATION="platform=macOS,variant=Mac Catalyst"
+	@$(MAKE) spm-build SCHEME="Flashcat-Package" DESTINATION="platform=macOS,variant=Mac Catalyst"
 	# Only compatible schemes for macOS:
-	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogCore"
-	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogLogs"
-	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogTrace"
-	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="DatadogCrashReporting"
+	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatCore"
+	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatLogs"
+	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatTrace"
+	@$(MAKE) spm-build DESTINATION="platform=macOS" SCHEME="FlashcatCrashReporting"
 
 # Builds a new version of the E2E app and publishes it to synthetics.
 e2e-upload:
@@ -261,7 +261,7 @@ benchmark-tests-open:
 
 xcodeproj-session-replay:
 		@echo "⚙️  Generating 'DatadogSessionReplay.xcodeproj'..."
-		@cd DatadogSessionReplay/ && swift package generate-xcodeproj
+		@cd FlashcatSessionReplay/ && swift package generate-xcodeproj
 		@echo "OK 👌"
 
 templates:
@@ -431,11 +431,11 @@ release-publish-podspec:
 		 --artifacts-path "$(ARTIFACTS_PATH)" \
 		 --podspec-name "$(PODSPEC_NAME)"
 
-# Publish DatadogInternal podspec
+# Publish FlashcatInternal podspec
 release-publish-internal-podspecs:
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogInternal.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatInternal.podspec"
 
-# Publish podspecs that depend on DatadogInternal
+# Publish podspecs that depend on FlashcatInternal
 release-publish-dependent-podspecs:
 	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogCore.podspec"
 	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogLogs.podspec"
@@ -453,7 +453,7 @@ set-ci-secret:
 
 bump:
 	@read -p "Enter version number: " version;  \
-	echo "// GENERATED FILE: Do not edit directly\n\ninternal let __sdkVersion = \"$$version\"" > DatadogCore/Sources/Versioning.swift; \
+	echo "// GENERATED FILE: Do not edit directly\n\ninternal let __sdkVersion = \"$$version\"" > FlashcatCore/Sources/Versioning.swift; \
 	./tools/podspec_bump_version.sh $$version; \
 	git add . ; \
 	git commit -m "Bumped version to $$version"; \

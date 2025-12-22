@@ -165,7 +165,7 @@
 		611EA14725810E2600BC0E56 /* TSPictureViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSPictureViewController.swift; sourceTree = "<group>"; };
 		611EA14D25810E3700BC0E56 /* TSConsentSettingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSConsentSettingViewController.swift; sourceTree = "<group>"; };
 		611EA16525825FB300BC0E56 /* TrackingConsentScenarioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingConsentScenarioTests.swift; sourceTree = "<group>"; };
-		612C136D2A9CF1380086B5D1 /* SRFixtures */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SRFixtures; path = ../DatadogSessionReplay/SRSnapshotTests/SRFixtures; sourceTree = "<group>"; };
+		612C136D2A9CF1380086B5D1 /* SRFixtures */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SRFixtures; path = ../FlashcatSessionReplay/SRSnapshotTests/SRFixtures; sourceTree = "<group>"; };
 		612C136F2A9CF9140086B5D1 /* SRScenarios.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRScenarios.swift; sourceTree = "<group>"; };
 		612C13722A9DFE1C0086B5D1 /* SRMultipleViewsRecordingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRMultipleViewsRecordingViewController.swift; sourceTree = "<group>"; };
 		612C13742A9DFEF70086B5D1 /* SRMultipleViewsRecordingScenario.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = SRMultipleViewsRecordingScenario.storyboard; sourceTree = "<group>"; };

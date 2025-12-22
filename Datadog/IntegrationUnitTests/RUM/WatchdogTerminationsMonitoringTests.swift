@@ -6,9 +6,9 @@
 
 import XCTest
 import TestUtilities
-import DatadogInternal
-import DatadogCrashReporting
-@testable import DatadogRUM
+import FlashcatInternal
+import FlashcatCrashReporting
+@testable import FlashcatRUM
 
 class WatchdogTerminationsMonitoringTests: XCTestCase {
     var core: DatadogCoreProxy! // swiftlint:disable:this implicitly_unwrapped_optional

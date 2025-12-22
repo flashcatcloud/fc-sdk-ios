@@ -5,7 +5,7 @@
  */
 
 import Foundation
-@testable import DatadogCore
+@testable import FlashcatCore
 
 public class ContextValuePublisherMock<Value>: ContextValuePublisher {
     private let queue = DispatchQueue(

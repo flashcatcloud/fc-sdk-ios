@@ -4,7 +4,7 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogLogs
+import FlashcatLogs
 
 /// Scenario which starts a view controller that sends bunch of logs to the server.
 final class LoggingManualInstrumentationScenario: TestScenario {

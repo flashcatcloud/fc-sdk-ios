@@ -4,24 +4,24 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import DatadogInternal
+import FlashcatInternal
 import Foundation
 
 #if SPM_BUILD
 import DatadogPrivate
 #endif
-@testable import DatadogCore
-@testable import DatadogLogs
+@testable import FlashcatCore
+@testable import FlashcatLogs
 
 // MARK: - Configuration Mocks
 
-extension Datadog.Configuration: AnyMockable {
-    public static func mockAny() -> Datadog.Configuration { .mockWith() }
+extension Flashcat.Configuration: AnyMockable {
+    public static func mockAny() -> Flashcat.Configuration { .mockWith() }
 
     public static func mockWith(
         clientToken: String = .mockAny(),
         env: String = .mockAny(),
-        site: DatadogSite = .us1,
+        site: FlashcatSite = .cn,
         service: String? = .mockAny(),
         bundle: Bundle = .main,
         batchSize: BatchSize = .medium,
@@ -45,7 +45,7 @@ extension Datadog.Configuration: AnyMockable {
     }
 }
 
-typealias BatchSize = Datadog.Configuration.BatchSize
+typealias BatchSize = Flashcat.Configuration.BatchSize
 
 extension BatchSize: RandomMockable {
     public static func mockRandom() -> Self {
@@ -53,7 +53,7 @@ extension BatchSize: RandomMockable {
     }
 }
 
-typealias UploadFrequency = Datadog.Configuration.UploadFrequency
+typealias UploadFrequency = Flashcat.Configuration.UploadFrequency
 
 extension UploadFrequency: RandomMockable {
     public static func mockRandom() -> Self {
@@ -61,7 +61,7 @@ extension UploadFrequency: RandomMockable {
     }
 }
 
-extension Datadog.Configuration.BatchProcessingLevel: RandomMockable {
+extension Flashcat.Configuration.BatchProcessingLevel: RandomMockable {
     public static func mockRandom() -> Self {
         allCases.randomElement()!
     }
@@ -298,8 +298,8 @@ public  class DataUploaderMock: DataUploaderType {
     }
 
     public func upload(
-        events: [DatadogInternal.Event],
-        context: DatadogInternal.DatadogContext,
+        events: [FlashcatInternal.Event],
+        context: FlashcatInternal.FlashcatContext,
         previous: DataUploadStatus?) throws -> DataUploadStatus {
             uploadedEvents += events
             try onUpload?(previous)

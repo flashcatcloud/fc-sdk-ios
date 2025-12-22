@@ -8,7 +8,7 @@
 
 import Foundation
 
-@testable import DatadogSessionReplay
+@testable import FlashcatSessionReplay
 
 extension SessionReplay.Configuration.FeatureFlags {
     public static var allEnabled: Self {

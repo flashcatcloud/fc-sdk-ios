@@ -5,8 +5,8 @@
  */
 
 import Foundation
-import DatadogInternal
-import DatadogCore
+import FlashcatInternal
+import FlashcatCore
 
 /// Test info reads configuration from `Info.plist`.
 ///
@@ -28,7 +28,7 @@ import DatadogCore
 struct TestInfo {
     let clientToken: String
     let applicationID: String
-    let site: DatadogSite
+    let site: FlashcatSite
     let env: String
 }
 
@@ -38,7 +38,7 @@ extension TestInfo {
             let obj = bundle.object(forInfoDictionaryKey: "DatadogConfiguration") as? [String: String],
             let clientToken = obj["ClientToken"],
             let applicationID = obj["ApplicationID"],
-            let site = obj["Site"].flatMap(DatadogSite.init(rawValue:)),
+            let site = obj["Site"].flatMap(FlashcatSite.init(rawValue:)),
             let env = obj["Environment"]
         else {
             throw ProgrammerError(description: "Missing required Info.plist keys")
@@ -53,7 +53,7 @@ extension TestInfo {
         .init(
             clientToken: "",
             applicationID: "",
-            site: .us1,
+            site: .cn,
             env: "e2e"
         )
     }
