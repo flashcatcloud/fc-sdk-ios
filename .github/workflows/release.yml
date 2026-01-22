@@ -34,12 +34,14 @@ jobs:
           bundler-cache: true
       - name: Lint Podspecs (only those to be published)
         run: |
-          bundle exec pod spec lint FlashcatInternal.podspec --allow-warnings
-          bundle exec pod spec lint FlashcatCore.podspec --allow-warnings
-          bundle exec pod spec lint FlashcatTrace.podspec --allow-warnings
-          bundle exec pod spec lint FlashcatRUM.podspec --allow-warnings
-          bundle exec pod spec lint FlashcatCrashReporting.podspec --allow-warnings
-          bundle exec pod spec lint FlashcatWebViewTracking.podspec --allow-warnings
+          # Use --quick to skip dependency resolution and build checks during validation.
+          # Full dependency validation happens during publish phase with retry mechanism.
+          bundle exec pod spec lint FlashcatInternal.podspec --allow-warnings --quick
+          bundle exec pod spec lint FlashcatCore.podspec --allow-warnings --quick
+          bundle exec pod spec lint FlashcatTrace.podspec --allow-warnings --quick
+          bundle exec pod spec lint FlashcatRUM.podspec --allow-warnings --quick
+          bundle exec pod spec lint FlashcatCrashReporting.podspec --allow-warnings --quick
+          bundle exec pod spec lint FlashcatWebViewTracking.podspec --allow-warnings --quick
 
   build:
     name: Build Artifacts
