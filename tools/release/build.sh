@@ -7,6 +7,7 @@
 # Options:
 #   --tag: The tag to release.
 #   --artifacts-path: Path to store artifacts.
+#   --platforms: Comma-separated platforms to build xcframeworks for ('iOS' | 'tvOS' | 'iOS,tvOS').
 
 set -eo pipefail
 source ./tools/utils/argparse.sh
@@ -15,6 +16,7 @@ source ./tools/utils/echo-color.sh
 set_description "Builds artifacts for specified tag."
 define_arg "tag" "" "The tag to release." "string" "true" 
 define_arg "artifacts-path" "" "Path to store artifacts." "string" "true"
+define_arg "platforms" "iOS,tvOS" "Comma-separated platforms to build xcframeworks for ('iOS' | 'tvOS' | 'iOS,tvOS')." "string" "false"
 
 check_for_help "$@"
 parse_args "$@"
@@ -38,8 +40,16 @@ clone_repo () {
 # Create XCFrameworks for the repo clone using release tools from the current repo.
 create_xcframeworks () {
     echo_subtitle "Create XCFramework in '$ARTIFACTS_PATH'"
+    local platform_args=()
+    if [[ "$platforms" == *"iOS"* ]]; then
+        platform_args+=(--ios)
+    fi
+    if [[ "$platforms" == *"tvOS"* ]]; then
+        platform_args+=(--tvos)
+    fi
+
     "$SCRIPT_DIR/build-xcframeworks.sh" --repo-path "$REPO_CLONE_PATH" \
-        --ios --tvos \
+        ${platform_args[@]} \
         --output-path "$ARTIFACTS_PATH/$XCF_DIR_WITH_ARM64E"
 
     echo_info "Contents of '$ARTIFACTS_PATH/$XCF_DIR_WITH_ARM64E':"

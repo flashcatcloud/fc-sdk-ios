@@ -399,8 +399,9 @@ dogfood-datadog-app:
 release-build:
 	@$(call require_param,GIT_TAG)
 	@$(call require_param,ARTIFACTS_PATH)
-	@$(ECHO_TITLE) "make release-build GIT_TAG='$(GIT_TAG)' ARTIFACTS_PATH='$(ARTIFACTS_PATH)'"
-	./tools/release/build.sh --tag "$(GIT_TAG)" --artifacts-path "$(ARTIFACTS_PATH)"
+	@:$(eval PLATFORMS ?= iOS,tvOS)
+	@$(ECHO_TITLE) "make release-build GIT_TAG='$(GIT_TAG)' ARTIFACTS_PATH='$(ARTIFACTS_PATH)' PLATFORMS='$(PLATFORMS)'"
+	./tools/release/build.sh --tag "$(GIT_TAG)" --artifacts-path "$(ARTIFACTS_PATH)" --platforms "$(PLATFORMS)"
 
 # Validate release artifacts for given tag
 release-validate:

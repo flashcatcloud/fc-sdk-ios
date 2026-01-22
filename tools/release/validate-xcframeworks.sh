@@ -138,12 +138,9 @@ DATADOG_TVOS=("${TVOS_SWIFT[@]}" "${TVOS_DSYMs[@]}" "${TVOS[@]}")
 # Validate xcframeworks from the archive
 validate_xcframework "FlashcatInternal.xcframework"          "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "DatadogCore.xcframework"              "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
-validate_xcframework "DatadogLogs.xcframework"              "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "DatadogTrace.xcframework"             "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "DatadogRUM.xcframework"               "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "DatadogCrashReporting.xcframework"    "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
-validate_xcframework "DatadogFlags.xcframework"             "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
-validate_xcframework "DatadogSessionReplay.xcframework"     "${DATADOG_IOS[@]}"
 validate_xcframework "DatadogWebViewTracking.xcframework"   "${DATADOG_IOS[@]}"
 validate_xcframework "OpenTelemetryApi.xcframework"         "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "CrashReporter.xcframework"            "${IOS[@]}" "${TVOS[@]}"

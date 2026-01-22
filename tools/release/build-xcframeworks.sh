@@ -112,16 +112,13 @@ cp -r "Carthage/Build/OpenTelemetryApi.xcframework" "$XCFRAMEWORKS_OUTPUT"
 # Build Flashcat XCFrameworks
 build_xcframework FlashcatInternal "$PLATFORMS"
 build_xcframework FlashcatCore "$PLATFORMS"
-build_xcframework FlashcatLogs "$PLATFORMS"
 build_xcframework FlashcatTrace "$PLATFORMS"
 build_xcframework FlashcatRUM "$PLATFORMS"
 build_xcframework FlashcatCrashReporting "$PLATFORMS"
-build_xcframework FlashcatFlags "$PLATFORMS"
 
 # Build iOS-only Flashcat XCFrameworks
 if [[ "$ios" == "true" ]]; then
     build_xcframework FlashcatWebViewTracking "iOS"
-    build_xcframework FlashcatSessionReplay "iOS"
 fi
 
 rm -rf "$ARCHIVES_TEMP_OUTPUT"

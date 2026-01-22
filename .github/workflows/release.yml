@@ -61,7 +61,7 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
       - name: Build XCFrameworks
-        run: make release-build GIT_TAG=${{ steps.tag.outputs.tag }} ARTIFACTS_PATH=artifacts
+        run: make release-build GIT_TAG=${{ steps.tag.outputs.tag }} ARTIFACTS_PATH=artifacts PLATFORMS=iOS
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
