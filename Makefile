@@ -103,7 +103,7 @@ test-ios-all:
 	@$(MAKE) test-ios SCHEME="FlashcatCrashReporting iOS"
 	@$(MAKE) test-ios SCHEME="FlashcatWebViewTracking iOS"
 	@$(MAKE) test-ios SCHEME="FlashcatFlags iOS"
-	@$(MAKE) test-ios SCHEME="DatadogIntegrationTests iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatIntegrationTests iOS"
 
 # Run unit tests for specified SCHEME using tvOS Simulator
 test-tvos:
@@ -122,7 +122,7 @@ test-tvos-all:
 	@$(MAKE) test-tvos SCHEME="FlashcatTrace tvOS"
 	@$(MAKE) test-tvos SCHEME="FlashcatCrashReporting tvOS"
 	@$(MAKE) test-tvos SCHEME="FlashcatFlags tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogIntegrationTests tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatIntegrationTests tvOS"
 
 # Run UI tests for specified TEST_PLAN
 ui-test:

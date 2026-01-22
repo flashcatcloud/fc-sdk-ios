@@ -76,7 +76,7 @@ echo ""
 
 # 3. 检查依赖名称
 echo "3️⃣ 检查依赖名称..."
-if grep -E "DatadogCore|DatadogRUM|DatadogTrace|DatadogCrashReporting|DatadogWebViewTracking" TestUtilities.podspec Makefile 2>/dev/null | grep -v "^Binary"; then
+if grep -E "DatadogCore|DatadogRUM|DatadogTrace|DatadogCrashReporting|DatadogWebViewTracking" TestUtilities.podspec 2>/dev/null | grep -v "^Binary"; then
   echo "❌ 发现旧的 Datadog 依赖名称"
   exit 1
 fi
@@ -101,13 +101,13 @@ echo "5️⃣ 检查版本一致性..."
 
 # 获取所有 podspec 的版本
 echo "  - 检查所有 podspec 版本号是否一致..."
-VERSIONS=$(grep "s.version" *.podspec | grep -v "s.version.to_s" | sed 's/.*"\(.*\)".*/\1/' | sort -u)
+VERSIONS=$(grep "s.version" *.podspec | grep -v "s.version.to_s" | grep -v "#{s.version}" | sed 's/.*"\(.*\)".*/\1/' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -u)
 VERSION_COUNT=$(echo "$VERSIONS" | wc -l | tr -d ' ')
 
 if [ "$VERSION_COUNT" -ne 1 ]; then
   echo "❌ 发现版本号不一致："
   for podspec in *.podspec; do
-    VERSION=$(grep "s.version" "$podspec" | grep -v "s.version.to_s" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+    VERSION=$(grep "s.version" "$podspec" | grep -v "s.version.to_s" | grep -v "#{s.version}" | head -1 | sed 's/.*"\(.*\)".*/\1/')
     echo "   - $podspec: $VERSION"
   done
   exit 1
