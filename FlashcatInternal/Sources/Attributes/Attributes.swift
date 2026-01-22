@@ -200,10 +200,10 @@ extension FlashcatExtension where ExtendedType == [String: Encodable] {
 }
 
 extension AttributeValue {
-    /// Instance Datadog extension point.
+    /// Instance Flashcat extension point.
     ///
     /// `AttributeValue` aka `Encodable` is a protocol and cannot be extended
-    /// with conformance to`DatadogExtension`, so we need to define the `dd`
+    /// with conformance to `FlashcatExtension`, so we need to define the `dd`
     /// endpoint.
     public var dd: FlashcatExtension<AttributeValue> {
         FlashcatExtension(self)

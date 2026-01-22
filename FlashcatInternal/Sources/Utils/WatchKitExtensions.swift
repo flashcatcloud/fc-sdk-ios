@@ -9,11 +9,11 @@ import Foundation
 #if canImport(WatchKit)
 import WatchKit
 
-extension DatadogExtension where ExtendedType == WKExtension {
+extension FlashcatExtension where ExtendedType == WKExtension {
     public static var shared: WKExtension {
         .shared()
     }
 }
 
-extension WKExtension: DatadogExtended { }
+extension WKExtension: FlashcatExtended { }
 #endif

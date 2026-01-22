@@ -6,7 +6,7 @@
 
 import Foundation
 
-/// Type that acts as a generic extension point for all `DatadogExtended` types.
+/// Type that acts as a generic extension point for all `FlashcatExtended` types.
 public struct FlashcatExtension<ExtendedType> {
     /// Stores the type or meta-type of any extended type.
     public private(set) var type: ExtendedType
@@ -19,30 +19,36 @@ public struct FlashcatExtension<ExtendedType> {
     }
 }
 
-/// Protocol describing the `dd` extension points for Datadog extended types.
+/// Protocol describing the `dd` extension points for Flashcat extended types.
 public protocol FlashcatExtended {
     /// Type being extended.
     associatedtype ExtendedType
 
-    /// Static Datadog extension point.
+    /// Static Flashcat extension point.
     static var dd: FlashcatExtension<ExtendedType>.Type { get set }
-    /// Instance Datadog extension point.
+    /// Instance Flashcat extension point.
     var dd: FlashcatExtension<ExtendedType> { get set }
 }
 
 extension FlashcatExtended {
-    /// Static Datadog extension point.
+    /// Static Flashcat extension point.
     public static var dd: FlashcatExtension<Self>.Type {
         get { FlashcatExtension<Self>.self }
         set {}
     }
 
-    /// Instance Datadog extension point.
+    /// Instance Flashcat extension point.
     public var dd: FlashcatExtension<Self> {
         get { FlashcatExtension(self) }
         set {}
     }
 }
+
+@available(*, deprecated, renamed: "FlashcatExtension")
+public typealias DatadogExtension<ExtendedType> = FlashcatExtension<ExtendedType>
+
+@available(*, deprecated, renamed: "FlashcatExtended")
+public typealias DatadogExtended = FlashcatExtended
 
 extension Array: FlashcatExtended {}
 extension Dictionary: FlashcatExtended {}

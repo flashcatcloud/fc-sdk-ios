@@ -11,8 +11,8 @@ public protocol DateFormatterType: Sendable {
     func date(from string: String) -> Date?
 }
 
-extension ISO8601DateFormatter: DateFormatterType, @unchecked Sendable {}
-extension DateFormatter: DateFormatterType, @unchecked Sendable {}
+extension ISO8601DateFormatter: DateFormatterType, @retroactive @unchecked Sendable {}
+extension DateFormatter: DateFormatterType, @retroactive @unchecked Sendable {}
 
 /// Date formatter producing `ISO8601` string representation of a given date.
 /// Should be used to encode dates in messages send to the server.
