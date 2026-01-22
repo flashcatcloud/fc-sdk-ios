@@ -23,19 +23,28 @@ define_arg "artifacts-path" "" "The path to build artifacts." "string" "true"
 check_for_help "$@"
 parse_args "$@"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_PATH="$artifacts_path/fc-sdk-ios"
-PODSPEC_PATH="$REPO_PATH/$podspec_name"
 
 if [[ ! -d "$REPO_PATH" ]]; then
-    echo_err "Error:" "Artifacts repo not found at '$REPO_PATH'."
-    echo_info "Run 'make release-build GIT_TAG=... ARTIFACTS_PATH=$artifacts_path' first."
-    exit 1
+    REPO_PATH="$(realpath "$SCRIPT_DIR/../..")"
+    echo_warn "Artifacts repo not found. Using current repo at '$REPO_PATH'."
 fi
+
+PODSPEC_PATH="$REPO_PATH/$podspec_name"
 
 authenticate() {
     echo_subtitle "Authenticate 'pod trunk' CLI"
-    echo_info "Exporting 'COCOAPODS_TRUNK_TOKEN' for CI"
-    export COCOAPODS_TRUNK_TOKEN=$(get_secret $DD_IOS_SECRET__CP_TRUNK_TOKEN)
+    if [[ -n "$COCOAPODS_TRUNK_TOKEN" ]]; then
+        echo_info "Using existing COCOAPODS_TRUNK_TOKEN from environment"
+    elif command -v vault &>/dev/null; then
+        echo_info "Exporting 'COCOAPODS_TRUNK_TOKEN' from vault"
+        export COCOAPODS_TRUNK_TOKEN=$(get_secret $DD_IOS_SECRET__CP_TRUNK_TOKEN)
+    else
+        echo_err "Error:" "COCOAPODS_TRUNK_TOKEN is not set and 'vault' is unavailable."
+        echo_info "Provide COCOAPODS_TRUNK_TOKEN in CI secrets or install/configure vault."
+        exit 1
+    fi
     echo_info "▸ bundle exec pod trunk me" && bundle exec pod trunk me
     if [[ $? -ne 0 ]]; then
         echo_err "Error: 'pod trunk' is not authenticated."

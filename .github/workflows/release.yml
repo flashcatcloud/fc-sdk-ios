@@ -15,6 +15,11 @@ on:
         required: false
         default: true
         type: boolean
+      build_artifacts:
+        description: 'Build and upload xcframework artifacts'
+        required: false
+        default: false
+        type: boolean
 
 env:
   # Xcode version should match .xcode-version file
@@ -48,6 +53,7 @@ jobs:
     name: Build Artifacts
     runs-on: macos-14
     needs: validate
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_artifacts }}
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:
@@ -72,7 +78,7 @@ jobs:
     name: Publish GitHub Release
     runs-on: macos-14
     needs: build
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !github.event.inputs.dry_run) }}
+    if: ${{ needs.build.result == 'success' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !github.event.inputs.dry_run)) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -87,14 +93,10 @@ jobs:
   publish-cocoapods-internal:
     name: Publish CocoaPods (Internal)
     runs-on: macos-14
-    needs: build
+    needs: validate
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !github.event.inputs.dry_run) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: release-artifacts
-          path: artifacts/
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -112,10 +114,6 @@ jobs:
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !github.event.inputs.dry_run) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: release-artifacts
-          path: artifacts/
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
