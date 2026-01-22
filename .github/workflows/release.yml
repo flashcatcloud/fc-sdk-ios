@@ -17,6 +17,7 @@ on:
         type: boolean
 
 env:
+  # Xcode version should match .xcode-version file
   XCODE_VERSION: '16.2'
 
 jobs:

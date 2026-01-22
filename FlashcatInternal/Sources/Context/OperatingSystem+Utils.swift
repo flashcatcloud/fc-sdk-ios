@@ -6,6 +6,12 @@
 
 import Foundation
 
+#if !os(macOS)
+#if canImport(UIKit)
+import UIKit
+#endif
+#endif
+
 extension OperatingSystem {
     /// Creates operating system info.
     ///

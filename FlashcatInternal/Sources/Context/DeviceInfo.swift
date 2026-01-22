@@ -112,9 +112,29 @@ private extension DeviceInfo.DeviceType {
 
 import MachO
 
-#if canImport(UIKit)
+#if canImport(WatchKit)
+import WatchKit
+
+public typealias _UIDevice = WKInterfaceDevice
+
+extension _UIDevice: FlashcatExtended {}
+extension FlashcatExtension where ExtendedType == _UIDevice {
+    /// Returns the shared device object.
+    public static var current: ExtendedType { .current() }
+}
+#elseif canImport(UIKit)
 import UIKit
 
+public typealias _UIDevice = UIDevice
+
+extension _UIDevice: FlashcatExtended {}
+extension FlashcatExtension where ExtendedType == _UIDevice {
+    /// Returns the shared device object.
+    public static var current: ExtendedType { .current }
+}
+#endif
+
+#if canImport(UIKit)
 extension DeviceInfo {
     /// Creates device info based on device description.
     ///
@@ -201,28 +221,6 @@ extension DeviceInfo {
     }
 }
 
-#endif
-
-#if canImport(WatchKit)
-import WatchKit
-
-public typealias _UIDevice = WKInterfaceDevice
-
-extension _UIDevice: FlashcatExtended {}
-extension FlashcatExtension where ExtendedType == _UIDevice {
-    /// Returns the shared device object.
-    public static var current: ExtendedType { .current() }
-}
-#elseif canImport(UIKit)
-import UIKit
-
-public typealias _UIDevice = UIDevice
-
-extension _UIDevice: FlashcatExtended {}
-extension FlashcatExtension where ExtendedType == _UIDevice {
-    /// Returns the shared device object.
-    public static var current: ExtendedType { .current }
-}
 #endif
 
 extension FlashcatContext {
