@@ -208,8 +208,8 @@ import WatchKit
 
 public typealias _UIDevice = WKInterfaceDevice
 
-extension _UIDevice: DatadogExtended {}
-extension DatadogExtension where ExtendedType == _UIDevice {
+extension _UIDevice: FlashcatExtended {}
+extension FlashcatExtension where ExtendedType == _UIDevice {
     /// Returns the shared device object.
     public static var current: ExtendedType { .current() }
 }
