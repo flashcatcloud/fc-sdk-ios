@@ -31,7 +31,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # operate on a clean version of the repo, unaltered by any configuration changes.
 clone_repo () {
     echo_subtitle "Clone repo for '$tag' into '$ARTIFACTS_PATH'"
-    git clone --depth 1 --branch $tag --single-branch git@github.com:flashcatcloud/fc-sdk-ios.git $REPO_CLONE_PATH
+    # Use HTTPS URL instead of SSH to avoid authentication issues
+    git clone --depth 1 --branch $tag --single-branch https://github.com/flashcatcloud/fc-sdk-ios.git $REPO_CLONE_PATH
 }
 
 # Create XCFrameworks for the repo clone using release tools from the current repo.
