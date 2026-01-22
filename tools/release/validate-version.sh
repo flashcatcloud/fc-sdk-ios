@@ -19,16 +19,19 @@ define_arg "artifacts-path" "" "The path to build artifacts." "string" "true"
 check_for_help "$@"
 parse_args "$@"
 
-REPO_PATH="$artifacts_path/dd-sdk-ios"
+REPO_PATH="$artifacts_path/fc-sdk-ios"
 SDK_VERSION_FILE="$REPO_PATH/FlashcatCore/Sources/Versioning.swift"
+
+# Remove 'v' prefix from tag if present
+CLEAN_TAG="${tag#v}"
 
 check_sdk_version () {
     echo_subtitle "Check 'sdk_version'"
     sdk_version=$(grep '__sdkVersion' $SDK_VERSION_FILE | awk -F '"' '{print $2}')
-    if [[ "$sdk_version" == "$tag" ]]; then
+    if [[ "$sdk_version" == "$CLEAN_TAG" ]]; then
         echo_succ "▸ SDK version in '$SDK_VERSION_FILE' ('$sdk_version') matches the tag '$tag'"
     else
-        echo_err "▸ Error:" "SDK version in '$SDK_VERSION_FILE' ('$sdk_version') does not match tag '$tag'"
+        echo_err "▸ Error:" "SDK version in '$SDK_VERSION_FILE' ('$sdk_version') does not match tag '$tag' (expected: '$CLEAN_TAG')"
         exit 1
     fi
 }
@@ -39,10 +42,10 @@ check_podspec_versions () {
         spec_name=$(basename "$podspec_file")
         spec_version=$(grep -E '^\s*s\.version\s*=' $podspec_file | awk -F '"' '{print $2}')
       
-        if [[ "$spec_version" == "$tag" ]]; then
+        if [[ "$spec_version" == "$CLEAN_TAG" ]]; then
             echo_succ "▸ '$spec_name' version ('$spec_version') matches the tag '$tag'"
         else
-            echo_err "▸ Error:" "'$spec_name' version ('$spec_version') does not match tag '$tag'"
+            echo_err "▸ Error:" "'$spec_name' version ('$spec_version') does not match tag '$tag' (expected: '$CLEAN_TAG')"
             exit 1
         fi
     done
