@@ -37,20 +37,12 @@ let package = Package(
             targets: ["FlashcatCore"]
         ),
         .library(
-            name: "FlashcatLogs",
-            targets: ["FlashcatLogs"]
-        ),
-        .library(
             name: "FlashcatTrace",
             targets: ["FlashcatTrace"]
         ),
         .library(
             name: "FlashcatRUM",
             targets: ["FlashcatRUM"]
-        ),
-        .library(
-            name: "FlashcatSessionReplay",
-            targets: ["FlashcatSessionReplay"]
         ),
         .library(
             name: "FlashcatCrashReporting",
@@ -60,10 +52,7 @@ let package = Package(
             name: "FlashcatWebViewTracking",
             targets: ["FlashcatWebViewTracking"]
         ),
-        .library(
-            name: "FlashcatFlags",
-            targets: ["FlashcatFlags"]
-        ),
+
     ],
     dependencies: [
         .package(url: "https://github.com/microsoft/plcrashreporter.git", from: "1.12.0"),

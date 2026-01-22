@@ -94,16 +94,16 @@ test-ios:
 
 # Run unit tests for all iOS schemes
 test-ios-all:
-	@$(MAKE) test-ios SCHEME="DatadogCore iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatCore iOS"
 	@$(MAKE) test-ios SCHEME="FlashcatInternal iOS"
-	@$(MAKE) test-ios SCHEME="DatadogRUM iOS"
-	@$(MAKE) test-ios SCHEME="DatadogSessionReplay iOS"
-	@$(MAKE) test-ios SCHEME="DatadogLogs iOS"
-	@$(MAKE) test-ios SCHEME="DatadogTrace iOS"
-	@$(MAKE) test-ios SCHEME="DatadogCrashReporting iOS"
-	@$(MAKE) test-ios SCHEME="DatadogWebViewTracking iOS"
-	@$(MAKE) test-ios SCHEME="DatadogFlags iOS"
-	@$(MAKE) test-ios SCHEME="DatadogIntegrationTests iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatRUM iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatSessionReplay iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatLogs iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatTrace iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatCrashReporting iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatWebViewTracking iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatFlags iOS"
+	@$(MAKE) test-ios SCHEME="FlashcatIntegrationTests iOS"
 
 # Run unit tests for specified SCHEME using tvOS Simulator
 test-tvos:
@@ -115,14 +115,14 @@ test-tvos:
 
 # Run unit tests for all tvOS schemes
 test-tvos-all:
-	@$(MAKE) test-tvos SCHEME="DatadogCore tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatCore tvOS"
 	@$(MAKE) test-tvos SCHEME="FlashcatInternal tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogRUM tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogLogs tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogTrace tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogCrashReporting tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogFlags tvOS"
-	@$(MAKE) test-tvos SCHEME="DatadogIntegrationTests tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatRUM tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatLogs tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatTrace tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatCrashReporting tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatFlags tvOS"
+	@$(MAKE) test-tvos SCHEME="FlashcatIntegrationTests tvOS"
 
 # Run UI tests for specified TEST_PLAN
 ui-test:
@@ -260,7 +260,7 @@ benchmark-tests-open:
 	@$(MAKE) -C BenchmarkTests open
 
 xcodeproj-session-replay:
-		@echo "⚙️  Generating 'DatadogSessionReplay.xcodeproj'..."
+		@echo "⚙️  Generating 'FlashcatSessionReplay.xcodeproj'..."
 		@cd FlashcatSessionReplay/ && swift package generate-xcodeproj
 		@echo "OK 👌"
 
@@ -335,10 +335,10 @@ ifeq ($(ENV),ci)
   OBJC_OUTPUT_PATH := api-surface-objc-generated
 endif
 
-# Define the list of Datadog modules for API surface generation
-DATADOG_MODULES := DatadogCore DatadogLogs DatadogTrace DatadogRUM DatadogCrashReporting DatadogWebViewTracking DatadogSessionReplay DatadogFlags
+# Define the list of Flashcat modules for API surface generation
+FLASHCAT_MODULES := FlashcatCore FlashcatLogs FlashcatTrace FlashcatRUM FlashcatCrashReporting FlashcatWebViewTracking FlashcatSessionReplay FlashcatFlags
 
-# Generate api-surface files for Datadog APIs
+# Generate api-surface files for Flashcat APIs
 api-surface:
 	@$(ECHO_TITLE) "make api-surface"
 	@echo "Generating api-surface-swift"
@@ -346,7 +346,7 @@ api-surface:
 		swift run api-surface generate \
 		--path ../../ \
 		--language swift \
-		$(foreach module,$(DATADOG_MODULES),--library-name $(module)) \
+		$(foreach module,$(FLASHCAT_MODULES),--library-name $(module)) \
 		--output-file ../../$(SWIFT_OUTPUT_PATH)
 
 	@echo "Generating api-surface-objc"
@@ -354,10 +354,10 @@ api-surface:
 		swift run api-surface generate \
 		--path ../../ \
 		--language objc \
-		$(foreach module,$(DATADOG_MODULES),--library-name $(module)) \
+		$(foreach module,$(FLASHCAT_MODULES),--library-name $(module)) \
 		--output-file ../../$(OBJC_OUTPUT_PATH)
 
-# Verify API surface files for Datadog APIs
+# Verify API surface files for Flashcat APIs
 api-surface-verify:
 	@$(ECHO_TITLE) "make api-surface-verify"
 	@echo "Verifying api-surface-swift"
@@ -365,7 +365,7 @@ api-surface-verify:
 		swift run api-surface verify \
 		--path ../../ \
 		--language swift \
-		$(foreach module,$(DATADOG_MODULES),--library-name $(module)) \
+		$(foreach module,$(FLASHCAT_MODULES),--library-name $(module)) \
 		--output-file /tmp/api-surface-swift-generated \
 		../../api-surface-swift
 
@@ -374,7 +374,7 @@ api-surface-verify:
 		swift run api-surface verify \
 		--path ../../ \
 		--language objc \
-		$(foreach module,$(DATADOG_MODULES),--library-name $(module)) \
+		$(foreach module,$(FLASHCAT_MODULES),--library-name $(module)) \
 		--output-file /tmp/api-surface-objc-generated \
 		../../api-surface-objc
 
@@ -437,14 +437,12 @@ release-publish-internal-podspecs:
 
 # Publish podspecs that depend on FlashcatInternal
 release-publish-dependent-podspecs:
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogCore.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogLogs.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogTrace.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogRUM.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogSessionReplay.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogCrashReporting.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogWebViewTracking.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogFlags.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatCore.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatTrace.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatRUM.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatCrashReporting.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatWebViewTracking.podspec"
+	# Note: FlashcatLogs, FlashcatSessionReplay, FlashcatFlags are not published to CocoaPods trunk
 
 # Set ot update CI secrets
 set-ci-secret:
