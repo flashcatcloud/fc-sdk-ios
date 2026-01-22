@@ -19,11 +19,11 @@ define_arg "artifacts-path" "" "Path to store artifacts." "string" "true"
 check_for_help "$@"
 parse_args "$@"
 
-REPO_NAME="DataDog/dd-sdk-ios"
-ASSET_NAME="Datadog.xcframework.zip"
+REPO_NAME="flashcatcloud/fc-sdk-ios"
+ASSET_NAME="Flashcat.xcframework.zip"
 ARTIFACTS_PATH="$artifacts_path"
-ORIGINAL_OUTPUT="$ARTIFACTS_PATH/Datadog-with-arm64e.xcframework.zip"
-FINAL_OUTPUT="$ARTIFACTS_PATH/Datadog.xcframework.zip"
+ORIGINAL_OUTPUT="$ARTIFACTS_PATH/Flashcat-with-arm64e.xcframework.zip"
+FINAL_OUTPUT="$ARTIFACTS_PATH/Flashcat.xcframework.zip"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Verifies that the GitHub CLI is authenticated and ready to use.
@@ -38,10 +38,10 @@ verify_gh_auth() {
 
 # Downloads the XCFramework asset from the specified GitHub release tag.
 #
-# This function downloads the Datadog.xcframework.zip asset from the release
-# matching the provided tag in the DataDog/dd-sdk-ios repository.
+# This function downloads the Flashcat.xcframework.zip asset from the release
+# matching the provided tag in the flashcatcloud/fc-sdk-ios repository.
 # The original downloaded file is saved to the artifacts path as
-# Datadog-with-arm64e.xcframework.zip.
+# Flashcat-with-arm64e.xcframework.zip.
 #
 # Exits with error code 1 if:
 #   - The release tag does not exist
@@ -66,7 +66,7 @@ download_xcframework() {
 process_xcframework() {
     echo "Extracting XCFramework"
     local TEMP_DIR=$(mktemp -d)
-    local XCF_DIR="$TEMP_DIR/Datadog.xcframework"
+    local XCF_DIR="$TEMP_DIR/Flashcat.xcframework"
 
     unzip -q "$ORIGINAL_OUTPUT" -d "$TEMP_DIR"
 
@@ -75,7 +75,7 @@ process_xcframework() {
         --xcframework "$XCF_DIR"
 
     echo "Creating modified XCFramework archive"
-    (cd "$TEMP_DIR" && zip -r -q "$(basename "$FINAL_OUTPUT")" "Datadog.xcframework")
+    (cd "$TEMP_DIR" && zip -r -q "$(basename "$FINAL_OUTPUT")" "Flashcat.xcframework")
     mv "$TEMP_DIR/$(basename "$FINAL_OUTPUT")" "$FINAL_OUTPUT"
 
     # Cleanup

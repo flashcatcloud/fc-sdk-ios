@@ -17,7 +17,7 @@ define_arg "artifacts-path" "" "The path to build artifacts." "string" "true"
 check_for_help "$@"
 parse_args "$@"
 
-XCF_ZIP_NAME="Datadog.xcframework.zip"
+XCF_ZIP_NAME="Flashcat.xcframework.zip"
 XCF_ZIP_PATH="$artifacts_path/$XCF_ZIP_NAME"
 
 unzip_archive() {
@@ -98,7 +98,7 @@ echo_subtitle "Validate xcframeworks in '$XCF_ZIP_NAME'"
 unzip_archive "$XCF_ZIP_PATH" "$temp_dir"
 
 # Check if the main bundle exists in the archive
-XCF_PATH="$temp_dir/Datadog.xcframework"
+XCF_PATH="$temp_dir/Flashcat.xcframework"
 check_xcframework_bundle_exists "$XCF_PATH"
 
 # Define slices for validation
@@ -136,12 +136,12 @@ DATADOG_IOS=("${IOS_SWIFT[@]}" "${IOS_DSYMs[@]}" "${IOS[@]}")
 DATADOG_TVOS=("${TVOS_SWIFT[@]}" "${TVOS_DSYMs[@]}" "${TVOS[@]}")
 
 # Validate xcframeworks from the archive
-validate_xcframework "FlashcatInternal.xcframework"          "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
-validate_xcframework "DatadogCore.xcframework"              "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
-validate_xcframework "DatadogTrace.xcframework"             "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
-validate_xcframework "DatadogRUM.xcframework"               "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
-validate_xcframework "DatadogCrashReporting.xcframework"    "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
-validate_xcframework "DatadogWebViewTracking.xcframework"   "${DATADOG_IOS[@]}"
+validate_xcframework "FlashcatInternal.xcframework"         "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
+validate_xcframework "FlashcatCore.xcframework"             "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
+validate_xcframework "FlashcatTrace.xcframework"            "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
+validate_xcframework "FlashcatRUM.xcframework"              "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
+validate_xcframework "FlashcatCrashReporting.xcframework"   "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
+validate_xcframework "FlashcatWebViewTracking.xcframework"  "${DATADOG_IOS[@]}"
 validate_xcframework "OpenTelemetryApi.xcframework"         "${DATADOG_IOS[@]}" "${DATADOG_TVOS[@]}"
 validate_xcframework "CrashReporter.xcframework"            "${IOS[@]}" "${TVOS[@]}"
 

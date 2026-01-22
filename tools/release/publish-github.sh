@@ -26,9 +26,9 @@ check_for_help "$@"
 parse_args "$@"
 
 ARTIFACTS_PATH="$artifacts_path"
-GH_ASSET_WITH_ARM64E="$ARTIFACTS_PATH/Datadog-with-arm64e.xcframework.zip"
-GH_ASSET_WITHOUT_ARM64E="$ARTIFACTS_PATH/Datadog.xcframework.zip"
-REPO_NAME="DataDog/dd-sdk-ios"
+GH_ASSET_WITH_ARM64E="$ARTIFACTS_PATH/Flashcat-with-arm64e.xcframework.zip"
+GH_ASSET_WITHOUT_ARM64E="$ARTIFACTS_PATH/Flashcat.xcframework.zip"
+REPO_NAME="flashcatcloud/fc-sdk-ios"
 
 verify_gh_auth() {
     gh auth status &>/dev/null
@@ -58,7 +58,7 @@ echo_info "Publishing '$GH_ASSET_WITHOUT_ARM64E' and '$GH_ASSET_WITH_ARM64E' to 
 echo_info "▸ Using DRY_RUN = $DRY_RUN"
 echo_info "▸ Using OVERWRITE_EXISTING = $overwrite_existing"
 
-export GITHUB_TOKEN=$(dd-octo-sts --disable-tracing token --scope DataDog/dd-sdk-ios --policy self.release)
+export GITHUB_TOKEN=$(dd-octo-sts --disable-tracing token --scope flashcatcloud/fc-sdk-ios --policy self.release)
 verify_gh_auth
 upload
 dd-octo-sts --disable-tracing revoke

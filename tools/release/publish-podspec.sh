@@ -23,8 +23,14 @@ define_arg "artifacts-path" "" "The path to build artifacts." "string" "true"
 check_for_help "$@"
 parse_args "$@"
 
-REPO_PATH="$artifacts_path/dd-sdk-ios"
+REPO_PATH="$artifacts_path/fc-sdk-ios"
 PODSPEC_PATH="$REPO_PATH/$podspec_name"
+
+if [[ ! -d "$REPO_PATH" ]]; then
+    echo_err "Error:" "Artifacts repo not found at '$REPO_PATH'."
+    echo_info "Run 'make release-build GIT_TAG=... ARTIFACTS_PATH=$artifacts_path' first."
+    exit 1
+fi
 
 authenticate() {
     echo_subtitle "Authenticate 'pod trunk' CLI"
