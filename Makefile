@@ -437,14 +437,12 @@ release-publish-internal-podspecs:
 
 # Publish podspecs that depend on FlashcatInternal
 release-publish-dependent-podspecs:
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogCore.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogLogs.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogTrace.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogRUM.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogSessionReplay.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogCrashReporting.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogWebViewTracking.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogFlags.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatCore.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatTrace.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatRUM.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatCrashReporting.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatWebViewTracking.podspec"
+	# Note: FlashcatLogs, FlashcatSessionReplay, FlashcatFlags are not published to CocoaPods trunk
 
 # Set ot update CI secrets
 set-ci-secret:

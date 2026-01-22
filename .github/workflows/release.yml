@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run mode (skip actual publishing)'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  XCODE_VERSION: '16.2'
+
+jobs:
+  validate:
+    name: Validate Podspecs
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      - name: Lint Podspecs (only those to be published)
+        run: |
+          bundle exec pod spec lint FlashcatInternal.podspec --allow-warnings
+          bundle exec pod spec lint FlashcatCore.podspec --allow-warnings
+          bundle exec pod spec lint FlashcatTrace.podspec --allow-warnings
+          bundle exec pod spec lint FlashcatRUM.podspec --allow-warnings
+          bundle exec pod spec lint FlashcatCrashReporting.podspec --allow-warnings
+          bundle exec pod spec lint FlashcatWebViewTracking.podspec --allow-warnings
+
+  build:
+    name: Build Artifacts
+    runs-on: macos-14
+    needs: validate
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+      - name: Build XCFrameworks
+        run: make release-build GIT_TAG=${{ steps.tag.outputs.tag }} ARTIFACTS_PATH=artifacts
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+
+  publish-github:
+    name: Publish GitHub Release
+    runs-on: macos-14
+    needs: build
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !github.event.inputs.dry_run) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make release-publish-github GIT_TAG=${{ needs.build.outputs.tag }} ARTIFACTS_PATH=artifacts DRY_RUN=0
+
+  publish-cocoapods-internal:
+    name: Publish CocoaPods (Internal)
+    runs-on: macos-14
+    needs: build
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !github.event.inputs.dry_run) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      - name: Publish FlashcatInternal
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: make release-publish-internal-podspecs ARTIFACTS_PATH=artifacts DRY_RUN=0
+
+  publish-cocoapods-dependent:
+    name: Publish CocoaPods (Dependent)
+    runs-on: macos-14
+    needs: publish-cocoapods-internal
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !github.event.inputs.dry_run) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      - name: Wait for CDN sync
+        run: sleep 1200  # Wait for 20 minutes to allow CocoaPods CDN to sync
+      - name: Publish Dependent Podspecs
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: make release-publish-dependent-podspecs ARTIFACTS_PATH=artifacts DRY_RUN=0

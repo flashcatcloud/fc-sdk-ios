@@ -1,19 +1,18 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatFlags"
-  s.version      = "3.3.0"
-  s.summary      = "Official Datadog Feature Flags module of the Swift SDK."
+  s.version      = "0.2.0"
+  s.summary      = "Official Flashcat Feature Flags module of the Swift SDK."
 
-  s.homepage     = "https://www.datadoghq.com"
-  s.social_media_url   = "https://twitter.com/datadoghq"
+  s.homepage     = "https://flashcat.cloud"
 
   s.license            = { :type => "Apache", :file => 'LICENSE' }
-  s.authors            = "Datadog, Inc."
+  s.authors            = { "Flashcat.Inc" => "support@flashcat.cloud" }
 
   s.swift_version = '5.9'
   s.ios.deployment_target = '12.0'
   s.tvos.deployment_target = '12.0'
 
-  s.source = { :git => "https://github.com/DataDog/dd-sdk-ios.git", :tag => s.version.to_s }
+  s.source = { :git => "https://github.com/flashcatcloud/fc-sdk-ios.git", :tag => s.version.to_s }
 
   s.source_files = "FlashcatFlags/Sources/**/*.swift"
 
