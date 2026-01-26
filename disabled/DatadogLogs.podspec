@@ -1,7 +1,8 @@
 Pod::Spec.new do |s|
-  s.name         = "DatadogRUM"
+  s.name         = "FlashcatLogs"
+  s.module_name  = "DatadogLogs"
   s.version      = "3.3.0"
-  s.summary      = "Datadog Real User Monitoring Module."
+  s.summary      = "Datadog Logs Module."
 
   s.homepage     = "https://www.datadoghq.com"
   s.social_media_url   = "https://twitter.com/datadoghq"
@@ -17,15 +18,12 @@ Pod::Spec.new do |s|
   s.swift_version = '5.9'
   s.ios.deployment_target = '12.0'
   s.tvos.deployment_target = '12.0'
+  s.watchos.deployment_target = '7.0'
 
-  s.source = { :git => "https://github.com/DataDog/dd-sdk-ios.git", :tag => s.version.to_s }
+  s.source = { :git => "https://github.com/flashcatcloud/fc-sdk-ios.git", :tag => s.version.to_s }
 
-  s.source_files = ["DatadogRUM/Sources/**/*.swift"]
+  s.source_files = ["DatadogLogs/Sources/**/*.swift"]
 
-  s.resource_bundle = {
-    "DatadogRUM" => "DatadogRUM/Resources/PrivacyInfo.xcprivacy"
-  }
-
-  s.dependency 'DatadogInternal', s.version.to_s
+  s.dependency 'FlashcatInternal', s.version.to_s
 
 end

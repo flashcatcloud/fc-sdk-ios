@@ -15,7 +15,7 @@ class DDConfigurationTests: XCTestCase {
     func testDefaultBuilderForwardsInitializationToSwift() throws {
         let objcConfig = objc_Configuration(clientToken: "abc-123", env: "tests")
         XCTAssertEqual(objcConfig.sdkConfiguration.clientToken, "abc-123")
-        XCTAssertEqual(objcConfig.sdkConfiguration.site, .us1)
+        XCTAssertEqual(objcConfig.sdkConfiguration.site, .cn)
         XCTAssertEqual(objcConfig.sdkConfiguration.env, "tests")
         XCTAssertNil(objcConfig.sdkConfiguration.service)
         XCTAssertEqual(objcConfig.sdkConfiguration.batchSize, .medium)
@@ -29,26 +29,11 @@ class DDConfigurationTests: XCTestCase {
     func testCustomizedBuilderForwardsInitializationToSwift() throws {
         let objcConfig = objc_Configuration(clientToken: "abc-123", env: "tests")
 
-        objcConfig.site = .eu1()
-        XCTAssertEqual(objcConfig.sdkConfiguration.site, .eu1)
+        objcConfig.site = .cn()
+        XCTAssertEqual(objcConfig.sdkConfiguration.site, .cn)
 
-        objcConfig.site = .ap1()
-        XCTAssertEqual(objcConfig.sdkConfiguration.site, .ap1)
-
-        objcConfig.site = .ap2()
-        XCTAssertEqual(objcConfig.sdkConfiguration.site, .ap2)
-
-        objcConfig.site = .us1()
-        XCTAssertEqual(objcConfig.sdkConfiguration.site, .us1)
-
-        objcConfig.site = .us3()
-        XCTAssertEqual(objcConfig.sdkConfiguration.site, .us3)
-
-        objcConfig.site = .us5()
-        XCTAssertEqual(objcConfig.sdkConfiguration.site, .us5)
-
-        objcConfig.site = .us1_fed()
-        XCTAssertEqual(objcConfig.sdkConfiguration.site, .us1_fed)
+        objcConfig.site = .staging()
+        XCTAssertEqual(objcConfig.sdkConfiguration.site, .staging)
 
         objcConfig.service = "service-name"
         XCTAssertEqual(objcConfig.sdkConfiguration.service, "service-name")

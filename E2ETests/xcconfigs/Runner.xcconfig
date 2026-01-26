@@ -3,6 +3,6 @@ RUM_APPLICATION_ID = // the RUM Application ID on Mobile Integration Org
 
 DD_ENV[config=*] = e2e
 DD_ENV[config=Debug] = development
-DD_SITE = us1
+DD_SITE = cn
 
 #include? "E2E.local.xcconfig"

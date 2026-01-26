@@ -24,3 +24,5 @@ __pycache__
 
 # CI job artifacts
 artifacts/
+local-docs
+.cursor

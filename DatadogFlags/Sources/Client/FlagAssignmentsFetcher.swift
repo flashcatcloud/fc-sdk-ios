@@ -120,24 +120,12 @@ internal final class FlagAssignmentsFetcher: FlagAssignmentsFetching {
     }
 }
 
-extension DatadogSite {
+extension FlashcatSite {
     internal func flagsEndpoint(subdomain: String = "preview") -> URL {
         switch self {
         // swiftlint:disable force_unwrapping
-        case .us1: return URL(string: "https://\(subdomain).ff-cdn.datadoghq.com")!
-        case .us3: return URL(string: "https://\(subdomain).ff-cdn.us3.datadoghq.com")!
-        case .us5: return URL(string: "https://\(subdomain).ff-cdn.us5.datadoghq.com")!
-        case .eu1: return URL(string: "https://\(subdomain).ff-cdn.datadoghq.eu")!
-        case .ap1: return URL(string: "https://\(subdomain).ff-cdn.ap1.datadoghq.com")!
-        case .ap2: return URL(string: "https://\(subdomain).ff-cdn.ap2.datadoghq.com")!
-        case .us1_fed:
-            DD.logger.warn(
-                """
-                Government sites (us1_fed) are not officially supported for feature flags. \
-                Falling back to us1 endpoint.
-                """
-            )
-            return URL(string: "https://\(subdomain).ff-cdn.datadoghq.com")!
+        case .cn: return URL(string: "https://\(subdomain).ff-cdn.flashcat.cloud")!
+        case .staging: return URL(string: "https://\(subdomain).ff-cdn.flashcat.cloud")!
         // swiftlint:enable force_unwrapping
         }
     }

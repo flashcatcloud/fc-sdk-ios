@@ -31,7 +31,7 @@ struct AppInfo {
     let clientToken: String
     let applicationID: String
     let apiKey: String
-    let site: DatadogSite
+    let site: FlashcatSite
     let env: String
 }
 
@@ -42,7 +42,7 @@ extension AppInfo {
             let clientToken = obj["ClientToken"],
             let applicationID = obj["ApplicationID"],
             let apiKey = obj["ApiKey"],
-            let site = obj["Site"].flatMap(DatadogSite.init(rawValue:)),
+            let site = obj["Site"].flatMap(FlashcatSite.init(rawValue:)),
             let env = obj["Environment"]
         else {
             throw ProgrammerError(description: "Missing required Info.plist keys")
@@ -64,7 +64,7 @@ extension AppInfo {
             clientToken: "",
             applicationID: "",
             apiKey: "",
-            site: .us1,
+            site: .cn,
             env: "benchmarks"
         )
     }
