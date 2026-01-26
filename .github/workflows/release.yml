@@ -171,3 +171,54 @@ jobs:
           else
             echo "- Publishing: Skipped (branch push only validates)" >> $GITHUB_STEP_SUMMARY
           fi
+
+  notify-success:
+    name: Notify Success
+    runs-on: ubuntu-latest
+    needs:
+      [
+        publish-cocoapods-internal,
+        publish-cocoapods-core,
+        publish-cocoapods-modules,
+      ]
+    if: ${{ success() && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) }}
+    steps:
+      - name: Notify deployment success
+        uses: zcong1993/actions-ding@master
+        with:
+          dingToken: ${{ secrets.DING_TALK_TOKEN }}
+          secret: ${{ secrets.DING_TALK_SECRET }}
+          body: |
+            {
+              "msgtype": "markdown",
+              "markdown": {
+                "title": "fc-sdk-ios 发布通知",
+                "text": "### ✅ fc-sdk-ios 发布成功\n\n---\n\n 🔖 版本: ${{ github.ref_name }}\n\n 📦 包名: FlashcatCore, FlashcatRUM, FlashcatTrace 等\n\n 🍎 平台: CocoaPods\n\n 👨‍💻 发布者: ${{ github.actor }}\n\n 🚀 [查看详情](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+              }
+            }
+
+  notify-failure:
+    name: Notify Failure
+    runs-on: ubuntu-latest
+    needs:
+      [
+        validate,
+        publish-cocoapods-internal,
+        publish-cocoapods-core,
+        publish-cocoapods-modules,
+      ]
+    if: ${{ failure() && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) }}
+    steps:
+      - name: Notify deployment failure
+        uses: zcong1993/actions-ding@master
+        with:
+          dingToken: ${{ secrets.DING_TALK_TOKEN }}
+          secret: ${{ secrets.DING_TALK_SECRET }}
+          body: |
+            {
+              "msgtype": "markdown",
+              "markdown": {
+                "title": "fc-sdk-ios 发布通知",
+                "text": "### ❌ fc-sdk-ios 发布失败\n\n---\n\n 🔖 版本: ${{ github.ref_name }}\n\n 📦 包名: FlashcatCore, FlashcatRUM, FlashcatTrace 等\n\n 🍎 平台: CocoaPods\n\n 👨‍💻 发布者: ${{ github.actor }}\n\n 🚀 [查看详情](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+              }
+            }
