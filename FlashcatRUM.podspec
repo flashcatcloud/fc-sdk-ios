@@ -1,11 +1,10 @@
 Pod::Spec.new do |s|
-  s.name         = "FlashcatTrace"
-  s.module_name  = "DatadogTrace"
+  s.name         = "FlashcatRUM"
+  s.module_name  = "DatadogRUM"
   s.version      = "0.3.0"
-  s.summary      = "Flashcat iOS SDK - Distributed Tracing module."
+  s.summary      = "Flashcat iOS SDK - Real User Monitoring (RUM) module."
 
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"
-  s.social_media_url   = "mailto:support@flashcat.com"
 
   s.license            = { :type => "Apache", :file => 'LICENSE' }
   s.authors            = "developer@flashcat.com"
@@ -16,8 +15,12 @@ Pod::Spec.new do |s|
 
   s.source = { :git => "https://github.com/flashcatcloud/fc-sdk-ios.git", :tag => s.version.to_s }
 
-  s.source_files = ["DatadogTrace/Sources/**/*.swift"]
+  s.source_files = ["DatadogRUM/Sources/**/*.swift"]
+
+  s.resource_bundle = {
+    "DatadogRUM" => "DatadogRUM/Resources/PrivacyInfo.xcprivacy"
+  }
 
   s.dependency 'FlashcatInternal', s.version.to_s
-  s.dependency 'OpenTelemetrySwiftApi', '1.13.1'
+
 end

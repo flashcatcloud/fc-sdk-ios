@@ -5,7 +5,6 @@ Pod::Spec.new do |s|
   s.summary      = "Flashcat iOS SDK - Crash Reporting module."
 
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"
-  s.social_media_url   = "mailto:support@flashcat.com"
 
   s.license            = { :type => "Apache", :file => 'LICENSE' }
   s.authors            = "developer@flashcat.com"
