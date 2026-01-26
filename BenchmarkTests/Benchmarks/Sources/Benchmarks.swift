@@ -115,7 +115,7 @@ public enum Benchmarks {
             applicationVersion: configuration.context.applicationVersion,
             environment: "benchmarks",
             apiKey: configuration.apiKey,
-            endpoint: .us1,
+            endpoint: .cn,
             uploadCondition: { true }
         )
 

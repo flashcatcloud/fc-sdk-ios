@@ -4,6 +4,6 @@ API_KEY = // the API Key on Mobile Integration Org
 
 DD_ENV[config=*] = benchmarks
 DD_ENV[config=Debug] = development
-DD_SITE = us1
+DD_SITE = cn
 
 #include? "Benchmarks.local.xcconfig"

@@ -56,10 +56,10 @@ extension Datadog {
         /// To filter events on different environments (e.g. "staging" or "production").
         public var env: String
 
-        /// The Datadog server site where data is sent.
+        /// The Flashcat server site where data is sent.
         ///
-        /// Default value is `.us1`.
-        public var site: DatadogSite
+        /// Default value is `.cn`.
+        public var site: FlashcatSite
 
         /// The service name associated with data send to Datadog.
         ///
@@ -127,7 +127,7 @@ extension Datadog {
         ///   - env:                        The environment name which will be sent to Datadog. This can be used
         ///                                 To filter events on different environments (e.g. "staging" or "production").
         ///
-        ///   - site:                       Datadog site endpoint, default value is `.us1`.
+        ///   - site:                       Flashcat site endpoint, default value is `.cn`.
         ///
         ///   - service:                    The service name associated with data send to Datadog.
         ///                                 Default value is set to application bundle identifier.
@@ -167,7 +167,7 @@ extension Datadog {
         public init(
             clientToken: String,
             env: String,
-            site: DatadogSite = .us1,
+            site: FlashcatSite = .cn,
             service: String? = nil,
             version: String? = nil,
             bundle: Bundle = .main,

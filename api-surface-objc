@@ -21,13 +21,8 @@ public final class objc_Datadog: NSObject
     public static func stopInstance()
     public static func clearAllData()
 public final class objc_DatadogSite: NSObject
-    public static func us1() -> objc_DatadogSite
-    public static func us3() -> objc_DatadogSite
-    public static func us5() -> objc_DatadogSite
-    public static func eu1() -> objc_DatadogSite
-    public static func ap1() -> objc_DatadogSite
-    public static func ap2() -> objc_DatadogSite
-    public static func us1_fed() -> objc_DatadogSite
+    public static func cn() -> objc_DatadogSite
+    public static func staging() -> objc_DatadogSite
 public enum objc_BatchSize: Int
     case small
     case medium

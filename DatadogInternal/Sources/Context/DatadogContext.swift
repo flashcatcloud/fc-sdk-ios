@@ -12,7 +12,7 @@ public struct DatadogContext {
     /// [Datadog Site](https://docs.datadoghq.com/getting_started/site/) for data uploads. It can be `nil` in V1
     /// if the SDK is configured using deprecated APIs:
     /// `set(logsEndpoint:)`, `set(tracesEndpoint:)` and `set(rumEndpoint:)`.
-    public let site: DatadogSite
+    public let site: FlashcatSite
 
     /// The client token allowing for data uploads to [Datadog Site](https://docs.datadoghq.com/getting_started/site/).
     public let clientToken: String
@@ -124,7 +124,7 @@ public struct DatadogContext {
 
     // swiftlint:disable function_default_parameter_at_end
     public init(
-        site: DatadogSite,
+        site: FlashcatSite,
         clientToken: String,
         service: String,
         env: String,
