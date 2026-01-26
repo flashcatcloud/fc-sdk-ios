@@ -39,18 +39,18 @@ jobs:
 
       - name: Lint Podspecs (Internal)
         run: |
-          bundle exec pod spec lint FlashcatInternal.podspec --allow-warnings
+          bundle exec pod lib lint FlashcatInternal.podspec --allow-warnings
 
       - name: Lint Podspecs (Core)
         run: |
-          bundle exec pod spec lint FlashcatCore.podspec --allow-warnings
+          bundle exec pod lib lint FlashcatCore.podspec --allow-warnings --include-podspecs=FlashcatInternal.podspec
 
       - name: Lint Podspecs (Modules)
         run: |
-          bundle exec pod spec lint FlashcatTrace.podspec --allow-warnings
-          bundle exec pod spec lint FlashcatRUM.podspec --allow-warnings
-          bundle exec pod spec lint FlashcatCrashReporting.podspec --allow-warnings
-          bundle exec pod spec lint FlashcatWebViewTracking.podspec --allow-warnings
+          bundle exec pod lib lint FlashcatTrace.podspec --allow-warnings --include-podspecs=FlashcatInternal.podspec
+          bundle exec pod lib lint FlashcatRUM.podspec --allow-warnings --include-podspecs=FlashcatInternal.podspec
+          bundle exec pod lib lint FlashcatCrashReporting.podspec --allow-warnings --include-podspecs=FlashcatInternal.podspec
+          bundle exec pod lib lint FlashcatWebViewTracking.podspec --allow-warnings --include-podspecs=FlashcatInternal.podspec
 
   publish-cocoapods-internal:
     name: Publish CocoaPods (Internal)
