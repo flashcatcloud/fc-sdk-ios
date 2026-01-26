@@ -29,40 +29,28 @@ let internalSwiftSettings: [SwiftSetting] = ProcessInfo.processInfo.environment[
     [.define("DD_BENCHMARK")] : []
 
 let package = Package(
-    name: "Datadog",
+    name: "Flashcat",
     platforms: platforms,
     products: [
         .library(
-            name: "DatadogCore",
+            name: "FlashcatCore",
             targets: ["DatadogCore"]
         ),
         .library(
-            name: "DatadogLogs",
-            targets: ["DatadogLogs"]
-        ),
-        .library(
-            name: "DatadogTrace",
+            name: "FlashcatTrace",
             targets: ["DatadogTrace"]
         ),
         .library(
-            name: "DatadogRUM",
+            name: "FlashcatRUM",
             targets: ["DatadogRUM"]
         ),
         .library(
-            name: "DatadogSessionReplay",
-            targets: ["DatadogSessionReplay"]
-        ),
-        .library(
-            name: "DatadogCrashReporting",
+            name: "FlashcatCrashReporting",
             targets: ["DatadogCrashReporting"]
         ),
         .library(
-            name: "DatadogWebViewTracking",
+            name: "FlashcatWebViewTracking",
             targets: ["DatadogWebViewTracking"]
-        ),
-        .library(
-            name: "DatadogFlags",
-            targets: ["DatadogFlags"]
         ),
     ],
     dependencies: [
@@ -250,7 +238,7 @@ let package = Package(
 if ProcessInfo.processInfo.environment["DD_TEST_UTILITIES_ENABLED"] != nil {
     package.products.append(
         .library(
-            name: "TestUtilities",
+            name: "FlashcatTestUtilities",
             targets: ["TestUtilities"]
         )
     )

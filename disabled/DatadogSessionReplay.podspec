@@ -1,5 +1,6 @@
 Pod::Spec.new do |s|
-  s.name         = "DatadogSessionReplay"
+  s.name         = "FlashcatSessionReplay"
+  s.module_name  = "DatadogSessionReplay"
   s.version      = "3.3.0"
   s.summary      = "Official Datadog Session Replay SDK for iOS."
 
@@ -18,8 +19,8 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '12.0'
   s.tvos.deployment_target = '12.0'
 
-  s.source = { :git => "https://github.com/DataDog/dd-sdk-ios.git", :tag => s.version.to_s }
+  s.source = { :git => "https://github.com/flashcatcloud/fc-sdk-ios.git", :tag => s.version.to_s }
 
   s.source_files = ["DatadogSessionReplay/Sources/**/*.swift"]
-  s.dependency 'DatadogInternal', s.version.to_s
+  s.dependency 'FlashcatInternal', s.version.to_s
 end

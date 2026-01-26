@@ -1,24 +1,20 @@
 Pod::Spec.new do |s|
-  s.name         = "TestUtilities"
+  s.name         = "FlashcatTestUtilities"
+  s.module_name  = "TestUtilities"
   s.version      = "3.3.0"
-  s.summary      = "Datadog Testing Utilities. This module is for internal testing and should not be published."
+  s.summary      = "Flashcat iOS SDK - Testing Utilities (for internal testing only)."
 
-  s.homepage     = "https://www.datadoghq.com"
-  s.social_media_url   = "https://twitter.com/datadoghq"
+  s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"
+  s.social_media_url   = "mailto:support@flashcat.com"
 
   s.license            = { :type => "Apache", :file => 'LICENSE' }
-  s.authors            = {
-    "Maciek Grzybowski" => "maciek.grzybowski@datadoghq.com",
-    "Maciej Burda" => "maciej.burda@datadoghq.com",
-    "Maxime Epain" => "maxime.epain@datadoghq.com",
-    "Ganesh Jangir" => "ganesh.jangir@datadoghq.com"
-  }
+  s.authors            = "developer@flashcat.com"
 
   s.swift_version = '5.9'
   s.ios.deployment_target = '12.0'
   s.tvos.deployment_target = '12.0'
 
-  s.source = { :git => "https://github.com/DataDog/dd-sdk-ios.git", :tag => s.version.to_s }
+  s.source = { :git => "https://github.com/flashcatcloud/fc-sdk-ios.git", :tag => s.version.to_s }
 
   s.pod_target_xcconfig = {
     'ENABLE_TESTING_SEARCH_PATHS'=>'YES'
@@ -30,13 +26,11 @@ Pod::Spec.new do |s|
     "TestUtilities/Sources/**/*.swift"
   ]
 
-  s.dependency 'DatadogCore'
-  s.dependency 'DatadogInternal'
-  s.dependency 'DatadogLogs'
-  s.dependency 'DatadogRUM'
-  s.dependency 'DatadogSessionReplay'
-  s.dependency 'DatadogTrace'
-  s.dependency 'DatadogCrashReporting'
-  s.dependency 'DatadogWebViewTracking'
+  s.dependency 'FlashcatCore'
+  s.dependency 'FlashcatInternal'
+  s.dependency 'FlashcatRUM'
+  s.dependency 'FlashcatTrace'
+  s.dependency 'FlashcatCrashReporting'
+  s.dependency 'FlashcatWebViewTracking'
 
 end
