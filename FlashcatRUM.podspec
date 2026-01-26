@@ -13,7 +13,7 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '12.0'
   s.tvos.deployment_target = '12.0'
 
-  s.source = { :git => "https://github.com/flashcatcloud/fc-sdk-ios.git", :tag => s.version.to_s }
+  s.source = { :git => "https://github.com/flashcatcloud/fc-sdk-ios.git", :tag => "v#{s.version}" }
 
   s.source_files = ["DatadogRUM/Sources/**/*.swift"]
 
