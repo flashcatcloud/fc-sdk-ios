@@ -1,7 +1,7 @@
 # Datadog iOS SDK - Upstream Changelog
 
-> **Note**: 此文件为 upstream Datadog iOS SDK 的原始变更历史，仅供参考。  
-> Flashcat SDK 的实际变更请参见 [CHANGELOG.md](./CHANGELOG.md)。
+> **Note**: This file contains the original changelog from upstream Datadog iOS SDK for reference only.  
+> For Flashcat SDK changes, see [CHANGELOG.md](./CHANGELOG.md).
 
 ---
 
@@ -19,7 +19,7 @@
 
 # 3.5.0 / 12-01-2026
 
-- [FEATURE] Report time to initial display (TTID). See [#2517][] [#2464][] 
+- [FEATURE] Report time to initial display (TTID). See [#2517][] [#2464][]
 - [FEATURE] Add public API to report time to full display (TTFD). See [#2522][]
 - [IMPROVEMENT] Remove `application_start` action from `ApplicationLaunch`. See [#2533][]
 - [FEATURE] Track Slow Frames (view hitches) by default. See [#2631][]
@@ -63,16 +63,16 @@ Release `3.0` introduces breaking changes. Follow the [Migration Guide](MIGRATIO
 
 - [FIX] Fix `DDLogEvent.accountInfo` property initialization in case of missing account info. See [#2442][]
 - [IMPROVEMENT] Update Session Replay batch maximum age to 5hrs. See [#2455][]
-- [IMPROVEMENT] Update the default tracing sampling rate to 100%. See [#2253][] 
+- [IMPROVEMENT] Update the default tracing sampling rate to 100%. See [#2253][]
 - [IMPROVEMENT] Update the default TraceContextInjection to `.sampled`. See [#2253][]
 - [IMPROVEMENT] Enforce head-based sampling on Trace by default. See [#2288][]
 - [IMPROVEMENT] Sample traces according to `session.id`. See [#2364][]
-- [IMPROVEMENT] Migrate all Obj-c interfaces to corresponding modules. See [#2286][] [#2295][] 
+- [IMPROVEMENT] Migrate all Obj-c interfaces to corresponding modules. See [#2286][] [#2295][]
 - [IMPROVEMENT] Remove `DatadogObjc` module. See [#2298][]
 - [IMPROVEMENT] Remove Alamofire extension. See [#2309][]
-- [IMPROVEMENT] Improve Memory vital collected using `phys_footprint`. See [#2310][] 
+- [IMPROVEMENT] Improve Memory vital collected using `phys_footprint`. See [#2310][]
 - [IMPROVEMENT] Align attribute propagation mechanism. See [#2291][] [#2305][]
-- [IMPROVEMENT] Stop reporting App hangs and Watchdog terminations for iOS widgets. See [#2326][]   
+- [IMPROVEMENT] Stop reporting App hangs and Watchdog terminations for iOS widgets. See [#2326][]
 - [IMPROVEMENT] Align `os` and `device` attributes across all product features. See [#2322][]
 - [IMPROVEMENT] Remove fatal errors from Logs. See [#2359][]
 - [IMPROVEMENT] Introduce new category for network errors. See [#2341][]
@@ -80,6 +80,7 @@ Release `3.0` introduces breaking changes. Follow the [Migration Guide](MIGRATIO
 - [IMPROVEMENT] Improve SwiftUI system image and SF symbol capture in Session Replay through shape SVG recording, image maskColor support, and drawing rasterization. See [#2432][] [#2428][] [#2391][]
 
 # 2.30.0 / 28-07-2025
+
 - [FEATURE] Add SwiftUI support for Session Replay privacy overrides. See [#2333][]
 - [FEATURE] Add Clear User Info API. See [#2369][]
 - [FEATURE] Collect battery and locale attributes. See [#2351][] [#2327][]
@@ -171,6 +172,7 @@ Release `3.0` introduces breaking changes. Follow the [Migration Guide](MIGRATIO
 - [IMPROVEMENT] Support `clipsToBounds` in Session Replay. See [#2083][]
 
 # 2.18.0 / 25-09-2024
+
 - [IMPROVEMENT] Add overwrite required (breaking) param to addViewLoadingTime & usage telemetry. See [#2040][]
 - [FEATURE] Prevent "show password" features from revealing sensitive texts in Session Replay. See [#2050][]
 - [FEATURE] Add Fine-Grained Masking configuration options to Session Replay. See [#2043][]
@@ -296,6 +298,7 @@ Release `3.0` introduces breaking changes. Follow the [Migration Guide](MIGRATIO
 - [FEATURE] Add privacy manifest to `DatadogCore`. See [#1644][]
 
 # 2.6.0 / 09-01-2024
+
 - [FEATURE] Add `currentSessionID(completion:)` accessor to access the current session ID.
 - [FEATURE] Add `BatchProcessingLevel` configuration allowing to process more batches within single read/upload cycle. See [#1531][]
 - [FIX] Use `currentRequest` instead `originalRequest` for URLSession request interception. See [#1609][]
@@ -365,33 +368,39 @@ Release `2.0` introduces breaking changes. Follow the [Migration Guide](MIGRATIO
 - [BUGFIX] Module stability: fix name collision.
 
 # 1.22.0 / 21-07-2023
+
 - [BUGFIX] Fix APM local spans not correlating with RUM views. See [#1355][]
 - [IMPROVEMENT] Reduce number of view updates by filtering events from payload. See [#1328][]
 
 # 1.21.0 / 27-06-2023
+
 - [BUGFIX] Fix TracingUUID string format. See [#1311][] (Thanks [@changm4n][])
-- [BUGFIX] Rename _Datadog_Private to DatadogPrivate. See [#1331] (Thanks [@alexfanatics][])
+- [BUGFIX] Rename \_Datadog_Private to DatadogPrivate. See [#1331] (Thanks [@alexfanatics][])
 - [IMPROVEMENT] Add context to crash when there's an active view. See [#1315][]
 
-
 # 1.20.0 / 01-06-2023
+
 - [BUGFIX] Use targetTimestamp as reference to calculate FPS for variable refresh rate displays. See [#1272][]
 
 # 1.19.0 / 26-04-2023
+
 - [BUGFIX] Fix view attributes override by action attributes. See [#1250][]
 - [IMPROVEMENT] Add Tracer sampling rate. See [#1259][]
 - [BUGFIX] Fix RUM context not being attached to log when no user action exists. See [#1264][]
 
 # 1.18.0 / 19-04-2023
+
 - [IMPROVEMENT] Add start reason to the session. See [#1247][]
 - [IMPROVEMENT] Add ability to stop the session. See [#1219][]
 
 # 1.17.0 / 23-03-2023
+
 - [BUGFIX] Fix crash in `VitalInfoSampler`. See [#1216][] (Thanks [@cltnschlosser][])
 - [IMPROVEMENT] Fix Xcode analysis warning. See [#1220][]
 - [BUGFIX] Send crashes to both RUM and Logs. See [#1209][]
 
 # 1.16.0 / 02-03-2023
+
 - [IMPROVEMENT] Always create an ApplicationLaunch view on session initialization. See [#1160][]
 - [BUGFIX] Remove the data race caused by sampling on the RUM thread. See [#1177][] (Thanks [@cltnschlosser][])
 - [BUGFIX] Add ability to adjust configuration telemetry sampling rate. See [#1188][]
@@ -416,7 +425,6 @@ Release `2.0` introduces breaking changes. Follow the [Migration Guide](MIGRATIO
 - [IMPROVEMENT] Add a method to add user info properties. See [#1031][]
 - [BUGFIX] Fix vitals default presets. See [#1043][]
 - [IMPROVEMENT] Add logging sampling. See [#1045][]
-
 
 # 1.12.1 / 18-10-2022
 
@@ -1039,8 +1047,7 @@ Release `2.0` introduces breaking changes. Follow the [Migration Guide](MIGRATIO
 [#2647]: https://github.com/DataDog/dd-sdk-ios/pull/2647
 [#2640]: https://github.com/DataDog/dd-sdk-ios/pull/2640
 [#2639]: https://github.com/DataDog/dd-sdk-ios/pull/2639
-[#2654]: https://github.com/DataDog/dd-sdk-ios/pull/2654 
-
+[#2654]: https://github.com/DataDog/dd-sdk-ios/pull/2654
 [@00fa9a]: https://github.com/00FA9A
 [@britton-earnin]: https://github.com/Britton-Earnin
 [@hengyu]: https://github.com/Hengyu

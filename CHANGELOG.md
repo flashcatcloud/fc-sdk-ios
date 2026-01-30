@@ -2,6 +2,8 @@
 
 > Flashcat SDK 基于 [Datadog iOS SDK](https://github.com/DataDog/dd-sdk-ios) 构建，采用独立版本号体系。  
 > 每个版本对应的 upstream Datadog 版本见各版本说明。
+> Flashcat SDK is built on [Datadog iOS SDK](https://github.com/DataDog/dd-sdk-ios) with independent versioning.  
+> Each version corresponds to an upstream Datadog version as noted in the release description.
 
 ---
 
@@ -39,11 +41,36 @@
 - 默认 Site 从 `.us1` 更改为 `.cn`
 - 禁用模块：`DatadogLogs`、`DatadogSessionReplay`、`DatadogFlags`、`DatadogProfiling`
 - 所有 podspec 和 SPM products 使用 Flashcat 命名
+- Device hardware info: logical CPU cores count (`logical_cpu_count`) and total RAM (`total_ram`)
+- Trace Sampling Decision mechanism with manual keep/drop support
+- CrossPlatformExtension with SharedContext support
+- RUM auto-instrumentation for Alerts, Confirmation Dialogs and Action Sheets
+- TTID (Time To Initial Display) and TTFD (Time To Full Display) metrics
+
+### Changed
+
+- Crash Reporting plugin migrated from PLCrashReporter to KSCrash 2.5.1
+- OpenTelemetryApi upgraded to 2.3.0
+- Session Replay screen change monitoring mechanism optimized
+- Slow Frames (View Hitches) tracking enabled by default
+
+### Fixed
+
+- Fixed duplicate file references in Xcode project (TraceCoreContext.swift, TraceID.swift)
+- Fixed crash in App Hangs backtrace generation
+
+### Flashcat Specific
+
+- Site configuration type renamed to `FlashcatSite` (supports `.cn` and `.staging`)
+- Default site changed from `.us1` to `.cn`
+- Disabled modules: `DatadogLogs`, `DatadogSessionReplay`, `DatadogFlags`, `DatadogProfiling`
+- All podspecs and SPM products use Flashcat naming
 
 ### Breaking Changes
 
 - `DatadogSite` → `FlashcatSite`
 - 默认 endpoint 改为 `flashcat.cloud`
+- Default endpoint changed to `flashcat.cloud`
 
 ---
 
@@ -63,6 +90,16 @@
 - 所有 podspec 重命名为 `Flashcat*.podspec` 格式
 - SPM Package 名称改为 `Flashcat`
 - 默认 Site 设为 `.cn`
+- Initial fork from Datadog iOS SDK
+- FlashcatSite configuration for China region endpoints
+- Flashcat branding (FlashcatCore, FlashcatTrace, FlashcatRUM, etc.)
+- GitHub Actions Release workflow
+
+### Changed
+
+- All podspecs renamed to `Flashcat*.podspec` format
+- SPM Package name changed to `Flashcat`
+- Default site set to `.cn`
 
 ### Disabled Modules
 
@@ -83,6 +120,7 @@
 ## Upstream Changelog
 
 完整的 Datadog iOS SDK 变更历史请参见 [CHANGELOG-UPSTREAM.md](./CHANGELOG-UPSTREAM.md)。
+For complete Datadog iOS SDK changelog, see [CHANGELOG-UPSTREAM.md](./CHANGELOG-UPSTREAM.md).
 
 ---
 
