@@ -21,7 +21,7 @@ extension Datadog.Configuration: AnyMockable {
     public static func mockWith(
         clientToken: String = .mockAny(),
         env: String = .mockAny(),
-        site: DatadogSite = .us1,
+        site: FlashcatSite = .cn,
         service: String? = .mockAny(),
         bundle: Bundle = .main,
         batchSize: BatchSize = .medium,

@@ -473,7 +473,7 @@ internal class CoreFeatureScope<Feature>: @unchecked Sendable, FeatureScope wher
 extension DatadogContextProvider {
     /// Creates a core context provider with the given configuration,
     convenience init(
-        site: DatadogSite,
+        site: FlashcatSite,
         clientToken: String,
         service: String,
         env: String,

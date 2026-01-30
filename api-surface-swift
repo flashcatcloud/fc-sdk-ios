@@ -46,7 +46,7 @@ public enum Datadog
             case high
         public var clientToken: String
         public var env: String
-        public var site: DatadogSite
+        public var site: FlashcatSite
         public var service: String?
         public var version: String?
         public var batchSize: BatchSize

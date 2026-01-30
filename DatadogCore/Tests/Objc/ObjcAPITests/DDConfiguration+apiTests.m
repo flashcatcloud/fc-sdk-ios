@@ -39,12 +39,8 @@
 #pragma clang diagnostic ignored "-Wunused-value"
 
 - (void)testDDSiteAPI {
-    [DDSite eu1];
-    [DDSite us1];
-    [DDSite us1];
-    [DDSite us1_fed];
-    [DDSite us3];
-    [DDSite us5];
+    [DDSite cn];
+    [DDSite staging];
 }
 
 - (void)testDDBatchSizeAPI {
@@ -58,7 +54,7 @@
 - (void)testDDConfigurationBuilderAPI {
     DDConfiguration *configuration = [[DDConfiguration alloc] initWithClientToken:@"abc" env:@"def"];
 
-    configuration.site = [DDSite us1];
+    configuration.site = [DDSite cn];
     configuration.service = @"";
     configuration.bundle = [NSBundle mainBundle];
     configuration.batchSize = DDBatchSizeMedium;

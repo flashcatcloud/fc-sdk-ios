@@ -116,6 +116,22 @@ public enum Benchmarks {
     ///
     /// - Parameter configuration: The Benchmark configuration.
     public static func tracerProvider(with configuration: Configuration) -> TracerProvider {
-        return NOPTracerProvider()
+        let exporterConfiguration = ExporterConfiguration(
+            serviceName: configuration.context.applicationIdentifier,
+            resource: "Benchmark Tracer",
+            applicationName: configuration.context.applicationName,
+            applicationVersion: configuration.context.applicationVersion,
+            environment: "benchmarks",
+            apiKey: configuration.apiKey,
+            endpoint: .cn,
+            uploadCondition: { true }
+        )
+
+        let exporter = try! DatadogExporter(config: exporterConfiguration)
+        let processor = SimpleSpanProcessor(spanExporter: exporter)
+
+        return TracerProviderBuilder()
+            .add(spanProcessor: processor)
+            .build()
     }
 }

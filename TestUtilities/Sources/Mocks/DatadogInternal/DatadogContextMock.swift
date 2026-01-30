@@ -11,7 +11,7 @@ extension DatadogContext: AnyMockable, RandomMockable {
     public static func mockAny() -> DatadogContext { mockWith() }
 
     public static func mockWith(
-        site: DatadogSite = .mockAny(),
+        site: FlashcatSite = .mockAny(),
         clientToken: String = .mockAny(),
         service: String = .mockAny(),
         env: String = .mockAny(),
@@ -114,13 +114,13 @@ extension DatadogContext: AnyMockable, RandomMockable {
     }
 }
 
-extension DatadogSite: AnyMockable, RandomMockable {
+extension FlashcatSite: AnyMockable, RandomMockable {
     public static func mockAny() -> Self {
-        return .us1
+        return .cn
     }
 
     public static func mockRandom() -> Self {
-        return [.us1, .us3, .us5, .eu1, .ap1, .ap2, .us1_fed].randomElement()!
+        return [.cn, .staging].randomElement()!
     }
 }
 

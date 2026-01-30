@@ -36,19 +36,14 @@ class ResourceRequestBuilderTests: XCTestCase {
         let builder = ResourceRequestBuilder(customUploadURL: nil, telemetry: TelemetryMock())
 
         // When
-        func url(for site: DatadogSite) throws -> String {
+        func url(for site: FlashcatSite) throws -> String {
             let request = try builder.request(for: mockEvents, with: .mockWith(site: site), execution: .mockAny())
             return request.url!.absoluteStringWithoutQuery!
         }
 
         // Then
-        XCTAssertEqual(try url(for: .us1), "https://browser-intake-datadoghq.com/api/v2/replay")
-        XCTAssertEqual(try url(for: .us3), "https://browser-intake-us3-datadoghq.com/api/v2/replay")
-        XCTAssertEqual(try url(for: .us5), "https://browser-intake-us5-datadoghq.com/api/v2/replay")
-        XCTAssertEqual(try url(for: .eu1), "https://browser-intake-datadoghq.eu/api/v2/replay")
-        XCTAssertEqual(try url(for: .ap1), "https://browser-intake-ap1-datadoghq.com/api/v2/replay")
-        XCTAssertEqual(try url(for: .ap2), "https://browser-intake-ap2-datadoghq.com/api/v2/replay")
-        XCTAssertEqual(try url(for: .us1_fed), "https://browser-intake-ddog-gov.com/api/v2/replay")
+        XCTAssertEqual(try url(for: .cn), "https://browser.flashcat.cloud/api/v2/replay")
+        XCTAssertEqual(try url(for: .staging), "https://jira.flashcat.cloud/api/v2/replay")
     }
 
     func testItSetsCustomIntakeURL() {
@@ -57,20 +52,15 @@ class ResourceRequestBuilderTests: XCTestCase {
         let builder = ResourceRequestBuilder(customUploadURL: randomURL, telemetry: TelemetryMock())
 
         // When
-        func url(for site: DatadogSite) throws -> String {
+        func url(for site: FlashcatSite) throws -> String {
             let request = try builder.request(for: mockEvents, with: .mockWith(site: site), execution: .mockAny())
             return request.url!.absoluteStringWithoutQuery!
         }
 
         // Then
         let expectedURL = randomURL.absoluteStringWithoutQuery
-        XCTAssertEqual(try url(for: .us1), expectedURL)
-        XCTAssertEqual(try url(for: .us3), expectedURL)
-        XCTAssertEqual(try url(for: .us5), expectedURL)
-        XCTAssertEqual(try url(for: .eu1), expectedURL)
-        XCTAssertEqual(try url(for: .ap1), expectedURL)
-        XCTAssertEqual(try url(for: .ap2), expectedURL)
-        XCTAssertEqual(try url(for: .us1_fed), expectedURL)
+        XCTAssertEqual(try url(for: .cn), expectedURL)
+        XCTAssertEqual(try url(for: .staging), expectedURL)
     }
 
     func testItSetsQueryParameters() throws {
