@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatLogs"
   s.module_name  = "DatadogLogs"
-  s.version      = "3.3.0"
+  s.version      = "0.4.0"
   s.summary      = "Datadog Logs Module."
 
   s.homepage     = "https://www.datadoghq.com"

@@ -16,7 +16,7 @@ class RUMViewScopeTests: XCTestCase {
         version: "test-version",
         buildNumber: "test-build",
         buildId: .mockRandom(),
-        device: .mockWith(name: "device-name"),
+        device: .mockWith(name: "device-name", logicalCpuCount: 4, totalRam: 2_048),
         os: .mockWith(
             name: "device-os",
             version: "os-version",
@@ -93,76 +93,6 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(scope.context.activeUserActionID, try XCTUnwrap(scope.userActionScope?.actionUUID))
     }
 
-    func testWhenConfigurationSourceIsSet_applicationStartUsesTheConfigurationSource() throws {
-        // Given
-        let currentTime: Date = .mockDecember15th2019At10AMUTC()
-        let source = String.mockAnySource()
-        let customContext: DatadogContext = .mockWith(
-            source: source,
-            launchInfo: .mockWith(processLaunchDate: currentTime),
-            applicationStateHistory: .mockWith(initialState: .inactive, date: .distantPast)
-        )
-
-        let scope = RUMViewScope(
-            isInitialView: true,
-            parent: parent,
-            dependencies: .mockAny(),
-            identity: .mockViewIdentifier(),
-            path: "com/datadog/application-launch/view",
-            name: "ApplicationLaunch",
-            customTimings: [:],
-            startTime: currentTime,
-            serverTimeOffset: .zero,
-            interactionToNextViewMetric: INVMetricMock(),
-            viewIndexInSession: .mockAny()
-        )
-
-        // When
-        _ = scope.process(
-            command: RUMApplicationStartCommand(time: currentTime, attributes: [:]),
-            context: customContext,
-            writer: writer
-        )
-
-        // Then
-        let event = try XCTUnwrap(writer.events(ofType: RUMActionEvent.self).first)
-        XCTAssertEqual(event.source, .init(rawValue: source))
-    }
-
-    func testWhenTimeToDidBecomeActiveTime_itSendsApplicationStartAction_basedOnLoadingDate() throws {
-        // Given
-        var context = self.context
-        let date = context.sdkInitDate
-        let processLaunchDate = date.addingTimeInterval(-2)
-        context.launchInfo = .mockWith(
-            launchReason: .userLaunch,
-            processLaunchDate: processLaunchDate,
-            timeToDidBecomeActive: nil
-        )
-        context.applicationStateHistory = .mockWith(initialState: .inactive, date: .distantPast)
-
-        let scope: RUMViewScope = .mockWith(
-            isInitialView: true,
-            parent: parent,
-            dependencies: .mockAny(),
-            identity: .mockViewIdentifier(),
-            path: "com/datadog/application-launch/view",
-            name: "ApplicationLaunch",
-            startTime: processLaunchDate
-        )
-
-        // When
-        _ = scope.process(
-            command: RUMApplicationStartCommand(time: date.addingTimeInterval(1), attributes: [:]),
-            context: context,
-            writer: writer
-        )
-
-        // Then
-        let event = try XCTUnwrap(writer.events(ofType: RUMActionEvent.self).first)
-        XCTAssertEqual(event.action.loadingTime, 3_000_000_000) // 2e+9 ns
-    }
-
     func testWhenInitialViewReceivesAnyCommand_itSendsViewUpdateEvent() throws {
         let currentTime: Date = .mockDecember15th2019At10AMUTC()
         let scope = RUMViewScope(
@@ -182,9 +112,17 @@ class RUMViewScopeTests: XCTestCase {
         )
 
         let hasReplay: Bool = .mockRandom()
+        let traceSampleRate: SampleRate = .mockRandom(min: 0, max: 100)
+        let sessionReplaySampleRate: SampleRate = .mockRandom(min: 0, max: 100)
+        let startRecordingManually: Bool = .random()
         var context = self.context
         context.set(additionalContext: SessionReplayCoreContext.HasReplay(value: hasReplay))
         context.set(additionalContext: SessionReplayCoreContext.RecordsCount(value: [scope.viewUUID.toRUMDataFormat: 1]))
+        context.set(additionalContext: TraceCoreContext.Configuration(sampleRate: traceSampleRate))
+        context.set(additionalContext: SessionReplayCoreContext.Configuration(
+            sampleRate: sessionReplaySampleRate,
+            startRecordingManually: startRecordingManually
+        ))
 
         _ = scope.process(
             command: RUMCommandMock(time: currentTime),
@@ -210,6 +148,9 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.view.networkSettledTime, 420_000_000)
         XCTAssertEqual(event.view.interactionToNextViewTime, 840_000_000)
         XCTAssertEqual(event.dd.documentVersion, 1)
+        XCTAssertEqual(event.dd.configuration?.traceSampleRate, Double(traceSampleRate))
+        XCTAssertEqual(event.dd.configuration?.sessionReplaySampleRate, Double(sessionReplaySampleRate))
+        XCTAssertEqual(event.dd.configuration?.startSessionReplayRecordingManually, startRecordingManually)
         XCTAssertEqual(event.dd.session?.plan, .plan1, "All RUM events should use RUM Lite plan")
         XCTAssertEqual(event.source, .ios)
         XCTAssertEqual(event.service, "test-service")
@@ -217,6 +158,8 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.buildVersion, "test-build")
         XCTAssertEqual(event.buildId, context.buildId)
         XCTAssertEqual(event.device?.name, "device-name")
+        XCTAssertEqual(event.device?.logicalCpuCount, 4)
+        XCTAssertEqual(event.device?.totalRam, 2_048)
         XCTAssertEqual(event.os?.name, "device-os")
         XCTAssertEqual(event.os?.version, "os-version")
         XCTAssertEqual(event.os?.build, "os-build")
@@ -305,6 +248,8 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.buildVersion, "test-build")
         XCTAssertEqual(event.buildId, context.buildId)
         XCTAssertEqual(event.device?.name, "device-name")
+        XCTAssertEqual(event.device?.logicalCpuCount, 4)
+        XCTAssertEqual(event.device?.totalRam, 2_048)
         XCTAssertEqual(event.os?.name, "device-os")
         XCTAssertEqual(event.os?.version, "os-version")
         XCTAssertEqual(event.os?.build, "os-build")
@@ -380,6 +325,8 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.buildVersion, "test-build")
         XCTAssertEqual(event.buildId, context.buildId)
         XCTAssertEqual(event.device?.name, "device-name")
+        XCTAssertEqual(event.device?.logicalCpuCount, 4)
+        XCTAssertEqual(event.device?.totalRam, 2_048)
         XCTAssertEqual(event.os?.name, "device-os")
         XCTAssertEqual(event.os?.version, "os-version")
         XCTAssertEqual(event.os?.build, "os-build")
@@ -515,6 +462,8 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.buildVersion, "test-build")
         XCTAssertEqual(event.buildId, context.buildId)
         XCTAssertEqual(event.device?.name, "device-name")
+        XCTAssertEqual(event.device?.logicalCpuCount, 4)
+        XCTAssertEqual(event.device?.totalRam, 2_048)
         XCTAssertEqual(event.os?.name, "device-os")
         XCTAssertEqual(event.os?.version, "os-version")
         XCTAssertEqual(event.os?.build, "os-build")
@@ -593,6 +542,8 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.buildVersion, "test-build")
         XCTAssertEqual(event.buildId, context.buildId)
         XCTAssertEqual(event.device?.name, "device-name")
+        XCTAssertEqual(event.device?.logicalCpuCount, 4)
+        XCTAssertEqual(event.device?.totalRam, 2_048)
         XCTAssertEqual(event.os?.name, "device-os")
         XCTAssertEqual(event.os?.version, "os-version")
         XCTAssertEqual(event.os?.build, "os-build")
@@ -656,6 +607,8 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.buildVersion, "test-build")
         XCTAssertEqual(event.buildId, context.buildId)
         XCTAssertEqual(event.device?.name, "device-name")
+        XCTAssertEqual(event.device?.logicalCpuCount, 4)
+        XCTAssertEqual(event.device?.totalRam, 2_048)
         XCTAssertEqual(event.os?.name, "device-os")
         XCTAssertEqual(event.os?.version, "os-version")
         XCTAssertEqual(event.os?.build, "os-build")
@@ -849,7 +802,7 @@ class RUMViewScopeTests: XCTestCase {
         viewEvents.forEach { XCTAssertEqual($0.dd.session?.sessionPrecondition, randomPrecondition) }
 
         let actionEvents = writer.events(ofType: RUMActionEvent.self)
-        XCTAssertGreaterThan(actionEvents.count, 1)
+        XCTAssertEqual(actionEvents.count, 1)
         actionEvents.forEach { XCTAssertEqual($0.dd.session?.sessionPrecondition, randomPrecondition) }
 
         let errorEvents = writer.events(ofType: RUMErrorEvent.self)
@@ -2158,6 +2111,7 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(error.view.name, "ViewName")
         XCTAssertNil(error.usr)
         XCTAssertNil(error.connectivity)
+        DDTAssertValidRUMUUID(error.error.id)
         XCTAssertEqual(error.error.type, "abc")
         XCTAssertEqual(error.error.message, "view error")
         XCTAssertEqual(error.error.category, .exception)
@@ -2273,6 +2227,7 @@ class RUMViewScopeTests: XCTestCase {
         wait(for: [completionExpectation], timeout: 0)
 
         let error = try XCTUnwrap(writer.events(ofType: RUMErrorEvent.self).last)
+        DDTAssertValidRUMUUID(error.error.id)
         XCTAssertEqual(error.error.sourceType, expectedSourceType)
         XCTAssertTrue(error.error.isCrash ?? false)
         XCTAssertEqual(error.source, expectedSource)
@@ -2940,6 +2895,7 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(error.date, Date.mockDecember15th2019At10AMUTC(addingTimeInterval: 1).timeIntervalSince1970.dd.toInt64Milliseconds)
         XCTAssertEqual(error.view.url, "UIViewController")
         XCTAssertEqual(error.view.name, "ViewName")
+        DDTAssertValidRUMUUID(error.error.id)
         XCTAssertEqual(error.error.message, "App Hang")
         XCTAssertEqual(error.error.type, "AppHang")
         XCTAssertEqual(error.error.stack, "<hang stack>")
@@ -3008,6 +2964,7 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.date, longTaskStartingDate.timeIntervalSince1970.dd.toInt64Milliseconds)
         XCTAssertEqual(event.dd.session?.plan, .plan1)
         XCTAssertEqual(event.source, .ios)
+        DDTAssertValidRUMUUID(event.longTask.id)
         XCTAssertEqual(event.longTask.duration, (1.0).dd.toInt64Nanoseconds)
         XCTAssertTrue(event.longTask.isFrozenFrame == true)
         XCTAssertEqual(event.view.id, scope.viewUUID.toRUMDataFormat)
@@ -3017,6 +2974,8 @@ class RUMViewScopeTests: XCTestCase {
         XCTAssertEqual(event.buildVersion, "test-build")
         XCTAssertEqual(event.buildId, context.buildId)
         XCTAssertEqual(event.device?.name, "device-name")
+        XCTAssertEqual(event.device?.logicalCpuCount, 4)
+        XCTAssertEqual(event.device?.totalRam, 2_048)
         XCTAssertEqual(event.os?.name, "device-os")
         XCTAssertEqual(event.os?.version, "os-version")
         XCTAssertEqual(event.os?.build, "os-build")
@@ -3606,9 +3565,7 @@ class RUMViewScopeTests: XCTestCase {
                 resourceEventMapper: {
                     resourceMapperHolder.resourceEventMapper?($0)
                 },
-                actionEventMapper: { event in
-                    event.action.type == .applicationStart ? event : nil
-                }
+                actionEventMapper: { _ in nil }
             )
         )
         let dependencies: RUMScopeDependencies = .mockWith(

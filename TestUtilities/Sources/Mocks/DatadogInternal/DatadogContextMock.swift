@@ -31,7 +31,7 @@ extension DatadogContext: AnyMockable, RandomMockable {
         device: DeviceInfo = .mockAny(),
         os: OperatingSystem = .mockAny(),
         localeInfo: LocaleInfo = .mockAny(),
-        userInfo: UserInfo = .mockAny(),
+        userInfo: UserInfo? = .mockAny(),
         accountInfo: AccountInfo? = nil,
         trackingConsent: TrackingConsent = .pending,
         launchInfo: LaunchInfo = .mockAny(),
@@ -173,7 +173,9 @@ extension DeviceInfo {
         isSimulator: Bool = true,
         vendorId: String? = "xyz",
         isDebugging: Bool = false,
-        systemBootTime: TimeInterval = Date.timeIntervalSinceReferenceDate
+        systemBootTime: TimeInterval = Date.timeIntervalSinceReferenceDate,
+        logicalCpuCount: Double = 6,
+        totalRam: Double = 2_048
     ) -> DeviceInfo {
         .init(
             name: name,
@@ -183,7 +185,9 @@ extension DeviceInfo {
             isSimulator: isSimulator,
             vendorId: vendorId,
             isDebugging: isDebugging,
-            systemBootTime: systemBootTime
+            systemBootTime: systemBootTime,
+            logicalCpuCount: logicalCpuCount,
+            totalRam: totalRam
         )
     }
 
@@ -196,7 +200,9 @@ extension DeviceInfo {
             isSimulator: .mockRandom(),
             vendorId: .mockRandom(),
             isDebugging: .mockRandom(),
-            systemBootTime: .mockRandom()
+            systemBootTime: .mockRandom(),
+            logicalCpuCount: .mockRandom(),
+            totalRam: .mockRandom()
         )
     }
 }
@@ -251,7 +257,10 @@ extension LaunchInfo: AnyMockable, RandomMockable {
         return .init(
             launchReason: .mockAny(),
             processLaunchDate: .mockAny(),
-            timeToDidBecomeActive: .mockAny(),
+            runtimeLoadDate: .mockAny(),
+            runtimePreMainDate: .mockAny(),
+            didFinishLaunchingDate: .mockAny(),
+            didBecomeActiveDate: .mockAny(),
             raw: .mockAny()
         )
     }
@@ -259,13 +268,19 @@ extension LaunchInfo: AnyMockable, RandomMockable {
     public static func mockWith(
         launchReason: LaunchReason = .mockAny(),
         processLaunchDate: Date = Date(),
-        timeToDidBecomeActive: TimeInterval? = 1,
+        runtimeLoadDate: Date = Date(),
+        runtimePreMainDate: Date = Date(),
+        didFinishLaunchingDate: Date? = Date(),
+        didBecomeActiveDate: Date? = Date(),
         raw: LaunchInfo.Raw = .mockAny()
     ) -> LaunchInfo {
         return .init(
             launchReason: launchReason,
             processLaunchDate: processLaunchDate,
-            timeToDidBecomeActive: timeToDidBecomeActive,
+            runtimeLoadDate: runtimeLoadDate,
+            runtimePreMainDate: runtimePreMainDate,
+            didFinishLaunchingDate: didFinishLaunchingDate,
+            didBecomeActiveDate: didBecomeActiveDate,
             raw: raw
         )
     }
@@ -274,7 +289,10 @@ extension LaunchInfo: AnyMockable, RandomMockable {
         return .init(
             launchReason: .mockRandom(),
             processLaunchDate: .mockRandom(),
-            timeToDidBecomeActive: .mockRandom(),
+            runtimeLoadDate: .mockRandom(),
+            runtimePreMainDate: .mockRandom(),
+            didFinishLaunchingDate: .mockRandom(),
+            didBecomeActiveDate: .mockRandom(),
             raw: .mockRandom()
         )
     }
@@ -430,7 +448,7 @@ extension BatteryStatus: AnyMockable, RandomMockable {
     }
 }
 
-extension TrackingConsent {
+extension TrackingConsent: RandomMockable {
     public static func mockRandom() -> TrackingConsent {
         return [.granted, .notGranted, .pending].randomElement()!
     }

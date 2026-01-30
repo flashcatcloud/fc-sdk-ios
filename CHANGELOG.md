@@ -1,14 +1,38 @@
 # Unreleased
 
-- [FEATURE] Add support for configuring a custom version parameter in DatadogConfiguration. See [#2585][] (Thanks [@blimmer][])
+# 3.6.0 / 28-01-2026
+
+- [FEATURE] Add `DatadogProfiling` module to profile app launches. See [#2654][]
+- [IMPROVEMENT] Add `DDLogEventUserInfo.anonymousId` property in ObjC API. See [#2640][]
+- [FEATURE] Support manually keeping or dropping a trace. See [#2639][]
+
+# 3.5.1 / 23-01-2026
+
+- [FIX] Fix crash in App Hangs backtrace generation. See [#2647][]
+
+# 3.5.0 / 12-01-2026
+
+- [FEATURE] Report time to initial display (TTID). See [#2517][] [#2464][] 
+- [FEATURE] Add public API to report time to full display (TTFD). See [#2522][]
+- [IMPROVEMENT] Remove `application_start` action from `ApplicationLaunch`. See [#2533][]
+- [FEATURE] Track Slow Frames (view hitches) by default. See [#2631][]
+- [IMPROVEMENT] Upgrade `DatadogTrace` to OpenTelemetryApi 2.3.0. See [#2614][]
+- [IMPROVEMENT] RUM auto-instrumentation now supports Alerts, Confirmation Dialogs and Action Sheets. See [#2612][]
+- [IMPROVEMENT] Replace `PLCrashReporter` by `KSCrash` as `DatadogCrashReporting plugin. See [#2633][]
+
+# 3.4.0 / 10-12-2025
+
+- [FEATURE] Add support for configuring a custom version parameter in `DatadogConfiguration`. See [#2585][] (Thanks [@blimmer][])
+- [FEATURE] Add support for SwiftUI vector image assets in Session Replay. See [#2599][]
 - [IMPROVEMENT] Provide XCFramework without arm64e slice for Xcode 26+ compatibility. See [#2576][]
-- [FIX] Add service and sdk_version tags to log requests. See [#2598][]
+- [IMPROVEMENT] Refactor public extensions on common types in `DatadogInternal` to use the `.dd` namespace pattern, preventing namespace collisions with customer code. See [#2587][]
+- [FIX] Add service and `sdk_version` tags to log requests. See [#2598][]
 
 # 3.3.0 / 17-11-2025
 
 - [FIX] Fix tracing header injection for sampled out requests. See [#2473][]
 - [FIX] Remove GraphQL headers from request after processing it. See [#2566][]
-- [FEATURE] Support errors for GraphQL requests. See [#2552]
+- [FEATURE] Support errors for GraphQL requests. See [#2552][]
 
 # 3.2.0 / 30-10-2025
 
@@ -982,18 +1006,33 @@ Release `2.0` introduces breaking changes. Follow the [Migration Guide](MIGRATIO
 [#2463]: https://github.com/DataDog/dd-sdk-ios/pull/2463
 [#2410]: https://github.com/DataDog/dd-sdk-ios/pull/2410
 [#2436]: https://github.com/DataDog/dd-sdk-ios/pull/2436
+[#2464]: https://github.com/DataDog/dd-sdk-ios/pull/2464
 [#2469]: https://github.com/DataDog/dd-sdk-ios/pull/2469
 [#2473]: https://github.com/DataDog/dd-sdk-ios/pull/2473
 [#2474]: https://github.com/DataDog/dd-sdk-ios/pull/2474
 [#2501]: https://github.com/DataDog/dd-sdk-ios/pull/2501
-[#2530]: https://github.com/DataDog/dd-sdk-ios/pull/2530
-[#2538]: https://github.com/DataDog/dd-sdk-ios/pull/2538
-[#2532]: https://github.com/DataDog/dd-sdk-ios/pull/2532
 [#2514]: https://github.com/DataDog/dd-sdk-ios/pull/2514
+[#2517]: https://github.com/DataDog/dd-sdk-ios/pull/2517
+[#2522]: https://github.com/DataDog/dd-sdk-ios/pull/2522
+[#2530]: https://github.com/DataDog/dd-sdk-ios/pull/2530
+[#2532]: https://github.com/DataDog/dd-sdk-ios/pull/2532
+[#2533]: https://github.com/DataDog/dd-sdk-ios/pull/2533
+[#2538]: https://github.com/DataDog/dd-sdk-ios/pull/2538
 [#2552]: https://github.com/DataDog/dd-sdk-ios/pull/2552
 [#2566]: https://github.com/DataDog/dd-sdk-ios/pull/2566
 [#2576]: https://github.com/DataDog/dd-sdk-ios/pull/2576
 [#2585]: https://github.com/DataDog/dd-sdk-ios/pull/2585
+[#2587]: https://github.com/DataDog/dd-sdk-ios/pull/2587
+[#2598]: https://github.com/DataDog/dd-sdk-ios/pull/2598
+[#2599]: https://github.com/DataDog/dd-sdk-ios/pull/2599
+[#2612]: https://github.com/DataDog/dd-sdk-ios/pull/2612
+[#2614]: https://github.com/DataDog/dd-sdk-ios/pull/2614
+[#2631]: https://github.com/DataDog/dd-sdk-ios/pull/2631
+[#2633]: https://github.com/DataDog/dd-sdk-ios/pull/2633
+[#2647]: https://github.com/DataDog/dd-sdk-ios/pull/2647
+[#2640]: https://github.com/DataDog/dd-sdk-ios/pull/2640
+[#2639]: https://github.com/DataDog/dd-sdk-ios/pull/2639
+[#2654]: https://github.com/DataDog/dd-sdk-ios/pull/2654 
 
 [@00fa9a]: https://github.com/00FA9A
 [@britton-earnin]: https://github.com/Britton-Earnin

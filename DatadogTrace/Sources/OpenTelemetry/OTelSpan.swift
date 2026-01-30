@@ -128,7 +128,7 @@ internal class OTelSpan: OpenTelemetryApi.Span {
                 parentSpanID: parentSpanID?.toDatadog(),
                 baggageItems: .init(),
                 sampleRate: tracer.localTraceSampler.samplingRate,
-                isKept: tracer.localTraceSampler.sample()
+                samplingDecision: SamplingDecision(sampling: tracer.localTraceSampler)
             ),
             operationName: name,
             startTime: startTime,
@@ -232,5 +232,17 @@ internal class OTelSpan: OpenTelemetryApi.Span {
         }
 
         attributes[key] = value
+    }
+
+    func setAttributes(_ attributes: [String: OpenTelemetryApi.AttributeValue]) {
+        guard isRecording else {
+            return
+        }
+
+        _attributes.mutate {
+            for (key, value) in attributes {
+                $0[key] = value
+            }
+        }
     }
 }
