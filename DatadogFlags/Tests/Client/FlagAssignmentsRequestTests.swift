@@ -25,6 +25,7 @@ final class FlagAssignmentsRequestTests: XCTestCase {
         let context = DatadogContext.mockWith(
             clientToken: "test-token",
             env: "production",
+            sdkVersion: "3.5.1",
             additionalContext: [RUMCoreContext.mockWith(applicationID: "test-app-id")]
         )
         let customHeaders = ["X-Custom-Header": "custom-value"]
@@ -35,6 +36,10 @@ final class FlagAssignmentsRequestTests: XCTestCase {
               "env" : {
                 "dd_env" : "production",
                 "name" : "production"
+              },
+              "source" : {
+                "sdk_name" : "dd-sdk-ios",
+                "sdk_version" : "3.5.1"
               },
               "subject" : {
                 "targeting_attributes" : {
@@ -61,6 +66,7 @@ final class FlagAssignmentsRequestTests: XCTestCase {
         XCTAssertEqual(request.url, testURL)
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/vnd.api+json")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Accept-Encoding"), "gzip, deflate, br")
         XCTAssertEqual(request.value(forHTTPHeaderField: "dd-client-token"), "test-token")
         XCTAssertEqual(request.value(forHTTPHeaderField: "dd-application-id"), "test-app-id")
         XCTAssertEqual(request.value(forHTTPHeaderField: "X-Custom-Header"), "custom-value")

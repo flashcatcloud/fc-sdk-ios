@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatTestUtilities"
   s.module_name  = "TestUtilities"
-  s.version      = "0.3.0"
+  s.version      = "0.4.0"
   s.summary      = "Flashcat iOS SDK - Testing Utilities (for internal testing only)."
 
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"

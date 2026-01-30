@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatWebViewTracking"
   s.module_name  = "DatadogWebViewTracking"
-  s.version      = "0.3.0"
+  s.version      = "0.4.0"
   s.summary      = "Flashcat iOS SDK - WebView Tracking module."
 
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"

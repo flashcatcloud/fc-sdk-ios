@@ -15,10 +15,6 @@ import Foundation
 // the API and SDK packages (see https://github.com/open-telemetry/opentelemetry-swift/issues/486).
 let useOTelSwiftPackage = ProcessInfo.processInfo.environment["OTEL_SWIFT"] != nil
 
-let opentelemetry = useOTelSwiftPackage ?
-    (name: "opentelemetry-swift", url: "https://github.com/open-telemetry/opentelemetry-swift.git", version: Version("1.13.0")) :
-    (name: "opentelemetry-swift-packages", url: "https://github.com/DataDog/opentelemetry-swift-packages.git", version: Version("1.13.1"))
-
 // `dd-sdk-ios` supports a broader range of platform versions than `OpenTelemetryApi`.
 // When compiled in `OTEL_SWIFT` mode, we need to adjust the supported platforms accordingly.
 let platforms: [SupportedPlatform] = useOTelSwiftPackage ?
@@ -54,8 +50,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/microsoft/plcrashreporter.git", from: "1.12.0"),
-        .package(url: opentelemetry.url, exact: opentelemetry.version),
+        .package(url: "https://github.com/kstenerud/KSCrash.git", from: "2.5.0"),
+        .package(url: "https://github.com/open-telemetry/opentelemetry-swift-core", .upToNextMinor(from: "2.3.0")),
     ],
     targets: [
         .target(
@@ -110,7 +106,7 @@ let package = Package(
             name: "DatadogTrace",
             dependencies: [
                 .target(name: "DatadogInternal"),
-                .product(name: "OpenTelemetryApi", package: opentelemetry.name)
+                .product(name: "OpenTelemetryApi", package: "opentelemetry-swift-core")
             ],
             path: "DatadogTrace/Sources"
         ),
@@ -147,7 +143,8 @@ let package = Package(
             name: "DatadogCrashReporting",
             dependencies: [
                 .target(name: "DatadogInternal"),
-                .product(name: "CrashReporter", package: "PLCrashReporter"),
+                .product(name: "Recording", package: "KSCrash"),
+                .product(name: "Filters", package: "KSCrash")
             ],
             path: "DatadogCrashReporting",
             sources: ["Sources"],
@@ -196,22 +193,51 @@ let package = Package(
                 .process("Resources/Assets.xcassets")
             ]
         ),
-
-        .target(
-            name: "DatadogFlags",
-            dependencies: [
-                .target(name: "DatadogInternal"),
-            ],
-            path: "DatadogFlags/Sources"
-        ),
-        .testTarget(
-            name: "DatadogFlagsTests",
-            dependencies: [
-                .target(name: "DatadogFlags"),
-                .target(name: "TestUtilities"),
-            ],
-            path: "DatadogFlags/Tests"
-        ),
+        
+        // DatadogProfiling and DatadogFlags are disabled for Flashcat
+        // .target(
+        //     name: "DatadogProfiling",
+        //     dependencies: [
+        //         .target(name: "DatadogInternal"),
+        //         .target(name: "DatadogMachProfiler")
+        //     ],
+        //     path: "DatadogProfiling/Sources",
+        //     resources: [
+        //         .copy("Resources/PrivacyInfo.xcprivacy")
+        //     ],
+        //     swiftSettings: internalSwiftSettings
+        // ),
+        // .target(
+        //     name: "DatadogMachProfiler",
+        //     path: "DatadogProfiling/Mach",
+        //     cxxSettings: [.unsafeFlags(["-std=c++17"])]
+        // ),
+        // .testTarget(
+        //     name: "DatadogProfilingTests",
+        //     dependencies: [
+        //         .target(name: "DatadogMachProfiler"),
+        //         .target(name: "DatadogProfiling"),
+        //         .target(name: "TestUtilities"),
+        //     ],
+        //     path: "DatadogProfiling/Tests",
+        //     swiftSettings: [.interoperabilityMode(.Cxx)] + internalSwiftSettings
+        // ),
+        //
+        // .target(
+        //     name: "DatadogFlags",
+        //     dependencies: [
+        //         .target(name: "DatadogInternal"),
+        //     ],
+        //     path: "DatadogFlags/Sources"
+        // ),
+        // .testTarget(
+        //     name: "DatadogFlagsTests",
+        //     dependencies: [
+        //         .target(name: "DatadogFlags"),
+        //         .target(name: "TestUtilities"),
+        //     ],
+        //     path: "DatadogFlags/Tests"
+        // ),
 
         .target(
             name: "TestUtilities",
@@ -224,8 +250,7 @@ let package = Package(
                 .target(name: "DatadogSessionReplay"),
                 .target(name: "DatadogTrace"),
                 .target(name: "DatadogCrashReporting"),
-                .target(name: "DatadogWebViewTracking"),
-                .target(name: "DatadogFlags")
+                .target(name: "DatadogWebViewTracking")
             ],
             path: "TestUtilities/Sources",
             swiftSettings: [.define("SPM_BUILD")] + internalSwiftSettings

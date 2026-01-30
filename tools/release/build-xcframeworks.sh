@@ -106,7 +106,6 @@ echo_info "▸ PLATFORMS = '$PLATFORMS'"
 echo_subtitle2 "Run 'carthage bootstrap --platform $PLATFORMS --use-xcframeworks'"
 export REPO_ROOT=$(realpath "$SCRIPT_DIR/../..") 
 $REPO_ROOT/tools/carthage-shim.sh bootstrap --platform $PLATFORMS --use-xcframeworks
-cp -r "Carthage/Build/CrashReporter.xcframework" "$XCFRAMEWORKS_OUTPUT"
 cp -r "Carthage/Build/OpenTelemetryApi.xcframework" "$XCFRAMEWORKS_OUTPUT"
 
 # Build Datadog XCFrameworks
@@ -117,6 +116,7 @@ build_xcframework DatadogTrace "$PLATFORMS"
 build_xcframework DatadogRUM "$PLATFORMS"
 build_xcframework DatadogCrashReporting "$PLATFORMS"
 build_xcframework DatadogFlags "$PLATFORMS"
+build_xcframework DatadogProfiling "$PLATFORMS"
 
 # Build iOS-only Datadog XCFrameworks
 if [[ "$ios" == "true" ]]; then

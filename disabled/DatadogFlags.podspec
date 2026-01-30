@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatFlags"
   s.module_name  = "DatadogFlags"
-  s.version      = "3.3.0"
+  s.version      = "0.4.0"
   s.summary      = "Official Datadog Feature Flags module of the Swift SDK."
 
   s.homepage     = "https://www.datadoghq.com"

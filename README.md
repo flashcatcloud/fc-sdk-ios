@@ -1,50 +1,129 @@
-<p>
-    <a href="https://swiftpackageindex.com/DataDog/dd-sdk-ios">
-        <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FDataDog%2Fdd-sdk-ios%2Fbadge%3Ftype%3Dplatforms" />
-    </a>
-    <a href="https://swiftpackageindex.com/DataDog/dd-sdk-ios">
-        <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FDataDog%2Fdd-sdk-ios%2Fbadge%3Ftype%3Dswift-versions" />
-    </a>
-    <a href="https://swiftpackageindex.com/DataDog/dd-sdk-ios">
-        <img src="https://img.shields.io/github/v/release/DataDog/dd-sdk-ios?style=flat&label=Swift%20Package%20Index&color=red" />
-    </a>
-    <a href="https://cocoapods.org/pods/DatadogCore">
-        <img src="https://img.shields.io/github/v/release/DataDog/dd-sdk-ios?style=flat&label=CocoaPods" />
-    </a>
-</p>
+# Flashcat SDK for iOS and tvOS
 
+[![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
+[![Platform](https://img.shields.io/badge/Platform-iOS%2012%2B%20%7C%20tvOS%2012%2B-blue.svg)](https://developer.apple.com)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
-# Datadog SDK for iOS and tvOS
+> Swift and Objective-C libraries to interact with Flashcat on iOS and tvOS.
 
-> Swift and Objective-C libraries to interact with Datadog on iOS and tvOS.
+## About
+
+This SDK is forked from [Datadog iOS SDK](https://github.com/DataDog/dd-sdk-ios) and customized for Flashcat Cloud. It provides observability features including Real User Monitoring (RUM), distributed tracing, and crash reporting.
+
+### Key Differences from Datadog SDK
+
+- **Endpoint**: Data is sent to Flashcat Cloud (`flashcat.cloud`) instead of Datadog
+- **Site Configuration**: Uses `FlashcatSite` with `.cn` and `.staging` options
+- **Naming**: Products are renamed (e.g., `FlashcatCore`, `FlashcatRUM`, `FlashcatTrace`)
+- **Disabled Modules**: `DatadogLogs`, `DatadogSessionReplay`, `DatadogFlags`, `DatadogProfiling` are currently not available
+
+## Available Modules
+
+| Module | Description |
+|--------|-------------|
+| `FlashcatCore` | Core SDK functionality and initialization |
+| `FlashcatRUM` | Real User Monitoring for views, actions, resources, and errors |
+| `FlashcatTrace` | Distributed tracing with OpenTelemetry support |
+| `FlashcatCrashReporting` | Crash detection and reporting |
+| `FlashcatWebViewTracking` | WebView tracking for hybrid mobile applications |
+
+## Installation
+
+### Swift Package Manager
+
+Add the following to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/flashcatcloud/fc-sdk-ios.git", from: "0.4.0")
+]
+```
+
+Then add the products you need:
+
+```swift
+.target(
+    name: "YourApp",
+    dependencies: [
+        .product(name: "FlashcatCore", package: "fc-sdk-ios"),
+        .product(name: "FlashcatRUM", package: "fc-sdk-ios"),
+        .product(name: "FlashcatTrace", package: "fc-sdk-ios"),
+        .product(name: "FlashcatCrashReporting", package: "fc-sdk-ios"),
+        .product(name: "FlashcatWebViewTracking", package: "fc-sdk-ios"),
+    ]
+)
+```
+
+### CocoaPods
+
+Add to your `Podfile`:
+
+```ruby
+pod 'FlashcatCore'
+pod 'FlashcatRUM'
+pod 'FlashcatTrace'
+pod 'FlashcatCrashReporting'
+pod 'FlashcatWebViewTracking'
+```
 
 ## Getting Started
 
-### Log Collection
+### Initialization
 
-See the dedicated [Datadog iOS Log Collection][1] documentation to learn how to send logs from your iOS application to Datadog.
+```swift
+import FlashcatCore
 
-![Datadog iOS Log Collection](docs/images/logging.png)
+Datadog.initialize(
+    with: Datadog.Configuration(
+        clientToken: "<YOUR_CLIENT_TOKEN>",
+        env: "production",
+        site: .cn  // or .staging
+    ),
+    trackingConsent: .granted
+)
+```
 
-### Trace Collection
+### RUM (Real User Monitoring)
 
-See [Datadog iOS Trace Collection][2] documentation to try it out.
+```swift
+import FlashcatRUM
 
-![Datadog iOS Log Collection](docs/images/tracing.png)
+RUM.enable(with: RUM.Configuration(applicationID: "<YOUR_APP_ID>"))
+```
 
-### RUM Events Collection
+### Trace (Distributed Tracing)
 
-See [Datadog iOS RUM Collection][3] documentation to try it out.
+```swift
+import FlashcatTrace
 
-![Datadog iOS RUM Collection](docs/images/rum.png)
+Trace.enable()
+```
 
-#### WebView Tracking
+### Crash Reporting
 
-RUM allows you to monitor web views and eliminate blind spots in your hybrid mobile applications. See [WebView Tracking][5] documentation to try it out.
+```swift
+import FlashcatCrashReporting
 
-## Integrations
+CrashReporting.enable()
+```
 
-If you use [Alamofire][7], [Apollo GraphQL][8], [SDWebImage][9], or [OpenAPI Generator][10], see [Integrated Libraries][4] to learn how to instrument requests automatically.
+### WebView Tracking
+
+Track web views in hybrid mobile applications:
+
+```swift
+import FlashcatWebViewTracking
+import WebKit
+
+let webView = WKWebView(...)
+WebViewTracking.enable(webView: webView)
+```
+
+## Documentation
+
+- [Changelog](CHANGELOG.md)
+- [Migration Guide](MIGRATION.md)
+- [Upstream Datadog Documentation](https://docs.datadoghq.com/real_user_monitoring/ios)
 
 ## Contributing
 
@@ -54,17 +133,8 @@ Pull requests are welcome. First, open an issue to discuss what you would like t
 
 [Apache License, v2.0](LICENSE)
 
-## Supported Versions
+This project is forked from [Datadog iOS SDK](https://github.com/DataDog/dd-sdk-ios) which is also licensed under Apache 2.0.
 
-See the [Supported Versions][6] documentation for more details.
+## Acknowledgments
 
-[1]: https://docs.datadoghq.com/logs/log_collection/ios
-[2]: https://docs.datadoghq.com/tracing/setup_overview/setup/ios
-[3]: https://docs.datadoghq.com/real_user_monitoring/ios
-[4]: https://docs.datadoghq.com/real_user_monitoring/mobile_and_tv_monitoring/integrated_libraries/ios
-[5]: https://docs.datadoghq.com/real_user_monitoring/mobile_and_tv_monitoring/web_view_tracking?tab=ios
-[6]: https://docs.datadoghq.com/real_user_monitoring/mobile_and_tv_monitoring/supported_versions/ios/
-[7]: https://github.com/Alamofire/Alamofire
-[8]: https://github.com/apollographql/apollo-ios
-[9]: https://github.com/SDWebImage/SDWebImage
-[10]: https://github.com/OpenAPITools/openapi-generator
+This SDK is based on the excellent work of the [Datadog](https://www.datadoghq.com/) team. We are grateful for their open-source contribution.
