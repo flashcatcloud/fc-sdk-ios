@@ -7616,11 +7616,9 @@
 			isa = PBXGroup;
 			children = (
 				D2C179E02DD2388800556F68 /* TraceCoreContext.swift */,
-				D2D748382DC2306100C61353 /* TraceID.swift */,
 				09A9369A2F0EB989000B6379 /* SamplingMechanismType.swift */,
 				09A9369B2F0EB989000B6379 /* SamplingPriority.swift */,
 				09A9369C2F0EB989000B6379 /* SpanContext.swift */,
-				D2C179E02DD2388800556F68 /* SpanCoreContext.swift */,
 				D2D748392DC2306100C61353 /* SpanID.swift */,
 				D2D748382DC2306100C61353 /* TraceID.swift */,
 			);

@@ -48,14 +48,6 @@ let package = Package(
             name: "FlashcatWebViewTracking",
             targets: ["DatadogWebViewTracking"]
         ),
-        .library(
-            name: "DatadogFlags",
-            targets: ["DatadogFlags"]
-        ),
-        .library(
-            name: "DatadogProfiling",
-            targets: ["DatadogProfiling"]
-        ),
     ],
     dependencies: [
         .package(url: "https://github.com/kstenerud/KSCrash.git", from: "2.5.0"),
@@ -202,49 +194,50 @@ let package = Package(
             ]
         ),
         
-        .target(
-            name: "DatadogProfiling",
-            dependencies: [
-                .target(name: "DatadogInternal"),
-                .target(name: "DatadogMachProfiler")
-            ],
-            path: "DatadogProfiling/Sources",
-            resources: [
-                .copy("Resources/PrivacyInfo.xcprivacy")
-            ],
-            swiftSettings: internalSwiftSettings
-        ),
-        .target(
-            name: "DatadogMachProfiler",
-            path: "DatadogProfiling/Mach",
-            cxxSettings: [.unsafeFlags(["-std=c++17"])]
-        ),
-        .testTarget(
-            name: "DatadogProfilingTests",
-            dependencies: [
-                .target(name: "DatadogMachProfiler"),
-                .target(name: "DatadogProfiling"),
-                .target(name: "TestUtilities"),
-            ],
-            path: "DatadogProfiling/Tests",
-            swiftSettings: [.interoperabilityMode(.Cxx)] + internalSwiftSettings
-        ),
-
-        .target(
-            name: "DatadogFlags",
-            dependencies: [
-                .target(name: "DatadogInternal"),
-            ],
-            path: "DatadogFlags/Sources"
-        ),
-        .testTarget(
-            name: "DatadogFlagsTests",
-            dependencies: [
-                .target(name: "DatadogFlags"),
-                .target(name: "TestUtilities"),
-            ],
-            path: "DatadogFlags/Tests"
-        ),
+        // DatadogProfiling and DatadogFlags are disabled for Flashcat
+        // .target(
+        //     name: "DatadogProfiling",
+        //     dependencies: [
+        //         .target(name: "DatadogInternal"),
+        //         .target(name: "DatadogMachProfiler")
+        //     ],
+        //     path: "DatadogProfiling/Sources",
+        //     resources: [
+        //         .copy("Resources/PrivacyInfo.xcprivacy")
+        //     ],
+        //     swiftSettings: internalSwiftSettings
+        // ),
+        // .target(
+        //     name: "DatadogMachProfiler",
+        //     path: "DatadogProfiling/Mach",
+        //     cxxSettings: [.unsafeFlags(["-std=c++17"])]
+        // ),
+        // .testTarget(
+        //     name: "DatadogProfilingTests",
+        //     dependencies: [
+        //         .target(name: "DatadogMachProfiler"),
+        //         .target(name: "DatadogProfiling"),
+        //         .target(name: "TestUtilities"),
+        //     ],
+        //     path: "DatadogProfiling/Tests",
+        //     swiftSettings: [.interoperabilityMode(.Cxx)] + internalSwiftSettings
+        // ),
+        //
+        // .target(
+        //     name: "DatadogFlags",
+        //     dependencies: [
+        //         .target(name: "DatadogInternal"),
+        //     ],
+        //     path: "DatadogFlags/Sources"
+        // ),
+        // .testTarget(
+        //     name: "DatadogFlagsTests",
+        //     dependencies: [
+        //         .target(name: "DatadogFlags"),
+        //         .target(name: "TestUtilities"),
+        //     ],
+        //     path: "DatadogFlags/Tests"
+        // ),
 
         .target(
             name: "TestUtilities",
@@ -257,8 +250,7 @@ let package = Package(
                 .target(name: "DatadogSessionReplay"),
                 .target(name: "DatadogTrace"),
                 .target(name: "DatadogCrashReporting"),
-                .target(name: "DatadogWebViewTracking"),
-                .target(name: "DatadogFlags")
+                .target(name: "DatadogWebViewTracking")
             ],
             path: "TestUtilities/Sources",
             swiftSettings: [.define("SPM_BUILD")] + internalSwiftSettings
