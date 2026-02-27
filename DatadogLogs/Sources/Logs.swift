@@ -72,6 +72,14 @@ public enum Logs {
     internal static func enableOrThrow(
         with configuration: Logs.Configuration, in core: DatadogCoreProtocol
     ) throws {
+#if FC_NOOP_LOGS
+        _ = configuration
+        _ = core
+        #if DEBUG
+        consolePrint("Logs was enabled but it is currently No-Op due to `FC_NOOP_LOGS` flag.", .debug)
+        #endif
+        return
+#else
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
                 description: "Datadog SDK must be initialized before calling `Logs.enable(with:)`."
@@ -89,6 +97,7 @@ public enum Logs {
         )
 
         try core.register(feature: feature)
+#endif
     }
 
     /// Adds a custom attribute to all future logs sent by any logger created from the provided Core.
@@ -98,11 +107,21 @@ public enum Logs {
     ///     for information on nested encoding containers limitation.
     ///   - core: the `DatadogCoreProtocol` to add the attribute to.
     public static func addAttribute(forKey key: AttributeKey, value: AttributeValue, in core: DatadogCoreProtocol = CoreRegistry.default) {
+#if FC_NOOP_LOGS
+        _ = key
+        _ = value
+        _ = core
+        #if DEBUG
+        consolePrint("Logs.addAttribute was called but it is currently No-Op due to `FC_NOOP_LOGS` flag.", .debug)
+        #endif
+        return
+#else
         guard let feature = core.get(feature: LogsFeature.self) else {
             return
         }
         feature.attributes.addAttribute(key: key, value: value)
         sendAttributesChanged(for: feature, in: core)
+#endif
     }
 
     /// Removes the custom attribute from all future logs sent any logger created from the provided Core.
@@ -112,11 +131,20 @@ public enum Logs {
     ///   - key: the key of an attribute that will be removed.
     ///   - core: the `DatadogCoreProtocol` to remove the attribute from.
     public static func removeAttribute(forKey key: AttributeKey, in core: DatadogCoreProtocol = CoreRegistry.default) {
+#if FC_NOOP_LOGS
+        _ = key
+        _ = core
+        #if DEBUG
+        consolePrint("Logs.removeAttribute was called but it is currently No-Op due to `FC_NOOP_LOGS` flag.", .debug)
+        #endif
+        return
+#else
         guard let feature = core.get(feature: LogsFeature.self) else {
             return
         }
         feature.attributes.removeAttribute(forKey: key)
         sendAttributesChanged(for: feature, in: core)
+#endif
     }
 
     private static func sendAttributesChanged(for feature: LogsFeature, in core: DatadogCoreProtocol) {

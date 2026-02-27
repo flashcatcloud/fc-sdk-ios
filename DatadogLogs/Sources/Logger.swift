@@ -134,6 +134,14 @@ public struct Logger {
     ///   - core: The instance of Datadog SDK to enable Logs in (global instance by default).
     /// - Returns: A logger instance.
     private static func createOrThrow(with configuration: Configuration, in core: DatadogCoreProtocol) throws -> LoggerProtocol {
+#if FC_NOOP_LOGS
+        _ = configuration
+        _ = core
+        #if DEBUG
+        consolePrint("Logger.create was called but it is currently No-Op due to `FC_NOOP_LOGS` flag.", .debug)
+        #endif
+        return NOPLogger()
+#else
         if core is NOPDatadogCore {
             throw ProgrammerError(
                 description: "`Datadog.initialize()` must be called prior to `Logger.create()`."
@@ -199,5 +207,6 @@ public struct Logger {
         case (nil, nil): // when user explicitly produces a no-op logger
             return NOPLogger()
         }
+#endif
     }
 }

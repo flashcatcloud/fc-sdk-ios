@@ -68,6 +68,14 @@ public enum SessionReplay {
         with configuration: SessionReplay.Configuration,
         in core: DatadogCoreProtocol
     ) throws {
+#if FC_NOOP_SESSION_REPLAY
+        _ = configuration
+        _ = core
+        #if DEBUG
+        consolePrint("SessionReplay was enabled but it is currently No-Op due to `FC_NOOP_SESSION_REPLAY` flag.", .debug)
+        #endif
+        return
+#else
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
                 description: "Datadog SDK must be initialized before calling `SessionReplay.enable(with:)`."
@@ -104,9 +112,17 @@ public enum SessionReplay {
             sessionReplaySampleRate: Int64.ddWithNoOverflow(configuration.replaySampleRate),
             startRecordingImmediately: configuration.startRecordingImmediately
         )
+#endif
     }
 
     internal static func startRecording(core: DatadogCoreProtocol) throws {
+#if FC_NOOP_SESSION_REPLAY
+        _ = core
+        #if DEBUG
+        consolePrint("SessionReplay.startRecording was called but it is currently No-Op due to `FC_NOOP_SESSION_REPLAY` flag.", .debug)
+        #endif
+        return
+#else
         guard let sr = core.get(feature: SessionReplayFeature.self) else {
             throw ProgrammerError(
                 description: "Session Replay must be initialized before calling `SessionReplay.startRecording()`."
@@ -114,11 +130,20 @@ public enum SessionReplay {
         }
 
         sr.startRecording()
+#endif
     }
 
     internal static func stopRecording(core: DatadogCoreProtocol) throws {
+#if FC_NOOP_SESSION_REPLAY
+        _ = core
+        #if DEBUG
+        consolePrint("SessionReplay.stopRecording was called but it is currently No-Op due to `FC_NOOP_SESSION_REPLAY` flag.", .debug)
+        #endif
+        return
+#else
         let sr = core.get(feature: SessionReplayFeature.self)
         sr?.stopRecording()
+#endif
     }
 }
 #endif
