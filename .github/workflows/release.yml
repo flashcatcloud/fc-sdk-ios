@@ -93,6 +93,8 @@ jobs:
           - FlashcatRUM
           - FlashcatCrashReporting
           - FlashcatWebViewTracking
+          - FlashcatLogs
+          - FlashcatSessionReplay
     steps:
       - uses: actions/checkout@v4
 
