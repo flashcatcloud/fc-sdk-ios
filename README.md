@@ -14,7 +14,7 @@ This SDK is forked from [Datadog iOS SDK](https://github.com/DataDog/dd-sdk-ios)
 
 - **Endpoint**: Data is sent to Flashcat Cloud (`flashcat.cloud`) instead of Datadog
 - **Site Configuration**: Uses `FlashcatSite` with `.cn` and `.staging` options
-- **Naming**: Products are renamed (e.g., `FlashcatCore`, `FlashcatRUM`, `FlashcatTrace`)
+- **Naming**: Distribution names are renamed (e.g., `FlashcatCore`, `FlashcatRUM`, `FlashcatTrace`), while Swift module imports remain `Datadog*`
 - **Disabled Modules**: `DatadogLogs`, `DatadogSessionReplay`, `DatadogFlags`, `DatadogProfiling` are currently not available
 
 ## Available Modules
@@ -71,7 +71,7 @@ pod 'FlashcatWebViewTracking'
 ### Initialization
 
 ```swift
-import FlashcatCore
+import DatadogCore
 
 Datadog.initialize(
     with: Datadog.Configuration(
@@ -86,7 +86,7 @@ Datadog.initialize(
 ### RUM (Real User Monitoring)
 
 ```swift
-import FlashcatRUM
+import DatadogRUM
 
 RUM.enable(with: RUM.Configuration(applicationID: "<YOUR_APP_ID>"))
 ```
@@ -94,7 +94,7 @@ RUM.enable(with: RUM.Configuration(applicationID: "<YOUR_APP_ID>"))
 ### Trace (Distributed Tracing)
 
 ```swift
-import FlashcatTrace
+import DatadogTrace
 
 Trace.enable()
 ```
@@ -102,7 +102,7 @@ Trace.enable()
 ### Crash Reporting
 
 ```swift
-import FlashcatCrashReporting
+import DatadogCrashReporting
 
 CrashReporting.enable()
 ```
@@ -112,7 +112,7 @@ CrashReporting.enable()
 Track web views in hybrid mobile applications:
 
 ```swift
-import FlashcatWebViewTracking
+import DatadogWebViewTracking
 import WebKit
 
 let webView = WKWebView(...)
