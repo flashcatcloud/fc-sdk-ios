@@ -437,21 +437,24 @@ release-publish-podspec:
 		 --artifacts-path "$(ARTIFACTS_PATH)" \
 		 --podspec-name "$(PODSPEC_NAME)"
 
-# Publish DatadogInternal podspec
+# Publish FlashcatInternal podspec
 release-publish-internal-podspecs:
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogInternal.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatInternal.podspec"
 
-# Publish podspecs that depend on DatadogInternal
+# Publish podspecs that depend on FlashcatInternal
 release-publish-dependent-podspecs:
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogCore.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogLogs.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogTrace.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogRUM.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogSessionReplay.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogCrashReporting.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogWebViewTracking.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogFlags.podspec"
-	@$(MAKE) release-publish-podspec PODSPEC_NAME="DatadogProfiling.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatCore.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatLogs.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatTrace.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatRUM.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatSessionReplay.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatCrashReporting.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatWebViewTracking.podspec"
+
+# Publish No-Op podspecs
+release-publish-noop-podspecs:
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatLogs-NoOp.podspec"
+	@$(MAKE) release-publish-podspec PODSPEC_NAME="FlashcatSessionReplay-NoOp.podspec"
 
 # Set ot update CI secrets
 set-ci-secret:
