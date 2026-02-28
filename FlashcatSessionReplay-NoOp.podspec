@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name         = "FlashcatSessionReplay"
+  s.name         = "FlashcatSessionReplay-NoOp"
   s.module_name  = "DatadogSessionReplay"
   s.version      = "0.4.0"
   s.summary      = "Flashcat iOS SDK - Session Replay module."
@@ -16,6 +16,8 @@ Pod::Spec.new do |s|
   s.source = { :git => "https://github.com/flashcatcloud/fc-sdk-ios.git", :tag => "v#{s.version}" }
 
   s.source_files = ["DatadogSessionReplay/Sources/**/*.swift"]
+  s.pod_target_xcconfig = {
+    "OTHER_SWIFT_FLAGS" => "$(inherited) -D FC_NOOP_SESSION_REPLAY"
+  }
   s.dependency "FlashcatInternal", s.version.to_s
-  end
-
+end
