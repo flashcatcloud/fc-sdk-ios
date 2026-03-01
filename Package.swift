@@ -33,6 +33,10 @@ let package = Package(
             targets: ["DatadogCore"]
         ),
         .library(
+            name: "FlashcatLogs-NoOp",
+            targets: ["DatadogLogs"]
+        ),
+        .library(
             name: "FlashcatTrace",
             targets: ["DatadogTrace"]
         ),
@@ -47,6 +51,10 @@ let package = Package(
         .library(
             name: "FlashcatWebViewTracking",
             targets: ["DatadogWebViewTracking"]
+        ),
+        .library(
+            name: "FlashcatSessionReplay-NoOp",
+            targets: ["DatadogSessionReplay"]
         ),
     ],
     dependencies: [
@@ -91,7 +99,8 @@ let package = Package(
             dependencies: [
                 .target(name: "DatadogInternal"),
             ],
-            path: "DatadogLogs/Sources"
+            path: "DatadogLogs/Sources",
+            swiftSettings: [.define("FC_NOOP_LOGS")]
         ),
         .testTarget(
             name: "DatadogLogsTests",
@@ -180,7 +189,8 @@ let package = Package(
         .target(
             name: "DatadogSessionReplay",
             dependencies: ["DatadogInternal"],
-            path: "DatadogSessionReplay/Sources"
+            path: "DatadogSessionReplay/Sources",
+            swiftSettings: [.define("FC_NOOP_SESSION_REPLAY")]
         ),
         .testTarget(
             name: "DatadogSessionReplayTests",
