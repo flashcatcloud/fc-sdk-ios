@@ -172,7 +172,8 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
                    let symbolName: NSString = try frame.valueIfPresent(forKey: .symbolName),
                    let symbolAddr: Int64 = try frame.valueIfPresent(forKey: .symbolAddr) {
                     let symbolOffset = instructionAddr >= symbolAddr ? instructionAddr - symbolAddr : 0
-                    return String(format: "%-4ld %-35@ 0x%016llx %@ + %lld", index, objectName, instructionAddr, symbolName, symbolOffset)
+                    let readableSymbol = SymbolDemangler.demangle(symbolName as String)
+                    return String(format: "%-4ld %-35@ 0x%016llx %@ + %lld", index, objectName, instructionAddr, readableSymbol, symbolOffset)
                 }
 
                 let offset: Int64
@@ -251,5 +252,43 @@ extension BinaryImage {
             loadAddress: String(format: "0x%016llx", loadAddress),
             maxAddress: String(format: "0x%016llx", maxAddress)
         )
+    }
+}
+
+/// The Swift runtime demangler. Available in `libswiftCore`; returns a malloc'd C string for a
+/// Swift mangled name, or `nil` for anything it does not recognize (ObjC/C symbols).
+@_silgen_name("swift_demangle")
+private func _swift_demangle(
+    mangledName: UnsafePointer<CChar>?,
+    mangledNameLength: UInt,
+    outputBuffer: UnsafeMutablePointer<CChar>?,
+    outputBufferSize: UnsafeMutablePointer<UInt>?,
+    flags: UInt32
+) -> UnsafeMutablePointer<CChar>?
+
+/// Turns a raw, dladdr-resolved symbol name into a human-readable one.
+///
+/// KSCrash resolves each frame's `symbol_name` via `dladdr`, which yields the *mangled* symbol for
+/// Swift (e.g. `$s4main3fooyyF`). This demangles Swift symbols to readable form
+/// (`main.foo() -> ()`). Non-Swift names (ObjC `-[Class method:]`, plain C symbols) are already
+/// readable and are returned unchanged.
+internal enum SymbolDemangler {
+    static func demangle(_ name: String) -> String {
+        guard !name.isEmpty else {
+            return name
+        }
+        return name.withCString { cString -> String in
+            guard let demangled = _swift_demangle(
+                mangledName: cString,
+                mangledNameLength: UInt(strlen(cString)),
+                outputBuffer: nil,
+                outputBufferSize: nil,
+                flags: 0
+            ) else {
+                return name // not a Swift symbol — keep the original (ObjC/C)
+            }
+            defer { free(demangled) }
+            return String(cString: demangled)
+        }
     }
 }

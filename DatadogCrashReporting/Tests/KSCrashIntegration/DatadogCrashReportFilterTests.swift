@@ -581,6 +581,17 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertTrue(nonCrashed.stack.contains("otherFunc + 100"), "Non-crashed threads should also be symbolicated: \(nonCrashed.stack)")
     }
 
+    func testFilterReports_DemanglesSwiftSymbolNames() throws {
+        // KSCrash's dladdr-resolved symbol is mangled for Swift; the emitted stack should be readable.
+        let ddReport = try runFilter(
+            symbolicatedCrashReportJSON(symbolName: "$s4main3fooyyF", symbolAddr: 4_100, instructionAddr: 4_196),
+            symbolicateInProcess: true
+        )
+        let line = try XCTUnwrap(ddReport.stack.split(separator: "\n").first.map(String.init))
+        XCTAssertTrue(line.contains("foo"), "Swift symbol should be demangled to a readable name: \(line)")
+        XCTAssertFalse(line.contains("$s4main3fooyyF"), "Mangled Swift symbol should not appear verbatim: \(line)")
+    }
+
     func testFilterReports_SymbolOffsetGuard_WhenInstructionBelowSymbol() throws {
         // instruction_addr (4000) < symbol_addr (4100) -> offset clamped to 0
         let ddReport = try runFilter(
@@ -652,5 +663,38 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertEqual(parsed.instructionAddr, "0x00000000000003e8")
         XCTAssertEqual(parsed.loadAddr, "0x0000000000001388")
         XCTAssertEqual(parsed.offset, 0, "Offset should be 0 when instruction_addr < object_addr (prevents underflow)")
+    }
+
+    // MARK: - SymbolDemangler
+
+    func testDemangle_SwiftSymbol_BecomesReadable() {
+        // $s4main3fooyyF -> "main.foo() -> ()"
+        let demangled = SymbolDemangler.demangle("$s4main3fooyyF")
+        XCTAssertFalse(demangled.hasPrefix("$s"), "Mangled Swift symbol should be demangled: \(demangled)")
+        XCTAssertTrue(demangled.contains("foo"), "Demangled name should contain the function name: \(demangled)")
+    }
+
+    func testDemangle_ObjCMethodName_Unchanged() {
+        // ObjC method names are already readable; swift_demangle returns nil -> keep as-is.
+        XCTAssertEqual(SymbolDemangler.demangle("-[MyViewController tapped:]"), "-[MyViewController tapped:]")
+    }
+
+    func testDemangle_PlainCSymbol_Unchanged() {
+        XCTAssertEqual(SymbolDemangler.demangle("malloc"), "malloc")
+    }
+
+    func testDemangle_EmptyString_Unchanged() {
+        XCTAssertEqual(SymbolDemangler.demangle(""), "")
+    }
+
+    // MARK: - CrashReporting.Configuration
+
+    func testConfiguration_DefaultsToInProcessSymbolicationOn() {
+        // In-process symbolication is on by default (Bugly parity): readable stacks without a dSYM.
+        XCTAssertTrue(CrashReporting.Configuration().symbolicateInProcess)
+    }
+
+    func testConfiguration_CanDisableInProcessSymbolication() {
+        XCTAssertFalse(CrashReporting.Configuration(symbolicateInProcess: false).symbolicateInProcess)
     }
 }
