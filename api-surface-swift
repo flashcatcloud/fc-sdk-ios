@@ -558,9 +558,13 @@ public struct MediaTimeProvider: CACurrentMediaTimeProvider
 # ----------------------------------
 
 public final class CrashReporting
-    public static func enable(in core: DatadogCoreProtocol = CoreRegistry.default)
+    public struct Configuration
+        public var symbolicateInProcess: Bool
+        public init(symbolicateInProcess: Bool = true)
+    public static func enable(with configuration: CrashReporting.Configuration = .init(),in core: DatadogCoreProtocol = CoreRegistry.default)
     public static func enable(with plugin: @autoclosure () throws -> CrashReportingPlugin, in core: DatadogCoreProtocol = CoreRegistry.default)
 public static func enable()
+public static func enable(symbolicateInProcess: Bool)
 public protocol CrashReportingPlugin: AnyObject
     func readPendingCrashReport(completion: @escaping (DDCrashReport?) -> Bool)
     func inject(context: Data)

@@ -47,8 +47,14 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
 
     let telemetry: Telemetry
 
-    init(telemetry: Telemetry = NOPTelemetry()) {
+    /// When `true`, frames are formatted with the on-device symbol name that KSCrash already
+    /// resolved (via `dladdr`), so stacks are human-readable without uploading a dSYM. When
+    /// `false`, frames keep the raw `address + base + offset` form for server-side symbolication.
+    let symbolicateInProcess: Bool
+
+    init(telemetry: Telemetry = NOPTelemetry(), symbolicateInProcess: Bool = true) {
         self.telemetry = telemetry
+        self.symbolicateInProcess = symbolicateInProcess
     }
 
     /// Filters and converts crash reports to Datadog's format.
@@ -156,6 +162,17 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
                     let objectName: NSString = try frame.valueIfPresent(forKey: .objectName)
                 else {
                     return String(format: "%-4ld ??? 0x%016llx 0x0 + 0", index, instructionAddr)
+                }
+
+                // In-process symbolication: KSCrash already resolved the symbol on-device via
+                // `dladdr`. When enabled and a symbol is present, emit the symbol name and an
+                // offset relative to the symbol — keeping the regex-compatible shape
+                // `index module 0xINSTR <field> + offset`, where <field> is the function name.
+                if symbolicateInProcess,
+                   let symbolName: NSString = try frame.valueIfPresent(forKey: .symbolName),
+                   let symbolAddr: Int64 = try frame.valueIfPresent(forKey: .symbolAddr) {
+                    let symbolOffset = instructionAddr >= symbolAddr ? instructionAddr - symbolAddr : 0
+                    return String(format: "%-4ld %-35@ 0x%016llx %@ + %lld", index, objectName, instructionAddr, symbolName, symbolOffset)
                 }
 
                 let offset: Int64
