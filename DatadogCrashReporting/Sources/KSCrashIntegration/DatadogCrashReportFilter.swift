@@ -5,6 +5,7 @@
  */
 
 import Foundation
+import Darwin
 import DatadogInternal
 
 // swiftlint:disable duplicate_imports
@@ -47,8 +48,14 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
 
     let telemetry: Telemetry
 
-    init(telemetry: Telemetry = NOPTelemetry()) {
+    /// When `true`, frames are formatted with the on-device symbol name that KSCrash already
+    /// resolved (via `dladdr`), so stacks are human-readable without uploading a dSYM. When
+    /// `false`, frames keep the raw `address + base + offset` form for server-side symbolication.
+    let symbolicateInProcess: Bool
+
+    init(telemetry: Telemetry = NOPTelemetry(), symbolicateInProcess: Bool = true) {
         self.telemetry = telemetry
+        self.symbolicateInProcess = symbolicateInProcess
     }
 
     /// Filters and converts crash reports to Datadog's format.
@@ -158,6 +165,18 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
                     return String(format: "%-4ld ??? 0x%016llx 0x0 + 0", index, instructionAddr)
                 }
 
+                // In-process symbolication: KSCrash already resolved the symbol on-device via
+                // `dladdr`. When enabled and a symbol is present, emit the symbol name and an
+                // offset relative to the symbol — keeping the regex-compatible shape
+                // `index module 0xINSTR <field> + offset`, where <field> is the function name.
+                if symbolicateInProcess,
+                   let symbolName: NSString = try frame.valueIfPresent(forKey: .symbolName),
+                   let symbolAddr: Int64 = try frame.valueIfPresent(forKey: .symbolAddr) {
+                    let symbolOffset = instructionAddr >= symbolAddr ? instructionAddr - symbolAddr : 0
+                    let readableSymbol = SymbolDemangler.demangle(symbolName as String)
+                    return String(format: "%-4ld %-35@ 0x%016llx %@ + %lld", index, objectName, instructionAddr, readableSymbol, symbolOffset)
+                }
+
                 let offset: Int64
                 if instructionAddr >= objectAddr {
                     offset = instructionAddr - objectAddr
@@ -234,5 +253,50 @@ extension BinaryImage {
             loadAddress: String(format: "0x%016llx", loadAddress),
             maxAddress: String(format: "0x%016llx", maxAddress)
         )
+    }
+}
+
+internal typealias SwiftDemangleFunction = @convention(c) (
+    UnsafePointer<CChar>?,
+    UInt,
+    UnsafeMutablePointer<CChar>?,
+    UnsafeMutablePointer<UInt>?,
+    UInt32
+) -> UnsafeMutablePointer<CChar>?
+
+private enum SwiftDemangleResolver {
+    static let function: SwiftDemangleFunction? = {
+        guard let handle = dlopen(nil, RTLD_NOW), let symbol = dlsym(handle, "swift_demangle") else {
+            return nil
+        }
+        return unsafeBitCast(symbol, to: SwiftDemangleFunction.self)
+    }()
+}
+
+/// Turns a raw, dladdr-resolved symbol name into a human-readable one.
+///
+/// KSCrash resolves each frame's `symbol_name` via `dladdr`, which yields the *mangled* symbol for
+/// Swift (e.g. `$s4main3fooyyF`). This demangles Swift symbols to readable form
+/// (`main.foo() -> ()`). Non-Swift names (ObjC `-[Class method:]`, plain C symbols) are already
+/// readable and are returned unchanged.
+internal enum SymbolDemangler {
+    static func demangle(_ name: String) -> String {
+        return demangle(name, using: SwiftDemangleResolver.function)
+    }
+
+    static func demangle(_ name: String, using swiftDemangle: SwiftDemangleFunction?) -> String {
+        guard !name.isEmpty else {
+            return name
+        }
+        guard let swiftDemangle else {
+            return name
+        }
+        return name.withCString { cString -> String in
+            guard let demangled = swiftDemangle(cString, UInt(strlen(cString)), nil, nil, 0) else {
+                return name // not a Swift symbol — keep the original (ObjC/C)
+            }
+            defer { free(demangled) }
+            return String(cString: demangled)
+        }
     }
 }

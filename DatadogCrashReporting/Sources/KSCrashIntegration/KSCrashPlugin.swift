@@ -26,7 +26,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     private let store: CrashReportStore
     private let telemetry: Telemetry
 
-    init(_ kscrash: KSCrash = .shared, telemetry: Telemetry = NOPTelemetry()) throws {
+    init(_ kscrash: KSCrash = .shared, telemetry: Telemetry = NOPTelemetry(), symbolicateInProcess: Bool = true) throws {
         do {
             try kscrash.install(with: .datadog())
             kscrash.reportStore?.sink = CrashReportFilterPipeline(
@@ -34,7 +34,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
                     DatadogTypeSafeFilter(),
                     DatadogMinifyFilter(),
                     DatadogDiagnosticFilter(),
-                    DatadogCrashReportFilter(telemetry: telemetry)
+                    DatadogCrashReportFilter(telemetry: telemetry, symbolicateInProcess: symbolicateInProcess)
                 ]
             )
         } catch KSCrashInstallError.alreadyInstalled {

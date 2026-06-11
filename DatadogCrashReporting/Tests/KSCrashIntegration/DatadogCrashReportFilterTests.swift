@@ -477,6 +477,131 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertEqual(ddReport2.meta.incidentIdentifier, "2")
     }
 
+    // MARK: - In-process symbolication
+
+    /// Builds a single-crashed-thread report whose frame carries KSCrash's on-device
+    /// resolved `symbol_name` / `symbol_addr`, plus an optional non-crashed thread.
+    private func symbolicatedCrashReportJSON(
+        symbolName: String = "-[MyViewController tapped:]",
+        symbolAddr: Int = 4_100,
+        instructionAddr: Int = 4_196,
+        objectAddr: Int = 4_000,
+        includeNonCrashedThread: Bool = false
+    ) -> Data {
+        let nonCrashed = includeNonCrashedThread ? """
+        {
+            "index": 1,
+            "crashed": false,
+            "backtrace": { "contents": [
+                { "instruction_addr": 9000, "object_addr": 8000, "object_name": "OtherLib", "symbol_addr": 8900, "symbol_name": "otherFunc" }
+            ]}
+        },
+        """ : ""
+
+        return """
+        {
+            "report": { "timestamp": "2025-10-22T14:14:12Z", "id": "incident-sym" },
+            "system": { "cpu_arch": "arm64" },
+            "crash": {
+                "error": { "signal": { "name": "SIGSEGV", "code_name": "SEGV_MAPERR" } },
+                "threads": [
+                    \(nonCrashed)
+                    {
+                        "index": 0,
+                        "crashed": true,
+                        "backtrace": { "contents": [
+                            { "instruction_addr": \(instructionAddr), "object_addr": \(objectAddr), "object_name": "MyApp", "symbol_addr": \(symbolAddr), "symbol_name": "\(symbolName)" }
+                        ]}
+                    }
+                ]
+            },
+            "binary_images": []
+        }
+        """.data(using: .utf8)!
+    }
+
+    private func runFilter(_ json: Data, symbolicateInProcess: Bool) throws -> DDCrashReport {
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: json) as? [String: Any])
+        let report = AnyCrashReport(CrashFieldDictionary(from: dict))
+        let filter = DatadogCrashReportFilter(symbolicateInProcess: symbolicateInProcess)
+        var captured: [CrashReport]?
+        filter.filterReports([report]) { reports, error in
+            XCTAssertNil(error)
+            captured = reports
+        }
+        return try XCTUnwrap(captured?.first?.untypedValue as? DDCrashReport)
+    }
+
+    func testFilterReports_SymbolicatesInProcess_WhenSymbolNamePresent() throws {
+        // instruction_addr 4196 (0x1064), symbol_addr 4100 (0x1004) -> offset 96
+        let ddReport = try runFilter(symbolicatedCrashReportJSON(), symbolicateInProcess: true)
+
+        let line = try XCTUnwrap(ddReport.stack.split(separator: "\n").first.map(String.init))
+        XCTAssertTrue(line.contains("0x0000000000001064"), "Frame should keep the instruction address: \(line)")
+        XCTAssertTrue(line.contains("-[MyViewController tapped:] + 96"), "Frame should carry the symbol name and symbol-relative offset: \(line)")
+        XCTAssertFalse(line.contains("0x0000000000000fa0"), "Frame should not fall back to the base address when a symbol is present: \(line)")
+    }
+
+    func testFilterReports_DoesNotSymbolicate_WhenDisabled() throws {
+        let ddReport = try runFilter(symbolicatedCrashReportJSON(), symbolicateInProcess: false)
+
+        let line = try XCTUnwrap(ddReport.stack.split(separator: "\n").first.map(String.init))
+        let parsed = try parseStackFrame(line)
+        XCTAssertEqual(parsed.loadAddr, "0x0000000000000fa0", "Disabled: should use base address (4000)")
+        XCTAssertEqual(parsed.offset, 196, "Disabled: offset relative to base (4196 - 4000)")
+        XCTAssertFalse(line.contains("MyViewController"), "Disabled: symbol name must not appear")
+    }
+
+    func testFilterReports_FallsBackToAddress_WhenSymbolNameAbsent() throws {
+        // No symbol_name in the frame -> even with symbolication on, use address form.
+        let json = """
+        {
+            "report": { "timestamp": "2025-10-22T14:14:12Z", "id": "incident-nosym" },
+            "system": { "cpu_arch": "arm64" },
+            "crash": {
+                "error": { "signal": { "name": "SIGSEGV" } },
+                "threads": [
+                    { "index": 0, "crashed": true, "backtrace": { "contents": [
+                        { "instruction_addr": 4196, "object_addr": 4000, "object_name": "MyApp" }
+                    ]}}
+                ]
+            },
+            "binary_images": []
+        }
+        """.data(using: .utf8)!
+        let ddReport = try runFilter(json, symbolicateInProcess: true)
+        let parsed = try parseStackFrame(String(ddReport.stack.split(separator: "\n")[0]))
+        XCTAssertEqual(parsed.loadAddr, "0x0000000000000fa0")
+        XCTAssertEqual(parsed.offset, 196)
+    }
+
+    func testFilterReports_SymbolicatesAllThreads_NotJustCrashed() throws {
+        let ddReport = try runFilter(symbolicatedCrashReportJSON(includeNonCrashedThread: true), symbolicateInProcess: true)
+        let nonCrashed = try XCTUnwrap(ddReport.threads.first { !$0.crashed })
+        XCTAssertTrue(nonCrashed.stack.contains("otherFunc + 100"), "Non-crashed threads should also be symbolicated: \(nonCrashed.stack)")
+    }
+
+    func testFilterReports_DemanglesSwiftSymbolNames() throws {
+        // KSCrash's dladdr-resolved symbol is mangled for Swift; the emitted stack should be readable.
+        let ddReport = try runFilter(
+            symbolicatedCrashReportJSON(symbolName: "$s4main3fooyyF", symbolAddr: 4_100, instructionAddr: 4_196),
+            symbolicateInProcess: true
+        )
+        let line = try XCTUnwrap(ddReport.stack.split(separator: "\n").first.map(String.init))
+        XCTAssertTrue(line.contains("foo"), "Swift symbol should be demangled to a readable name: \(line)")
+        XCTAssertFalse(line.contains("$s4main3fooyyF"), "Mangled Swift symbol should not appear verbatim: \(line)")
+    }
+
+    func testFilterReports_SymbolOffsetGuard_WhenInstructionBelowSymbol() throws {
+        // instruction_addr (4000) < symbol_addr (4100) -> offset clamped to 0
+        let ddReport = try runFilter(
+            symbolicatedCrashReportJSON(symbolName: "weird", symbolAddr: 4_100, instructionAddr: 4_000),
+            symbolicateInProcess: true
+        )
+        let line = try XCTUnwrap(ddReport.stack.split(separator: "\n").first.map(String.init))
+        XCTAssertTrue(line.contains("weird + 0"), "Underflow should clamp the symbol offset to 0: \(line)")
+    }
+
     func testFilterReports_HandlesInvalidOffsetCalculation() throws {
         // Given - instruction_addr less than object_addr (should not happen in practice)
         let json = """
@@ -538,5 +663,44 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertEqual(parsed.instructionAddr, "0x00000000000003e8")
         XCTAssertEqual(parsed.loadAddr, "0x0000000000001388")
         XCTAssertEqual(parsed.offset, 0, "Offset should be 0 when instruction_addr < object_addr (prevents underflow)")
+    }
+
+    // MARK: - SymbolDemangler
+
+    func testDemangle_SwiftSymbol_BecomesReadable() {
+        // $s4main3fooyyF -> "main.foo() -> ()"
+        let demangled = SymbolDemangler.demangle("$s4main3fooyyF")
+        XCTAssertFalse(demangled.hasPrefix("$s"), "Mangled Swift symbol should be demangled: \(demangled)")
+        XCTAssertTrue(demangled.contains("foo"), "Demangled name should contain the function name: \(demangled)")
+    }
+
+    func testDemangle_ObjCMethodName_Unchanged() {
+        // ObjC method names are already readable; swift_demangle returns nil -> keep as-is.
+        XCTAssertEqual(SymbolDemangler.demangle("-[MyViewController tapped:]"), "-[MyViewController tapped:]")
+    }
+
+    func testDemangle_PlainCSymbol_Unchanged() {
+        XCTAssertEqual(SymbolDemangler.demangle("malloc"), "malloc")
+    }
+
+    func testDemangle_EmptyString_Unchanged() {
+        XCTAssertEqual(SymbolDemangler.demangle(""), "")
+    }
+
+    func testDemangle_WhenSwiftDemanglerIsUnavailable_ReturnsOriginalSymbol() {
+        let mangledName = "$s4main3fooyyF"
+
+        XCTAssertEqual(SymbolDemangler.demangle(mangledName, using: nil), mangledName)
+    }
+
+    // MARK: - CrashReporting.Configuration
+
+    func testConfiguration_DefaultsToInProcessSymbolicationOn() {
+        // In-process symbolication is on by default (Bugly parity): readable stacks without a dSYM.
+        XCTAssertTrue(CrashReporting.Configuration().symbolicateInProcess)
+    }
+
+    func testConfiguration_CanDisableInProcessSymbolication() {
+        XCTAssertFalse(CrashReporting.Configuration(symbolicateInProcess: false).symbolicateInProcess)
     }
 }

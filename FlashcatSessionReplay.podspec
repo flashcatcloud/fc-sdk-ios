@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatSessionReplay"
   s.module_name  = "DatadogSessionReplay"
-  s.version      = "0.4.0"
+  s.version      = "0.5.0"
   s.summary      = "Flashcat iOS SDK - Session Replay module."
 
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"
