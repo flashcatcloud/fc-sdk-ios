@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatCore"
   s.module_name  = "DatadogCore"
-  s.version      = "0.4.0"
+  s.version      = "0.5.0"
   s.summary      = "Flashcat iOS SDK - Core module for observability and monitoring."
   
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"

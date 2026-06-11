@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatLogs-NoOp"
   s.module_name  = "DatadogLogs"
-  s.version      = "0.4.0"
+  s.version      = "0.5.0"
   s.summary      = "Flashcat iOS SDK - Logs module."
 
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"
