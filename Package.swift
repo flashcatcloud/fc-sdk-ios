@@ -102,14 +102,17 @@ let package = Package(
             path: "DatadogLogs/Sources",
             swiftSettings: [.define("FC_NOOP_LOGS")]
         ),
-        .testTarget(
-            name: "DatadogLogsTests",
-            dependencies: [
-                .target(name: "DatadogLogs"),
-                .target(name: "TestUtilities"),
-            ],
-            path: "DatadogLogs/Tests"
-        ),
+        // DatadogLogsTests excluded from SPM: the DatadogLogs target is compiled No-Op here
+        // (FC_NOOP_LOGS), but these tests assert the real Logs behavior, so `swift test` would
+        // fail against the No-Op module. Real Logs tests run via the Xcode project (make test-ios).
+        // .testTarget(
+        //     name: "DatadogLogsTests",
+        //     dependencies: [
+        //         .target(name: "DatadogLogs"),
+        //         .target(name: "TestUtilities"),
+        //     ],
+        //     path: "DatadogLogs/Tests"
+        // ),
 
         .target(
             name: "DatadogTrace",
@@ -192,17 +195,21 @@ let package = Package(
             path: "DatadogSessionReplay/Sources",
             swiftSettings: [.define("FC_NOOP_SESSION_REPLAY")]
         ),
-        .testTarget(
-            name: "DatadogSessionReplayTests",
-            dependencies: [
-                .target(name: "DatadogSessionReplay"),
-                .target(name: "TestUtilities"),
-            ],
-            path: "DatadogSessionReplay/Tests",
-            resources: [
-                .process("Resources/Assets.xcassets")
-            ]
-        ),
+        // DatadogSessionReplayTests excluded from SPM: the DatadogSessionReplay target is compiled
+        // No-Op here (FC_NOOP_SESSION_REPLAY), but these tests assert the real Session Replay
+        // behavior, so `swift test` would fail against the No-Op module. Real tests run via the
+        // Xcode project (make test-ios).
+        // .testTarget(
+        //     name: "DatadogSessionReplayTests",
+        //     dependencies: [
+        //         .target(name: "DatadogSessionReplay"),
+        //         .target(name: "TestUtilities"),
+        //     ],
+        //     path: "DatadogSessionReplay/Tests",
+        //     resources: [
+        //         .process("Resources/Assets.xcassets")
+        //     ]
+        // ),
         
         // DatadogProfiling and DatadogFlags are disabled for Flashcat
         // .target(
