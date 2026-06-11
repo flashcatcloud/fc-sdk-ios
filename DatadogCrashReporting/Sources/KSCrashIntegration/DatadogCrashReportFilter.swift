@@ -5,6 +5,7 @@
  */
 
 import Foundation
+import Darwin
 import DatadogInternal
 
 // swiftlint:disable duplicate_imports
@@ -255,16 +256,22 @@ extension BinaryImage {
     }
 }
 
-/// The Swift runtime demangler. Available in `libswiftCore`; returns a malloc'd C string for a
-/// Swift mangled name, or `nil` for anything it does not recognize (ObjC/C symbols).
-@_silgen_name("swift_demangle")
-private func _swift_demangle(
-    mangledName: UnsafePointer<CChar>?,
-    mangledNameLength: UInt,
-    outputBuffer: UnsafeMutablePointer<CChar>?,
-    outputBufferSize: UnsafeMutablePointer<UInt>?,
-    flags: UInt32
+internal typealias SwiftDemangleFunction = @convention(c) (
+    UnsafePointer<CChar>?,
+    UInt,
+    UnsafeMutablePointer<CChar>?,
+    UnsafeMutablePointer<UInt>?,
+    UInt32
 ) -> UnsafeMutablePointer<CChar>?
+
+private enum SwiftDemangleResolver {
+    static let function: SwiftDemangleFunction? = {
+        guard let handle = dlopen(nil, RTLD_NOW), let symbol = dlsym(handle, "swift_demangle") else {
+            return nil
+        }
+        return unsafeBitCast(symbol, to: SwiftDemangleFunction.self)
+    }()
+}
 
 /// Turns a raw, dladdr-resolved symbol name into a human-readable one.
 ///
@@ -274,17 +281,18 @@ private func _swift_demangle(
 /// readable and are returned unchanged.
 internal enum SymbolDemangler {
     static func demangle(_ name: String) -> String {
+        return demangle(name, using: SwiftDemangleResolver.function)
+    }
+
+    static func demangle(_ name: String, using swiftDemangle: SwiftDemangleFunction?) -> String {
         guard !name.isEmpty else {
             return name
         }
+        guard let swiftDemangle else {
+            return name
+        }
         return name.withCString { cString -> String in
-            guard let demangled = _swift_demangle(
-                mangledName: cString,
-                mangledNameLength: UInt(strlen(cString)),
-                outputBuffer: nil,
-                outputBufferSize: nil,
-                flags: 0
-            ) else {
+            guard let demangled = swiftDemangle(cString, UInt(strlen(cString)), nil, nil, 0) else {
                 return name // not a Swift symbol — keep the original (ObjC/C)
             }
             defer { free(demangled) }

@@ -687,6 +687,12 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertEqual(SymbolDemangler.demangle(""), "")
     }
 
+    func testDemangle_WhenSwiftDemanglerIsUnavailable_ReturnsOriginalSymbol() {
+        let mangledName = "$s4main3fooyyF"
+
+        XCTAssertEqual(SymbolDemangler.demangle(mangledName, using: nil), mangledName)
+    }
+
     // MARK: - CrashReporting.Configuration
 
     func testConfiguration_DefaultsToInProcessSymbolicationOn() {
