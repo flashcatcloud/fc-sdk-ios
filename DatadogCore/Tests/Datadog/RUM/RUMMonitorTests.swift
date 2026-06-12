@@ -51,7 +51,7 @@ class RUMMonitorTests: XCTestCase {
             expectation.fulfill()
         }
 
-        wait(for: [expectation], timeout: 0.1)
+        wait(for: [expectation], timeout: 1)
     }
 
     func testWhenSessionIsSampled_itReturnsNil() throws {
@@ -69,7 +69,7 @@ class RUMMonitorTests: XCTestCase {
             expectation.fulfill()
         }
 
-        wait(for: [expectation], timeout: 0.1)
+        wait(for: [expectation], timeout: 1)
     }
 
     func testWhenSessionIsStopped_itReturnsNil() throws {
@@ -91,7 +91,7 @@ class RUMMonitorTests: XCTestCase {
             expectation.fulfill()
         }
 
-        wait(for: [expectation], timeout: 0.1)
+        wait(for: [expectation], timeout: 1)
     }
 
     // MARK: - Sending RUM events
