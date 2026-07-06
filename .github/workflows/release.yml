@@ -116,6 +116,7 @@ jobs:
         module:
           - FlashcatTrace
           - FlashcatRUM
+          - FlashcatLogs-NoOp
           - FlashcatCrashReporting
           - FlashcatWebViewTracking
     steps:
@@ -214,6 +215,7 @@ jobs:
           [
             FlashcatTrace,
             FlashcatRUM,
+            FlashcatLogs-NoOp,
             FlashcatCrashReporting,
             FlashcatWebViewTracking,
           ]
