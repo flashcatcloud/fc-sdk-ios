@@ -14,6 +14,8 @@ public class HTTPClientMock: HTTPClient {
     private var requests: [URLRequest] = []
     /// Closure providing the result for each request.
     private let result: (URLRequest) -> Result<HTTPURLResponse, Error>
+    /// Body handed back by `fetch(request:)`, for requests that read a response rather than upload.
+    public var fetchBody: Data = Data()
 
     /// Initializes the mock client with a result closure.
     /// - Parameter result: Closure providing the completion result for each incoming request (default is a successful HTTP response with `202` code).
@@ -45,6 +47,12 @@ public class HTTPClientMock: HTTPClient {
         queue.async {
             completion(self.result(request))
             self.requests.append(request)
+        }
+    }
+
+    public func fetch(request: URLRequest, completion: @escaping (Result<(response: HTTPURLResponse, body: Data), Error>) -> Void) {
+        send(request: request, delegate: nil) { result in
+            completion(result.map { (response: $0, body: self.fetchBody) })
         }
     }
 
