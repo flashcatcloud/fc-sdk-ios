@@ -17,7 +17,7 @@ import Foundation
 ///   that appears to begin mid-use, and a collected session flipped off would simply stop, looking
 ///   like it ended early.
 /// - context updates, which carry the console's custom values for the host application to read
-///   through `RUMMonitorProtocol.remoteConfig()`.
+///   through `RUMMonitorProtocol.getRemoteConfig()`.
 internal struct RemoteSamplingReceiver: FeatureMessageReceiver {
     let monitor: Monitor
 

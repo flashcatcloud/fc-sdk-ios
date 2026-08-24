@@ -41,7 +41,7 @@ class RemoteSamplingReceiverTests: XCTestCase {
         let handled = receiver.receive(message: .context(context), from: NOPDatadogCore())
 
         XCTAssertFalse(handled, "context updates are broadcast, not claimed")
-        let remoteConfig = try XCTUnwrap(monitor.remoteConfig())
+        let remoteConfig = try XCTUnwrap(monitor.getRemoteConfig())
         XCTAssertEqual(remoteConfig["viplist"] as? [String], ["u-1"])
         XCTAssertEqual(remoteConfig["flag"] as? Bool, true)
     }
@@ -54,7 +54,7 @@ class RemoteSamplingReceiverTests: XCTestCase {
             custom: #"{"a":1}"#
         ))
         _ = receiver.receive(message: .context(context), from: NOPDatadogCore())
-        XCTAssertNotNil(monitor.remoteConfig())
+        XCTAssertNotNil(monitor.getRemoteConfig())
 
         // Kill switch: values cleared, version kept, custom gone.
         context.set(additionalContext: RemoteSamplingRates(
@@ -64,10 +64,10 @@ class RemoteSamplingReceiverTests: XCTestCase {
         ))
         _ = receiver.receive(message: .context(context), from: NOPDatadogCore())
 
-        XCTAssertNil(monitor.remoteConfig())
+        XCTAssertNil(monitor.getRemoteConfig())
     }
 
     func testNOPMonitorAnswersNilRemoteConfig() {
-        XCTAssertNil(NOPMonitor().remoteConfig())
+        XCTAssertNil(NOPMonitor().getRemoteConfig())
     }
 }

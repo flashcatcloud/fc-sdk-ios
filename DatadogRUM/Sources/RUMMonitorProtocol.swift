@@ -92,7 +92,7 @@ public protocol RUMMonitorProtocol: RUMMonitorViewProtocol, AnyObject {
     /// Returns `nil` when remote configuration is not enabled
     /// (`RUM.Configuration.remoteConfigurationEnabled`), when the console set no custom values,
     /// or after the console's kill switch.
-    func remoteConfig() -> [String: Any]?
+    func getRemoteConfig() -> [String: Any]?
 
     /// Records the time to full display (TTFD) of the current app launch.
     /// The duration of the TTFD is calculated as the number of nanoseconds elapsed between the start of the app and the time of this call.
@@ -456,7 +456,7 @@ extension RUMMonitorViewProtocol {
 
 extension RUMMonitorProtocol {
     /// Default no-op so conformers predating remote configuration keep compiling.
-    func remoteConfig() -> [String: Any]? { nil }
+    func getRemoteConfig() -> [String: Any]? { nil }
 }
 
 internal class NOPMonitor: RUMMonitorProtocol {

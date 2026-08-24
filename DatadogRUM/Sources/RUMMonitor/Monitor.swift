@@ -114,7 +114,7 @@ internal class Monitor: RUMCommandSubscriber {
     /// The console's custom values, as the raw JSON object they were delivered in.
     ///
     /// Kept up to date by `RemoteSamplingReceiver` from the rates the core publishes; read by the
-    /// host application through `RUMMonitorProtocol.remoteConfig()`. `nil` when remote
+    /// host application through `RUMMonitorProtocol.getRemoteConfig()`. `nil` when remote
     /// configuration is off, when the console set no custom values, or after a kill switch.
     @ReadWriteLock
     var remoteConfigCustom: String?
@@ -249,7 +249,7 @@ extension Monitor: RUMMonitorProtocol {
         process(command: RUMStopSessionCommand(time: dateProvider.now))
     }
 
-    func remoteConfig() -> [String: Any]? {
+    func getRemoteConfig() -> [String: Any]? {
         guard let json = remoteConfigCustom,
               let data = json.data(using: .utf8),
               let values = try? JSONSerialization.jsonObject(with: data),

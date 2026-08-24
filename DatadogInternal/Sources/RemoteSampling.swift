@@ -43,7 +43,7 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
     /// The console's custom values, as the raw JSON object they were delivered in.
     ///
     /// Delivery is the platform's job; the meaning belongs to the host application, which reads
-    /// them through `RUMMonitorProtocol.remoteConfig()`. Kept as raw JSON so any value shape the
+    /// them through `RUMMonitorProtocol.getRemoteConfig()`. Kept as raw JSON so any value shape the
     /// console adds later reaches the app without an SDK update.
     public let custom: String?
 
