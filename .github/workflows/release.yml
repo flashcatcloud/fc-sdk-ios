@@ -297,6 +297,20 @@ jobs:
               }
             }
 
+      - name: Notify secondary DingTalk group on success
+        uses: zcong1993/actions-ding@master
+        with:
+          dingToken: ${{ secrets.DING_TALK_TOKEN_2 }}
+          secret: ${{ secrets.DING_TALK_SECRET_2 }}
+          body: |
+            {
+              "msgtype": "markdown",
+              "markdown": {
+                "title": "fc-sdk-ios 发布通知",
+                "text": "### ✅ fc-sdk-ios 发布成功\n\n---\n\n 🔖 版本: ${{ github.ref_name }}\n\n 📦 包名: FlashcatCore, FlashcatRUM, FlashcatTrace 等\n\n 🍎 平台: CocoaPods\n\n 👨‍💻 发布者: ${{ github.actor }}\n\n 🚀 [查看详情](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+              }
+            }
+
   notify-failure:
     name: Notify Failure
     runs-on: ubuntu-latest
