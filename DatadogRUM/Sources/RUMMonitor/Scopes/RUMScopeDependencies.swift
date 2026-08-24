@@ -57,6 +57,12 @@ internal struct RUMScopeDependencies {
     let appStateManager: AppStateManaging
     let watchdogTermination: WatchdogTerminationMonitor?
 
+    /// Whether the console may set sampling rates remotely. When `false` (the default) no
+    /// configuration is ever requested and every session draws with the init values.
+    let remoteConfigurationEnabled: Bool
+    /// The custom RUM intake the configuration endpoint sits next to, when the app set one.
+    let customEndpoint: URL?
+
     /// A factory function that creates `ViewEndedMetricController` for each new view started.
     let viewEndedMetricFactory: () -> ViewEndedController
 
@@ -96,7 +102,9 @@ internal struct RUMScopeDependencies {
         watchdogTermination: WatchdogTerminationMonitor?,
         networkSettledMetricFactory: @escaping (Date, String) -> TNSMetricTracking,
         interactionToNextViewMetricFactory: @escaping () -> INVMetricTracking?,
-        sessionType: RUMSessionType?
+        sessionType: RUMSessionType?,
+        remoteConfigurationEnabled: Bool = false,
+        customEndpoint: URL? = nil
     ) {
         self.featureScope = featureScope
         self.rumApplicationID = rumApplicationID
@@ -123,6 +131,8 @@ internal struct RUMScopeDependencies {
         self.viewEndedMetricFactory = viewEndedMetricFactory
         self.appStateManager = appStateManager
         self.watchdogTermination = watchdogTermination
+        self.remoteConfigurationEnabled = remoteConfigurationEnabled
+        self.customEndpoint = customEndpoint
         self.networkSettledMetricFactory = networkSettledMetricFactory
         self.interactionToNextViewMetricFactory = interactionToNextViewMetricFactory
 

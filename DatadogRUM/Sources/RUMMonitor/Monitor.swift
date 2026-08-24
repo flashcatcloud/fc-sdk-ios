@@ -111,6 +111,14 @@ internal class Monitor: RUMCommandSubscriber {
     private let rumUUIDGenerator: RUMUUIDGenerator
     private let telemetry: Telemetry
 
+    /// The console's custom values, as the raw JSON object they were delivered in.
+    ///
+    /// Kept up to date by `RemoteSamplingReceiver` from the rates the core publishes; read by the
+    /// host application through `RUMMonitorProtocol.remoteConfig()`. `nil` when remote
+    /// configuration is off, when the console set no custom values, or after a kill switch.
+    @ReadWriteLock
+    var remoteConfigCustom: String?
+
     init(
         dependencies: RUMScopeDependencies,
         dateProvider: DateProvider
@@ -162,7 +170,7 @@ internal class Monitor: RUMCommandSubscriber {
                     sessionID: context.sessionID.rawValue.uuidString.lowercased(),
                     viewID: context.activeViewID?.rawValue.uuidString.lowercased(),
                     userActionID: context.activeUserActionID?.rawValue.uuidString.lowercased(),
-                    viewServerTimeOffset: self.scopes.activeSession?.viewScopes.last?.serverTimeOffset
+                    viewServerTimeOffset: self.scopes.activeSession?.viewScopes.last?.serverTimeOffset,
                 )
             }
         )
@@ -239,6 +247,16 @@ extension Monitor: RUMMonitorProtocol {
 
     func stopSession() {
         process(command: RUMStopSessionCommand(time: dateProvider.now))
+    }
+
+    func remoteConfig() -> [String: Any]? {
+        guard let json = remoteConfigCustom,
+              let data = json.data(using: .utf8),
+              let values = try? JSONSerialization.jsonObject(with: data),
+              let dictionary = values as? [String: Any] else {
+            return nil
+        }
+        return dictionary
     }
 
     func reportAppFullyDisplayed() {

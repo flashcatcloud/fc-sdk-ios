@@ -55,6 +55,23 @@ internal final class DatadogCore {
     /// The message-bus instance.
     let bus = MessageBus()
 
+    /// Keeps the remote sampling configuration in step with the console.
+    ///
+    /// Created lazily because it captures `self`: every publication of `RemoteSamplingSource`
+    /// (RUM does it at SDK init and at every session creation) is one opportunity to fetch.
+    private(set) lazy var remoteSamplingController = RemoteSamplingController(
+        httpClient: httpClient,
+        contextProvider: contextProvider,
+        store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
+        telemetry: telemetry,
+        publishRates: { [weak self] rates in
+            self?.contextProvider.write { $0.set(additionalContext: rates) }
+        },
+        notifyImmediateChange: { [weak self] in
+            self?.send(message: .payload(RemoteSamplingChangedMessage()), else: {})
+        }
+    )
+
     /// Registry for Features.
     @ReadWriteLock
     private(set) var stores: [String: (storage: FeatureStorage, upload: FeatureUpload)] = [:]
@@ -389,7 +406,19 @@ extension DatadogCore: DatadogCoreProtocol {
     }
 
     func set<Context>(context: @escaping () -> Context?) where Context: AdditionalContext {
-        contextProvider.write { $0.set(additionalContext: context()) }
+        contextProvider.write { [weak self] coreContext in
+            // Evaluated on the context queue, never on the caller's thread. The closures features
+            // pass in here read their own scopes, and those scopes are mutated from this queue —
+            // so calling it anywhere else turns an ordinary read into a data race.
+            let value = context()
+            coreContext.set(additionalContext: value)
+            // RUM publishes its configuration source at SDK init and at every session creation;
+            // each publication is one opportunity for the controller to ask the console. No other
+            // context type is a trigger, so rates the controller itself publishes cannot loop.
+            if let source = value as? RemoteSamplingSource {
+                self?.remoteSamplingController.onSourcePublished(source)
+            }
+        }
     }
 
     func send(message: FeatureMessage, else fallback: @escaping () -> Void) {

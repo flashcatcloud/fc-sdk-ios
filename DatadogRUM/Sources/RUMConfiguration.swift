@@ -306,6 +306,16 @@ extension RUM {
         /// Default: `false`.
         public var collectAccessibility: Bool
 
+        /// Enables the remote configuration of sampling rates from the console.
+        ///
+        /// When enabled, the SDK asks the console (at startup and whenever a new session starts)
+        /// for the sampling rates to draw new sessions with, and reports the configuration version
+        /// each session was drawn under on its view events. The values the app was initialised
+        /// with stay in effect for anything the console does not set.
+        ///
+        /// Default: `false` — no extra requests are made and behaviour is unchanged.
+        public var remoteConfigurationEnabled: Bool
+
         /// Feature flags to preview features in RUM.
         public var featureFlags: FeatureFlags
 
@@ -465,6 +475,7 @@ extension RUM.Configuration {
     ///   - trackSlowFrames: Enables the collection of slow frames (view hitches). Default: `true`.
     ///   - telemetrySampleRate: The sampling rate for SDK internal telemetry utilized by Datadog. Must be a value between `0` and `100`. Default: `20`.
     ///   - collectAccessibility: Determines whether accessibility data should be collected and included in RUM view events. Default: `false`.
+    ///   - remoteConfigurationEnabled: Enables remote configuration of sampling rates from the console. Default: `false`.
     ///   - featureFlags: Experimental feature flags.
     public init(
         applicationID: String,
@@ -494,6 +505,7 @@ extension RUM.Configuration {
         trackSlowFrames: Bool = true,
         telemetrySampleRate: SampleRate = 20,
         collectAccessibility: Bool = false,
+        remoteConfigurationEnabled: Bool = false,
         featureFlags: FeatureFlags = .defaults
     ) {
         self.applicationID = applicationID
@@ -523,6 +535,7 @@ extension RUM.Configuration {
         self.trackSlowFrames = trackSlowFrames
         self.telemetrySampleRate = telemetrySampleRate
         self.collectAccessibility = collectAccessibility
+        self.remoteConfigurationEnabled = remoteConfigurationEnabled
         self.featureFlags = featureFlags
     }
 }

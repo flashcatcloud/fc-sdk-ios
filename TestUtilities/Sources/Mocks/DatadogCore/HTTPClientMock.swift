@@ -15,7 +15,7 @@ public class HTTPClientMock: HTTPClient {
     /// Closure providing the result for each request.
     private let result: (URLRequest) -> Result<HTTPURLResponse, Error>
     /// Body handed back by `fetch(request:)`, for requests that read a response rather than upload.
-    public var fetchBody: Data = Data()
+    public var fetchBody = Data()
 
     /// Initializes the mock client with a result closure.
     /// - Parameter result: Closure providing the completion result for each incoming request (default is a successful HTTP response with `202` code).

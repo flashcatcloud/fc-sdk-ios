@@ -174,7 +174,9 @@ internal final class RUMFeature: DatadogRemoteFeature {
                     predicate: nextViewActionPredicate
                 )
             },
-            sessionType: configuration.sessionTypeOverride.flatMap { RUMSessionType(rawValue: $0) }
+            sessionType: configuration.sessionTypeOverride.flatMap { RUMSessionType(rawValue: $0) },
+            remoteConfigurationEnabled: configuration.remoteConfigurationEnabled,
+            customEndpoint: configuration.customEndpoint
         )
 
         self.monitor = Monitor(
@@ -234,6 +236,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
                 featureScope: featureScope,
                 monitor: monitor
             ),
+            RemoteSamplingReceiver(monitor: monitor),
             FlagEvaluationReceiver(monitor: monitor),
             WebViewEventReceiver(
                 featureScope: featureScope,

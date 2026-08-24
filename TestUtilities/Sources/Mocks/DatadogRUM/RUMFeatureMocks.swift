@@ -1071,7 +1071,9 @@ extension RUMScopeDependencies {
         interactionToNextViewMetricFactory: @escaping () -> INVMetricTracking = {
             INVMetric(predicate: TimeBasedINVActionPredicate())
         },
-        sessionType: RUMSessionType? = nil
+        sessionType: RUMSessionType? = nil,
+        remoteConfigurationEnabled: Bool = false,
+        customEndpoint: URL? = nil
     ) -> RUMScopeDependencies {
         return RUMScopeDependencies(
             featureScope: featureScope,
@@ -1100,7 +1102,9 @@ extension RUMScopeDependencies {
             watchdogTermination: watchdogTermination,
             networkSettledMetricFactory: networkSettledMetricFactory,
             interactionToNextViewMetricFactory: interactionToNextViewMetricFactory,
-            sessionType: sessionType
+            sessionType: sessionType,
+            remoteConfigurationEnabled: remoteConfigurationEnabled,
+            customEndpoint: customEndpoint
         )
     }
 

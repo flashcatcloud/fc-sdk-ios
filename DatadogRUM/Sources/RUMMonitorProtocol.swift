@@ -83,6 +83,17 @@ public protocol RUMMonitorProtocol: RUMMonitorViewProtocol, AnyObject {
     /// If the session is started because of a call to `addAction`, the last known view is restarted in the new session.
     func stopSession()
 
+    /// The custom values delivered with the console's remote configuration.
+    ///
+    /// Delivery is the SDK's job; the meaning of the values belongs to the application. They are
+    /// returned as decoded JSON (strings, numbers, booleans, arrays and dictionaries), exactly as
+    /// the console sent them.
+    ///
+    /// Returns `nil` when remote configuration is not enabled
+    /// (`RUM.Configuration.remoteConfigurationEnabled`), when the console set no custom values,
+    /// or after the console's kill switch.
+    func remoteConfig() -> [String: Any]?
+
     /// Records the time to full display (TTFD) of the current app launch.
     /// The duration of the TTFD is calculated as the number of nanoseconds elapsed between the start of the app and the time of this call.
     func reportAppFullyDisplayed()
@@ -442,6 +453,11 @@ extension RUMMonitorViewProtocol {
 }
 
 // MARK: - NOP monitor
+
+extension RUMMonitorProtocol {
+    /// Default no-op so conformers predating remote configuration keep compiling.
+    func remoteConfig() -> [String: Any]? { nil }
+}
 
 internal class NOPMonitor: RUMMonitorProtocol {
     private func warn(method: StaticString = #function) {

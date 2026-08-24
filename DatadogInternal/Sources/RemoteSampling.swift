@@ -22,24 +22,48 @@ public struct RemoteSamplingSource: AdditionalContext, Equatable {
     }
 }
 
-/// The sampling rates the console last provided.
+/// The configuration values the console last provided.
 ///
 /// The core is the only writer; RUM and Session Replay read it to decide whether to keep a session
-/// and whether to record it. A rate is absent — never zero — when the console did not set it, and
+/// and whether to record it. A knob is absent — never zero — when the console did not set it, and
 /// the feature then keeps the value the app was initialised with. Reporting a zero we invented
 /// would silently stop collection nobody asked to stop.
 public struct RemoteSamplingRates: AdditionalContext, Equatable {
     public static let key = "remote-sampling-rates"
 
     public let sessionSampleRate: SampleRate?
-    public let sessionReplaySampleRate: SampleRate?
 
-    public init(sessionSampleRate: SampleRate?, sessionReplaySampleRate: SampleRate?) {
+    /// The version of the console configuration these values came from.
+    ///
+    /// It survives the kill switch: when the console disables remote configuration the values are
+    /// cleared but the version is kept, so the client can still report which version it runs.
+    /// `0` means the console never provided a configuration.
+    public let version: Int64
+
+    /// The console's custom values, as the raw JSON object they were delivered in.
+    ///
+    /// Delivery is the platform's job; the meaning belongs to the host application, which reads
+    /// them through `RUMMonitorProtocol.remoteConfig()`. Kept as raw JSON so any value shape the
+    /// console adds later reaches the app without an SDK update.
+    public let custom: String?
+
+    public init(
+        sessionSampleRate: SampleRate?,
+        version: Int64 = 0,
+        custom: String? = nil
+    ) {
         self.sessionSampleRate = sessionSampleRate
-        self.sessionReplaySampleRate = sessionReplaySampleRate
+        self.version = version
+        self.custom = custom
     }
 
-    public var isEmpty: Bool { sessionSampleRate == nil && sessionReplaySampleRate == nil }
+    /// Whether the console left every knob unset — the kill switch state.
+    ///
+    /// Note the version is deliberately not part of this: an empty configuration still reports
+    /// the version it came from.
+    public var isEmpty: Bool {
+        sessionSampleRate == nil && custom == nil
+    }
 }
 
 /// Sent by the core when the console asked for a change to take effect immediately and the rates

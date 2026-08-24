@@ -82,6 +82,9 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     let startPrecondition: RUMSessionPrecondition?
     /// If events from this session should be sampled (send to Datadog).
     let isSampled: Bool
+    /// The configuration this session was drawn with; `nil` when no remote configuration is in
+    /// effect. Drawn once here and fixed for the session's life — sessions never flip.
+    let drawnConfiguration: RUMDrawnConfiguration?
     /// If the session is currently active. Set to `false` upon reaching the `EndReason`.
     var isActive: Bool { endReason == nil }
     /// If this is the very first session created in the current app process (`false` for session created upon expiration of a previous one).
@@ -113,7 +116,16 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         self.parent = parent
         self.dependencies = dependencies
         self.applicationState = applicationState
-        self.isSampled = dependencies.sessionSampler.sample()
+        // The session draw: the console's rate wins when it set one, the init rate otherwise.
+        // Drawn once here; `isSampled` is a `let` and sessions never flip.
+        let remoteRates = context.additionalContext(ofType: RemoteSamplingRates.self)
+        self.isSampled = remoteRates?.sessionSampleRate
+            .map { Sampler(samplingRate: $0).sample() }
+            ?? dependencies.sessionSampler.sample()
+        self.drawnConfiguration = RUMDrawnConfiguration(
+            rates: remoteRates,
+            fallbackSessionSampleRate: dependencies.sessionSampler.samplingRate
+        )
         self.startPrecondition = startPrecondition
         self.sessionUUID = isSampled ? dependencies.rumUUIDGenerator.generateUnique() : .nullUUID
         self.isInitialSession = isInitialSession
@@ -152,6 +164,15 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
         // Update fatal error context with recent RUM session state:
         dependencies.fatalErrorContext.sessionState = state
+
+        // Every session creation is one opportunity to ask the console for the sampling
+        // configuration. Publishing the source is the whole signal: the core deduplicates a
+        // fetch in flight and applies its retry policy, and with the option off nothing is
+        // ever published, so nothing is ever requested.
+        if dependencies.remoteConfigurationEnabled,
+           let url = remoteSamplingConfigurationURL(customEndpoint: dependencies.customEndpoint, context: context) {
+            dependencies.featureScope.set(context: { RemoteSamplingSource(configurationURL: url) })
+        }
     }
 
     /// Creates a new Session upon expiration of the previous one.
@@ -206,6 +227,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         context.sessionID = sessionUUID
         context.isSessionActive = isActive
         context.sessionPrecondition = startPrecondition
+        context.drawnConfiguration = drawnConfiguration
         return context
     }
 
