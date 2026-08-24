@@ -56,14 +56,6 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
         self.version = version
         self.custom = custom
     }
-
-    /// Whether the console left every knob unset — the kill switch state.
-    ///
-    /// Note the version is deliberately not part of this: an empty configuration still reports
-    /// the version it came from.
-    public var isEmpty: Bool {
-        sessionSampleRate == nil && custom == nil
-    }
 }
 
 /// Sent by the core when the console asked for a change to take effect immediately and the rates

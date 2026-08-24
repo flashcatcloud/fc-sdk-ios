@@ -98,7 +98,6 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         XCTAssertEqual(response.snapshot.version, 43)
         XCTAssertFalse(response.snapshot.enabled)
         XCTAssertNil(response.snapshot.custom)
-        XCTAssertTrue(rates.isEmpty)
         XCTAssertNil(rates.sessionSampleRate)
         XCTAssertNil(rates.custom)
         XCTAssertEqual(rates.version, 43, "the version survives the kill switch")

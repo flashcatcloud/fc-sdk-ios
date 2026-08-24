@@ -273,7 +273,7 @@ class RemoteSamplingControllerTests: XCTestCase {
 
         eventually(harness.recorder.published.count == 2)
         let rates = harness.recorder.published.last
-        XCTAssertTrue(rates?.isEmpty ?? false)
+        XCTAssertNil(rates?.sessionSampleRate)
         XCTAssertNil(rates?.custom)
         XCTAssertEqual(rates?.version, 43, "the version survives the kill switch")
     }

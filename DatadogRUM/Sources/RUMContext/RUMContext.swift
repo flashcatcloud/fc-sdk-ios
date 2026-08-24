@@ -28,5 +28,5 @@ internal struct RUMContext {
 
     /// The configuration the current session was drawn with; `nil` when no remote configuration
     /// is in effect. Fixed for the session's life — it never changes mid-session.
-    var drawnConfiguration: RUMDrawnConfiguration? = nil
+    var drawnConfiguration: RUMDrawnConfiguration?
 }

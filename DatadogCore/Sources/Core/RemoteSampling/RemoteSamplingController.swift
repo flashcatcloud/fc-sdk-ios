@@ -19,7 +19,7 @@ import DatadogInternal
 /// was built with, which is the opposite of what someone who turned a knob deliberately wants.
 internal final class RemoteSamplingController {
     /// The delays before the first and second retry of a failed fetch.
-    static let retryDelays: [TimeInterval] = [5, 60]
+    private static let retryDelays: [TimeInterval] = [5, 60]
 
     /// The queue every piece of state below lives on.
     private let queue = DispatchQueue(label: "com.datadoghq.remote-sampling", target: .global(qos: .utility))
@@ -170,7 +170,7 @@ internal final class RemoteSamplingController {
     /// console asked for an immediate change that really changes what this client draws with,
     /// let RUM know so it ends the running session.
     private func activate(_ parsed: RemoteSamplingResponse) {
-        let before = snapshot.rates
+        let previousSessionSampleRate = snapshot.rates.sessionSampleRate
         snapshot = parsed.snapshot
         if let storageKey = storageKey {
             store?.save(snapshot, forKey: storageKey)
@@ -178,8 +178,7 @@ internal final class RemoteSamplingController {
         publishRates(snapshot.rates)
         inFlight = false
 
-        let after = snapshot.rates
-        let drawChanged = before.sessionSampleRate != after.sessionSampleRate
+        let drawChanged = previousSessionSampleRate != snapshot.rates.sessionSampleRate
         if parsed.activation == .immediate && drawChanged {
             notifyImmediateChange()
         }

@@ -41,7 +41,7 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
             // Kill switch: no knob and no custom values, only the version survives.
             return RemoteSamplingRates(
                 sessionSampleRate: nil,
-                        version: version
+                version: version
             )
         }
         return RemoteSamplingRates(
@@ -99,13 +99,13 @@ extension RemoteSamplingResponse {
                     etag: etag,
                     enabled: false,
                     sessionSampleRate: nil,
-                                custom: nil
+                    custom: nil
                 ),
                 activation: activation
             )
         }
 
-        let rum = try readDictionary(root, key: Contract.rum, required: false) ?? [:]
+        let rum = try readDictionary(root, key: Contract.rum) ?? [:]
         let custom = try readCustom(root)
 
         return RemoteSamplingResponse(
@@ -161,11 +161,8 @@ extension RemoteSamplingResponse {
         return activation
     }
 
-    private static func readDictionary(_ root: [String: Any], key: String, required: Bool) throws -> [String: Any]? {
+    private static func readDictionary(_ root: [String: Any], key: String) throws -> [String: Any]? {
         guard let raw = root[key] else {
-            if required {
-                throw RemoteSamplingResponseError()
-            }
             return nil
         }
         guard let dictionary = raw as? [String: Any] else {
@@ -193,7 +190,7 @@ extension RemoteSamplingResponse {
 
     /// Custom values are delivered to the host application as the raw JSON object they arrived in.
     private static func readCustom(_ root: [String: Any]) throws -> String? {
-        guard let dictionary = try readDictionary(root, key: Contract.custom, required: false) else {
+        guard let dictionary = try readDictionary(root, key: Contract.custom) else {
             return nil
         }
         guard JSONSerialization.isValidJSONObject(dictionary),
