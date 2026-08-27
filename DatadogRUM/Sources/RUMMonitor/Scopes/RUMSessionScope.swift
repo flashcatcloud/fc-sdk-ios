@@ -141,7 +141,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         self.isSampled = isForced || Sampler(samplingRate: drawnRate).sample()
         self.drawnConfiguration = RUMDrawnConfiguration(
             rates: remoteRates,
-            drawnSessionSampleRate: drawnRate
+            drawnSessionSampleRate: drawnRate,
+            initialSessionSampleRate: dependencies.sessionSampler.samplingRate
         )
         self.startPrecondition = startPrecondition
         self.sessionUUID = isSampled ? dependencies.rumUUIDGenerator.generateUnique() : .nullUUID

@@ -21,20 +21,28 @@ internal struct RUMDrawnConfiguration: Equatable {
 
     /// Records the draw that just happened.
     ///
-    /// `nil` when no remote configuration is in effect at all: events then report the init values,
-    /// exactly as before remote configuration existed.
+    /// `nil` only when there is nothing to record — no configuration was in effect and the draw
+    /// used the value the app was initialised with, so events reporting that value are already
+    /// telling the truth, exactly as before remote configuration existed.
+    ///
+    /// A `beforeSampling` hook is reason enough on its own: it applies whether or not the console
+    /// is publishing anything, so an app that only uses the hook still draws at a rate that is not
+    /// the init value, and without a record every event would report the init value instead of the
+    /// rate that actually decided the session.
     ///
     /// - Parameters:
     ///   - rates: what the console had published at the moment of the draw.
     ///   - drawnSessionSampleRate: the rate the draw actually used — the console's, the init value,
     ///     or whatever `beforeSampling` returned. It is what the events report, because it is what
     ///     decided the session.
-    init?(rates: RemoteSamplingRates?, drawnSessionSampleRate: SampleRate) {
-        guard let rates = rates else {
+    ///   - initialSessionSampleRate: the value the app was initialised with, to tell "nothing
+    ///     happened" from "the draw moved".
+    init?(rates: RemoteSamplingRates?, drawnSessionSampleRate: SampleRate, initialSessionSampleRate: SampleRate) {
+        guard rates != nil || drawnSessionSampleRate != initialSessionSampleRate else {
             return nil
         }
         self.sessionSampleRate = drawnSessionSampleRate
-        self.version = rates.version
+        self.version = rates?.version ?? 0
     }
 }
 

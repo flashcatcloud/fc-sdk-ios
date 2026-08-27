@@ -121,7 +121,6 @@ class RemoteSamplingSnapshotTests: XCTestCase {
     func testRefusesASchemaItDoesNotRead() {
         let bodies = [
             #"{ "schema_version": 2, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#,
-            #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#, // no schema at all
             #"{ "schema_version": "1", "version": 1, "enabled": true }"#, // schema of wrong type
             #"{ "schema_version": true, "version": 1, "enabled": true }"#, // JSON bools bridge to NSNumber
         ]
@@ -134,6 +133,18 @@ class RemoteSamplingSnapshotTests: XCTestCase {
                 XCTAssertTrue(error is RemoteSamplingUnsupportedSchemaError, "should refuse on schema: \(string)")
             }
         }
+    }
+
+    func testReadsABodyWithNoSchemaStampAtAll() throws {
+        // A body with no stamp is, by construction, the shape that existed before the stamp did —
+        // the shape this reader was written against. Refusing it would switch remote configuration
+        // silently off for every client on this platform against a server that merely predates the
+        // field, and nothing would say so.
+        let body = #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!
+
+        let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
+
+        XCTAssertEqual(response.snapshot.sessionSampleRate, 20)
     }
 
     func testReadsTheSchemaItSupports() throws {

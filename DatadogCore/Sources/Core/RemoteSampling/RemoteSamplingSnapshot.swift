@@ -143,10 +143,16 @@ extension RemoteSamplingResponse {
     static let supportedSchemaVersion = 1
 
     private static func checkSchemaVersion(_ root: [String: Any]) throws {
-        guard let raw = root[Contract.schemaVersion],
-              let number = raw as? NSNumber, !isBoolean(raw),
-              number.intValue == supportedSchemaVersion else {
-            let received = (root[Contract.schemaVersion] as? NSNumber).map { $0.intValue }
+        // A body carrying no stamp at all is, by construction, the shape that existed before the
+        // stamp did — which is the shape this reader was written against. Refusing it would switch
+        // remote configuration silently off for every client on this platform whenever it is
+        // pointed at a server that merely predates the field, and nothing would say so. Only a
+        // stamp we can see and do not recognise is a reason to refuse.
+        guard let raw = root[Contract.schemaVersion] else {
+            return
+        }
+        guard let number = raw as? NSNumber, !isBoolean(raw), number.intValue == supportedSchemaVersion else {
+            let received = (raw as? NSNumber).map { $0.intValue }
             throw RemoteSamplingUnsupportedSchemaError(received: received)
         }
     }

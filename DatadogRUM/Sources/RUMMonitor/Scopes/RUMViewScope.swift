@@ -739,7 +739,7 @@ extension RUMViewScope {
         let errorEvent = RUMErrorEvent(
             dd: .init(
                 browserSdkVersion: nil,
-                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: Double(dependencies.sessionSampler.samplingRate)),
+                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: Double(self.context.drawnConfiguration?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate)),
                 session: .init(
                     plan: .plan1,
                     sessionPrecondition: self.context.sessionPrecondition
@@ -830,7 +830,7 @@ extension RUMViewScope {
         let longTaskEvent = RUMLongTaskEvent(
             dd: .init(
                 browserSdkVersion: nil,
-                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: Double(dependencies.sessionSampler.samplingRate)),
+                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: Double(self.context.drawnConfiguration?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate)),
                 discarded: nil,
                 session: .init(
                     plan: .plan1,

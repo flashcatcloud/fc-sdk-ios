@@ -316,6 +316,60 @@ class RUMDrawnConfigurationTests: XCTestCase {
         XCTAssertNil(event.dd.configuration?.rcVersion, "no remote configuration, no rc_version")
     }
 
+    func testEveryEventTypeReportsTheDrawnRateNotTheInitOne() throws {
+        // The view event is not the only one carrying the rate: the backend extrapolates from
+        // whatever each event reports, and a customer reading the explorer sees it on every row.
+        // An error that says the session was drawn at the init rate is simply a wrong number.
+        let rates = RemoteSamplingRates(sessionSampleRate: 20, version: 42)
+        let sessionScope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: rates),
+            dependencies: .mockWith(sessionSampler: Sampler(samplingRate: 80))
+        )
+        defer { withExtendedLifetime(sessionScope) {} }
+        let scope = RUMViewScope(
+            isInitialView: true,
+            parent: sessionScope,
+            dependencies: .mockAny(),
+            identity: .mockViewIdentifier(),
+            path: "UIViewController",
+            name: "ViewName",
+            customTimings: [:],
+            startTime: .mockAny(),
+            serverTimeOffset: .zero,
+            interactionToNextViewMetric: nil,
+            viewIndexInSession: 0
+        )
+
+        _ = scope.process(command: RUMCommandMock(time: .mockAny()), context: .mockAny(), writer: writer)
+        _ = scope.process(
+            command: RUMAddCurrentViewErrorCommand.mockWithErrorMessage(time: .mockAny(), message: .mockAny()),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        let errorEvent = try XCTUnwrap(writer.events(ofType: RUMErrorEvent.self).first)
+        XCTAssertEqual(errorEvent.dd.configuration?.sessionSampleRate, 20, "an error reports the drawn rate too")
+    }
+
+    func testBeforeSamplingAloneIsRecordedEvenWithoutRemoteConfiguration() throws {
+        // The hook applies whether or not the console publishes anything. Without a record, a
+        // session drawn at the hook's rate would report the init rate on every event — the rate
+        // that did not decide it.
+        let sessionScope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: nil),
+            dependencies: .mockWith(
+                sessionSampler: Sampler(samplingRate: 80),
+                remoteSamplingRates: { nil },
+                beforeSampling: { _ in 100 }
+            )
+        )
+
+        XCTAssertEqual(sessionScope.drawnConfiguration?.sessionSampleRate, 100)
+        XCTAssertEqual(sessionScope.drawnConfiguration?.version, 0, "no console configuration was in effect")
+    }
+
     // MARK: - Encoding (fork patch)
 
     func testConfigurationEncodesRCVersion() throws {
