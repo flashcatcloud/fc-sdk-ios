@@ -148,7 +148,9 @@ extension RemoteSamplingResponse {
         // remote configuration silently off for every client on this platform whenever it is
         // pointed at a server that merely predates the field, and nothing would say so. Only a
         // stamp we can see and do not recognise is a reason to refuse.
-        guard let raw = root[Contract.schemaVersion] else {
+        // A key that is absent, or present as an explicit null, both say the same thing: nothing
+        // was stamped. The other SDKs read them the same way.
+        guard let raw = root[Contract.schemaVersion], !(raw is NSNull) else {
             return
         }
         guard let number = raw as? NSNumber, !isBoolean(raw), number.intValue == supportedSchemaVersion else {

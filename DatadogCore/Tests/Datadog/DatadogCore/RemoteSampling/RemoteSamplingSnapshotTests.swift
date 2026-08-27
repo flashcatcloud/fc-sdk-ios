@@ -140,11 +140,16 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         // the shape this reader was written against. Refusing it would switch remote configuration
         // silently off for every client on this platform against a server that merely predates the
         // field, and nothing would say so.
-        let body = #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!
+        let bodies = [
+            #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#, // no key at all
+            #"{ "schema_version": null, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#,
+        ]
 
-        let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
-
-        XCTAssertEqual(response.snapshot.sessionSampleRate, 20)
+        for string in bodies {
+            let body = string.data(using: .utf8)!
+            let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
+            XCTAssertEqual(response.snapshot.sessionSampleRate, 20, "should read: \(string)")
+        }
     }
 
     func testReadsTheSchemaItSupports() throws {
