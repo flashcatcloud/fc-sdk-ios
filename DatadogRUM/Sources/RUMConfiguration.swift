@@ -316,6 +316,16 @@ extension RUM {
         /// Default: `false` — no extra requests are made and behaviour is unchanged.
         public var remoteConfigurationEnabled: Bool
 
+        /// Has the last word on session sampling.
+        ///
+        /// Called synchronously each time a new session is about to be drawn, with the rate that
+        /// would apply and the console's custom values; return a rate to override it, or nil to
+        /// leave it alone. It is the last step of the draw, after the console's rate, precisely so
+        /// an allow-list can keep collecting a visitor the console's rate would drop.
+        ///
+        /// Default: `nil` — the draw is exactly what the console and this configuration say.
+        public var beforeSampling: BeforeSamplingCallback?
+
         /// Feature flags to preview features in RUM.
         public var featureFlags: FeatureFlags
 
@@ -476,6 +486,7 @@ extension RUM.Configuration {
     ///   - telemetrySampleRate: The sampling rate for SDK internal telemetry utilized by Datadog. Must be a value between `0` and `100`. Default: `20`.
     ///   - collectAccessibility: Determines whether accessibility data should be collected and included in RUM view events. Default: `false`.
     ///   - remoteConfigurationEnabled: Enables remote configuration of sampling rates from the console. Default: `false`.
+    ///   - beforeSampling: Has the last word on session sampling. Default: `nil`.
     ///   - featureFlags: Experimental feature flags.
     public init(
         applicationID: String,
@@ -506,6 +517,7 @@ extension RUM.Configuration {
         telemetrySampleRate: SampleRate = 20,
         collectAccessibility: Bool = false,
         remoteConfigurationEnabled: Bool = false,
+        beforeSampling: BeforeSamplingCallback? = nil,
         featureFlags: FeatureFlags = .defaults
     ) {
         self.applicationID = applicationID
@@ -536,6 +548,7 @@ extension RUM.Configuration {
         self.telemetrySampleRate = telemetrySampleRate
         self.collectAccessibility = collectAccessibility
         self.remoteConfigurationEnabled = remoteConfigurationEnabled
+        self.beforeSampling = beforeSampling
         self.featureFlags = featureFlags
     }
 }
@@ -573,3 +586,31 @@ extension RUM.Configuration.FeatureFlags {
         self[flag, default: false]
     }
 }
+
+/// What the SDK is about to draw a new session with, handed to `RUM.Configuration.beforeSampling`:
+/// the rate that would apply (the console's where it published one, the value passed to init where
+/// it did not) and the console's custom values, decoded.
+public struct BeforeSamplingContext {
+    /// The rate, between 0 and 100, that would decide this session.
+    public let sessionSampleRate: SampleRate
+    /// The console's custom values, or nil when remote configuration is off or nothing is
+    /// published. The same content as `RUMMonitorProtocol.getRemoteConfig()`.
+    public let custom: [String: Any]?
+
+    public init(sessionSampleRate: SampleRate, custom: [String: Any]?) {
+        self.sessionSampleRate = sessionSampleRate
+        self.custom = custom
+    }
+}
+
+/// The application's last word on session sampling, called synchronously each time a new session
+/// is about to be drawn.
+///
+/// Return a rate to override the one the SDK was going to use — 100 always collects, 0 never does
+/// — or nil to leave it alone. The typical use is an allow-list: keep every session of the handful
+/// of users you are debugging while the fleet stays at a low rate.
+///
+/// It runs inside session creation, so it must be fast and must not block. A rate outside 0...100
+/// is ignored and the incoming rate applies: a mistake here must never take a customer's
+/// collection down with it. A session already under way is never re-decided.
+public typealias BeforeSamplingCallback = (BeforeSamplingContext) -> SampleRate?

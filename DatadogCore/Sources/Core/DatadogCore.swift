@@ -57,20 +57,32 @@ internal final class DatadogCore {
 
     /// Keeps the remote sampling configuration in step with the console.
     ///
-    /// Created lazily because it captures `self`: every publication of `RemoteSamplingSource`
-    /// (RUM does it at SDK init and at every session creation) is one opportunity to fetch.
-    private(set) lazy var remoteSamplingController = RemoteSamplingController(
-        httpClient: httpClient,
-        contextProvider: contextProvider,
-        store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
-        telemetry: telemetry,
-        publishRates: { [weak self] rates in
-            self?.contextProvider.write { $0.set(additionalContext: rates) }
-        },
-        notifyImmediateChange: { [weak self] in
-            self?.send(message: .payload(RemoteSamplingChangedMessage()), else: {})
+    /// Built on demand because it captures `self` and because an app that never asked for remote
+    /// configuration must not pay for the store's directory. `lazy` cannot do that job here: it is
+    /// reached both from the context queue (a published source) and from the thread that enables
+    /// RUM (the priming read), and Swift's lazy initialisation is not atomic.
+    @ReadWriteLock
+    private var _remoteSamplingController: RemoteSamplingController?
+
+    var remoteSamplingController: RemoteSamplingController {
+        if let existing = _remoteSamplingController {
+            return existing
         }
-    )
+        let created = RemoteSamplingController(
+            httpClient: httpClient,
+            contextProvider: contextProvider,
+            store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
+            telemetry: telemetry,
+            publishRates: { [weak self] rates in
+                self?.contextProvider.write { $0.set(additionalContext: rates) }
+            },
+            notifyImmediateChange: { [weak self] in
+                self?.send(message: .payload(RemoteSamplingChangedMessage()), else: {})
+            }
+        )
+        _remoteSamplingController = created
+        return created
+    }
 
     /// Registry for Features.
     @ReadWriteLock
@@ -663,3 +675,24 @@ internal let registerObjcExceptionHandlerOnce: () -> Void = {
     ObjcException.rethrow = __dd_private_ObjcExceptionHandler.rethrow
     return {}
 }()
+
+extension DatadogCore: RemoteSamplingReader {
+    /// Reads the stored configuration into effect before RUM can draw its first session under it.
+    ///
+    /// The address depends on RUM's own endpoint configuration, which the core does not otherwise
+    /// know, so the caller builds it from the context handed to the closure.
+    @discardableResult
+    func primeRemoteSampling(source: (DatadogContext) -> RemoteSamplingSource?) -> RemoteSamplingRates? {
+        let context = contextProvider.read()
+        guard let source = source(context) else {
+            return nil
+        }
+        return remoteSamplingController.prime(source: source, context: context)
+    }
+
+    var remoteSamplingRates: RemoteSamplingRates? {
+        // Only the controller that was actually built can have rates; asking for one here would
+        // create it for an app that never opted in.
+        _remoteSamplingController?.currentRates
+    }
+}

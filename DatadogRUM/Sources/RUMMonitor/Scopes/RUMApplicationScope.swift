@@ -21,6 +21,11 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     /// Might be re-created later according to session duration constraints.
     private(set) var sessionScopes: [RUMSessionScope] = []
 
+    /// FLASHCAT FORK - set through `RUMMonitorProtocol.setForcedSession()`, read at every draw from
+    /// then on. Process-lifetime, like the debugging decision it represents: the host application
+    /// decides again on each launch.
+    private(set) var isForcedSession = false
+
     /// The last active foreground view from the previous session.
     /// Used to restore the view when a new session starts after `sessionStop()`.
     private var lastActiveView: RUMViewScope?
@@ -149,6 +154,17 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         let lastActiveForegroundView = activeSession?.viewScopes.first(where: { $0.isActiveView && $0.viewPath != RUMOffViewEventsHandlingRule.Constants.backgroundViewURL })
         lastActiveView = lastActiveForegroundView ?? lastActiveView
 
+        if let forced = command as? RUMSetForcedSessionCommand {
+            isForcedSession = true
+            // A session already being collected keeps running: RUM cannot retro-collect what a
+            // running session already dropped, and cutting it in two would gain nothing. One that
+            // was NOT collected ends now, so a collected one starts in its place.
+            if activeSession?.isSampled != true {
+                _process(command: RUMStopSessionCommand(time: forced.time), context: context, writer: writer)
+            }
+            return
+        }
+
         if command is RUMStopSessionCommand {
             applicationState.wasAnySessionStopped = true
         }
@@ -234,7 +250,8 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             startPrecondition: startPrecondition,
             context: context,
             dependencies: dependencies,
-            applicationState: applicationState
+            applicationState: applicationState,
+            isForced: isForcedSession
         )
 
         lastSessionEndReason = nil
@@ -266,7 +283,8 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             startPrecondition: startPrecondition,
             context: context,
             transferActiveView: transferActiveView,
-            applicationState: applicationState
+            applicationState: applicationState,
+            isForced: isForcedSession
         )
         sessionScopeDidUpdate(refreshedSession)
         lastActiveView = nil
@@ -310,6 +328,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             context: context,
             dependencies: dependencies,
             applicationState: applicationState,
+            isForced: isForcedSession,
             resumingViewScope: resumeViewScope ? lastActiveView : nil
         )
         lastActiveView = nil

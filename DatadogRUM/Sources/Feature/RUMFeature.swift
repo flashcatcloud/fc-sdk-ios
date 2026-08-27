@@ -42,6 +42,20 @@ internal final class RUMFeature: DatadogRemoteFeature {
         )
 
         let featureScope = core.scope(for: RUMFeature.self)
+
+        // FLASHCAT FORK - read what a previous launch stored BEFORE the first session can be
+        // drawn. The context is how these rates reach other features, but it is written on its own
+        // queue, so a value published there is not yet visible to the draw that needs it — and the
+        // first session of a launch is drawn immediately after `RUM.enable()`. Without this, every
+        // cold start would draw its first session at the values the app was built with and only
+        // take the console's setting from the second session on.
+        let remoteSamplingReader: RemoteSamplingReader? = configuration.remoteConfigurationEnabled
+            ? core as? RemoteSamplingReader
+            : nil
+        remoteSamplingReader?.primeRemoteSampling { context in
+            remoteSamplingConfigurationURL(customEndpoint: configuration.customEndpoint, context: context)
+                .map { RemoteSamplingSource(configurationURL: $0) }
+        }
         let sessionEndedMetric = SessionEndedMetricController(
             telemetry: core.telemetry,
             sampleRate: configuration.debugSDK ? 100 : configuration.sessionEndedSampleRate,
@@ -176,7 +190,9 @@ internal final class RUMFeature: DatadogRemoteFeature {
             },
             sessionType: configuration.sessionTypeOverride.flatMap { RUMSessionType(rawValue: $0) },
             remoteConfigurationEnabled: configuration.remoteConfigurationEnabled,
-            customEndpoint: configuration.customEndpoint
+            customEndpoint: configuration.customEndpoint,
+            remoteSamplingRates: { [weak remoteSamplingReader] in remoteSamplingReader?.remoteSamplingRates },
+            beforeSampling: configuration.beforeSampling
         )
 
         self.monitor = Monitor(

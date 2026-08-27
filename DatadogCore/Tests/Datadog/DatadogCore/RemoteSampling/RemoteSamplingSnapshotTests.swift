@@ -15,6 +15,7 @@ class RemoteSamplingSnapshotTests: XCTestCase {
     func testParsesFullResponse() throws {
         let body = """
         {
+            "schema_version": 1,
             "version": 42, "ttl": 600, "enabled": true,
             "activation": "next_session",
             "refresh_on_foreground": false,
@@ -35,7 +36,7 @@ class RemoteSamplingSnapshotTests: XCTestCase {
     }
 
     func testAbsentKnobsStayAbsentNotZero() throws {
-        let body = #"{ "version": 7, "enabled": true, "rum": {} }"#.data(using: .utf8)!
+        let body = #"{ "schema_version": 1, "version": 7, "enabled": true, "rum": {} }"#.data(using: .utf8)!
 
         let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
 
@@ -45,7 +46,7 @@ class RemoteSamplingSnapshotTests: XCTestCase {
 
     func testIgnoresUnknownKeys() throws {
         let body = #"""
-        { "version": 7, "enabled": true, "future-field": { "anything": 1 }, "rum": { "sessionSampleRate": 30, "futureKnob": 9 } }
+        { "schema_version": 1, "version": 7, "enabled": true, "future-field": { "anything": 1 }, "rum": { "sessionSampleRate": 30, "futureKnob": 9 } }
         """#.data(using: .utf8)!
 
         let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
@@ -57,13 +58,13 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         let bodies = [
             #"not json"#,
             #"["array"]"#,
-            #"{ "version": "42", "enabled": true }"#, // version of wrong type
-            #"{ "enabled": true, "rum": {} }"#, // no version
-            #"{ "version": 1, "enabled": "yes" }"#, // enabled of wrong type
-            #"{ "version": 1, "enabled": true, "activation": "sometimes" }"#, // unknown activation
-            #"{ "version": 1, "enabled": true, "rum": "nope" }"#, // rum of wrong type
-            #"{ "version": 1, "enabled": true, "custom": "nope" }"#, // custom of wrong type
-            #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": "20" } }"#, // rate of wrong type
+            #"{ "schema_version": 1, "version": "42", "enabled": true }"#, // version of wrong type
+            #"{ "schema_version": 1, "enabled": true, "rum": {} }"#, // no version
+            #"{ "schema_version": 1, "version": 1, "enabled": "yes" }"#, // enabled of wrong type
+            #"{ "schema_version": 1, "version": 1, "enabled": true, "activation": "sometimes" }"#, // unknown activation
+            #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": "nope" }"#, // rum of wrong type
+            #"{ "schema_version": 1, "version": 1, "enabled": true, "custom": "nope" }"#, // custom of wrong type
+            #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": "20" } }"#, // rate of wrong type
         ]
 
         for string in bodies {
@@ -74,14 +75,14 @@ class RemoteSamplingSnapshotTests: XCTestCase {
 
     func testRejectsWholeSnapshotOnOutOfRangeRate() {
         for rate in [-1, 100.5] {
-            let body = #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": \#(rate) } }"#.data(using: .utf8)!
+            let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": \#(rate) } }"#.data(using: .utf8)!
             XCTAssertThrowsError(try RemoteSamplingResponse.parse(body: body, etag: .mockAny()))
         }
     }
 
     func testAcceptsBoundaryRates() throws {
         for rate in [0, 100] {
-            let body = #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": \#(rate) } }"#.data(using: .utf8)!
+            let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": \#(rate) } }"#.data(using: .utf8)!
             let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
             XCTAssertEqual(response.snapshot.sessionSampleRate, SampleRate(rate))
         }
@@ -89,7 +90,7 @@ class RemoteSamplingSnapshotTests: XCTestCase {
 
     func testKillSwitchClearsValuesKeepsVersion() throws {
         let body = #"""
-        { "version": 43, "enabled": false, "rum": {}, "custom": { "viplist": ["u-1"] } }
+        { "schema_version": 1, "version": 43, "enabled": false, "rum": {}, "custom": { "viplist": ["u-1"] } }
         """#.data(using: .utf8)!
 
         let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
@@ -105,7 +106,7 @@ class RemoteSamplingSnapshotTests: XCTestCase {
 
     func testRatesReflectSnapshot() throws {
         let body = #"""
-        { "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 }, "custom": { "a": 1 } }
+        { "schema_version": 1, "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 }, "custom": { "a": 1 } }
         """#.data(using: .utf8)!
 
         let rates = try RemoteSamplingResponse.parse(body: body, etag: .mockAny()).snapshot.rates
@@ -113,6 +114,35 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         XCTAssertEqual(rates.sessionSampleRate, 20)
         XCTAssertEqual(rates.version, 42)
         XCTAssertEqual(rates.custom, #"{"a":1}"#)
+    }
+
+    // MARK: - Schema
+
+    func testRefusesASchemaItDoesNotRead() {
+        let bodies = [
+            #"{ "schema_version": 2, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#,
+            #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#, // no schema at all
+            #"{ "schema_version": "1", "version": 1, "enabled": true }"#, // schema of wrong type
+            #"{ "schema_version": true, "version": 1, "enabled": true }"#, // JSON bools bridge to NSNumber
+        ]
+
+        for string in bodies {
+            let body = string.data(using: .utf8)!
+            XCTAssertThrowsError(try RemoteSamplingResponse.parse(body: body, etag: .mockAny()), "should refuse: \(string)") { error in
+                // Refused as a schema we cannot read, not as an unreadable body: the two get
+                // opposite answers from the controller.
+                XCTAssertTrue(error is RemoteSamplingUnsupportedSchemaError, "should refuse on schema: \(string)")
+            }
+        }
+    }
+
+    func testReadsTheSchemaItSupports() throws {
+        let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#
+            .data(using: .utf8)!
+
+        let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
+
+        XCTAssertEqual(response.snapshot.sessionSampleRate, 20)
     }
 
     // MARK: - ETag

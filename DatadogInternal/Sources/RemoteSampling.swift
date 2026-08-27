@@ -68,3 +68,25 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
 public struct RemoteSamplingChangedMessage {
     public init() {}
 }
+
+/// Synchronous access to the remote sampling configuration a previous launch stored.
+///
+/// The session draw is synchronous; the context that carries these rates to features is not. A
+/// value published onto the context queue becomes visible some time AFTER the draw that needed it,
+/// so a feature reading only the context would draw the first session of every launch under the
+/// values the app was built with, and take the console's setting from the second session on. That
+/// is precisely the case the on-disk snapshot exists to cover, so it has to be readable without a
+/// queue hop.
+public protocol RemoteSamplingReader: AnyObject {
+    /// Loads what a previous launch stored, without waiting on any queue, so the first draw of
+    /// this launch already sees it. The load happens once; later calls are cheap.
+    ///
+    /// - Parameter source: builds the address to load for from the context, which the core reads
+    ///   synchronously. Returning nil means there is nothing to load.
+    /// - Returns: the rates now in effect, or nil when nothing was stored.
+    @discardableResult
+    func primeRemoteSampling(source: (DatadogContext) -> RemoteSamplingSource?) -> RemoteSamplingRates?
+
+    /// The rates in effect right now, readable synchronously.
+    var remoteSamplingRates: RemoteSamplingRates? { get }
+}

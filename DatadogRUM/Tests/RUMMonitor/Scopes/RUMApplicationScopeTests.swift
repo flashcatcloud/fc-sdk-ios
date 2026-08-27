@@ -211,6 +211,96 @@ class RUMApplicationScopeTests: XCTestCase {
         XCTAssertNil(scope.activeSession)
     }
 
+    // MARK: - Forced session
+
+    func testGivenUncollectedSession_whenForced_itEndsItSoACollectedOneReplacesIt() throws {
+        // Given: a session the draw threw away
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockRejectAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, false)
+
+        // When
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        // Then: the uncollected session is gone, and the next interaction starts a forced one
+        XCTAssertTrue(scope.isForcedSession)
+        XCTAssertNil(scope.activeSession)
+
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(3), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, true, "the replacement session is collected despite a 0% draw")
+        XCTAssertEqual(scope.activeSession?.isForced, true)
+    }
+
+    func testGivenCollectedSession_whenForced_itKeepsRunning() throws {
+        // RUM cannot retro-collect what a running session already dropped, so cutting a session
+        // that is already being collected in two would gain nothing.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockKeepAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        let sessionBefore = try XCTUnwrap(scope.activeSession?.sessionUUID)
+
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertTrue(scope.isForcedSession)
+        XCTAssertEqual(scope.activeSession?.sessionUUID, sessionBefore, "the running session is untouched")
+    }
+
+    func testForcedStateOutlivesTheSessionThatSetIt() throws {
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockRejectAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(3), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        // A later stop must not hand the visitor back to the 0% draw: the forced state is
+        // process-lifetime, decided again only on the next launch.
+        _ = scope.process(
+            command: RUMStopSessionCommand.mockWith(time: currentTime.addingTimeInterval(4)),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(5), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertEqual(scope.activeSession?.isSampled, true)
+    }
+
     func testGivenStoppedSession_whenUserActionEvent_itStartsANewSession() throws {
         // Given
         let currentTime = Date()

@@ -82,6 +82,10 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     let startPrecondition: RUMSessionPrecondition?
     /// If events from this session should be sampled (send to Datadog).
     let isSampled: Bool
+    /// If the host application forced this session to be collected through
+    /// `RUMMonitorProtocol.setForcedSession()`. Session Replay reads it so a forced session comes
+    /// out with replay rather than being dropped by replay's own draw.
+    let isForced: Bool
     /// The configuration this session was drawn with; `nil` when no remote configuration is in
     /// effect. Drawn once here and fixed for the session's life — sessions never flip.
     let drawnConfiguration: RUMDrawnConfiguration?
@@ -111,20 +115,33 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         context: DatadogContext,
         dependencies: RUMScopeDependencies,
         applicationState: RUMApplicationState,
+        isForced: Bool = false,
         resumingViewScope: RUMViewScope? = nil
     ) {
         self.parent = parent
         self.dependencies = dependencies
         self.applicationState = applicationState
-        // The session draw: the console's rate wins when it set one, the init rate otherwise.
-        // Drawn once here; `isSampled` is a `let` and sessions never flip.
-        let remoteRates = context.additionalContext(ofType: RemoteSamplingRates.self)
-        self.isSampled = remoteRates?.sessionSampleRate
-            .map { Sampler(samplingRate: $0).sample() }
-            ?? dependencies.sessionSampler.sample()
+        self.isForced = isForced
+        // The session draw, in the order the three sources are allowed to speak: the console's
+        // rate when it published one, the init value otherwise, and finally the app's own hook.
+        // The hook is the last word precisely so an allow-list can keep collecting a visitor the
+        // console's rate would drop.
+        //
+        // The rates are read synchronously rather than from `context`: the context carries them to
+        // other features, but it is written on its own queue, so a value published there is not
+        // visible to THIS draw — which is the draw the stored snapshot exists for.
+        let remoteRates = dependencies.remoteSamplingRates()
+            ?? context.additionalContext(ofType: RemoteSamplingRates.self)
+        let drawnRate = Self.resolveSampleRate(
+            remoteRates: remoteRates,
+            dependencies: dependencies
+        )
+        // A forced session skips the draw entirely: the app has said this visitor must be
+        // collected, and a coin flip could still say no.
+        self.isSampled = isForced || Sampler(samplingRate: drawnRate).sample()
         self.drawnConfiguration = RUMDrawnConfiguration(
             rates: remoteRates,
-            fallbackSessionSampleRate: dependencies.sessionSampler.samplingRate
+            drawnSessionSampleRate: drawnRate
         )
         self.startPrecondition = startPrecondition
         self.sessionUUID = isSampled ? dependencies.rumUUIDGenerator.generateUnique() : .nullUUID
@@ -182,7 +199,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         startPrecondition: RUMSessionPrecondition?,
         context: DatadogContext,
         transferActiveView: Bool,
-        applicationState: RUMApplicationState
+        applicationState: RUMApplicationState,
+        isForced: Bool = false
     ) {
         self.init(
             // If the expired session was marked as "initial" but didn’t track any views, mark this new session as the new "initial".
@@ -192,7 +210,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             startPrecondition: startPrecondition,
             context: context,
             dependencies: expiredSession.dependencies,
-            applicationState: applicationState
+            applicationState: applicationState,
+            isForced: isForced
         )
 
         // Transfer active View to new `RUMViewScope`:
@@ -220,6 +239,32 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
     }
 
+    /// The rate this session is drawn at: the console's where it published one, the init value
+    /// otherwise, with the host application's hook having the final say.
+    private static func resolveSampleRate(
+        remoteRates: RemoteSamplingRates?,
+        dependencies: RUMScopeDependencies
+    ) -> SampleRate {
+        let base = remoteRates?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate
+        guard let hook = dependencies.beforeSampling else {
+            return base
+        }
+        let custom = remoteRates?.custom
+            .flatMap { $0.data(using: .utf8) }
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) }
+            .flatMap { $0 as? [String: Any] }
+        guard let override = hook(BeforeSamplingContext(sessionSampleRate: base, custom: custom)) else {
+            return base
+        }
+        // A rate we cannot trust is not a rate to sample a customer's traffic with, and a mistake
+        // in the host application must never take their collection down with it.
+        guard override >= 0, override <= 100 else {
+            dependencies.telemetry.error("beforeSampling returned \(override), which is not a rate; drawing at \(base) instead")
+            return base
+        }
+        return override
+    }
+
     // MARK: - RUMContextProvider
 
     var context: RUMContext {
@@ -228,6 +273,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         context.isSessionActive = isActive
         context.sessionPrecondition = startPrecondition
         context.drawnConfiguration = drawnConfiguration
+        context.sessionForced = isForced
         return context
     }
 

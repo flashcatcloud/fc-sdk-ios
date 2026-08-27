@@ -1073,7 +1073,9 @@ extension RUMScopeDependencies {
         },
         sessionType: RUMSessionType? = nil,
         remoteConfigurationEnabled: Bool = false,
-        customEndpoint: URL? = nil
+        customEndpoint: URL? = nil,
+        remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
+        beforeSampling: BeforeSamplingCallback? = nil
     ) -> RUMScopeDependencies {
         return RUMScopeDependencies(
             featureScope: featureScope,
@@ -1104,7 +1106,9 @@ extension RUMScopeDependencies {
             interactionToNextViewMetricFactory: interactionToNextViewMetricFactory,
             sessionType: sessionType,
             remoteConfigurationEnabled: remoteConfigurationEnabled,
-            customEndpoint: customEndpoint
+            customEndpoint: customEndpoint,
+            remoteSamplingRates: remoteSamplingRates,
+            beforeSampling: beforeSampling
         )
     }
 
@@ -1189,7 +1193,8 @@ extension RUMSessionScope {
         context: DatadogContext = .mockAny(),
         dependencies: RUMScopeDependencies = .mockAny(),
         applicationState: RUMApplicationState = .mockAny(),
-        hasReplay: Bool? = .mockAny()
+        hasReplay: Bool? = .mockAny(),
+        isForced: Bool = false
     ) -> RUMSessionScope {
         return RUMSessionScope(
             isInitialSession: isInitialSession,
@@ -1198,7 +1203,8 @@ extension RUMSessionScope {
             startPrecondition: startPrecondition,
             context: context,
             dependencies: dependencies,
-            applicationState: applicationState
+            applicationState: applicationState,
+            isForced: isForced
         )
     }
     // swiftlint:enable function_default_parameter_at_end

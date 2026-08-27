@@ -40,6 +40,12 @@ internal final class RemoteSamplingController {
 
     /// The snapshot currently in effect, mirrored to disk after every change.
     private var snapshot: RemoteSamplingSnapshot = .empty
+    /// The rates the snapshot resolves to, readable without waiting on `queue`.
+    ///
+    /// The context is how these reach every other feature, but a session draw cannot wait for a
+    /// queue hop — it happens now, and the answer has to be the one already on disk.
+    @ReadWriteLock
+    private(set) var currentRates: RemoteSamplingRates?
     /// The storage key of the running configuration; `nil` until the first source is seen.
     private var storageKey: String?
     /// Whether the stored snapshot was already loaded for `storageKey`.
@@ -93,21 +99,44 @@ internal final class RemoteSamplingController {
 
     // MARK: - Private; every method below runs on `queue`
 
-    private func handleTrigger(source: RemoteSamplingSource, context: DatadogContext) {
+    /// Loads what a previous launch stored for this source, exactly once per storage key.
+    ///
+    /// Runs on `queue` like every other piece of state here — reached either from a trigger or,
+    /// before any session exists, from `prime(source:context:)`.
+    private func loadStoredSnapshotIfNeeded(source: RemoteSamplingSource, context: DatadogContext) {
         lastSource = source
         let key = RemoteSamplingSnapshotStore.key(source: source, context: context)
         if key != storageKey {
             storageKey = key
             didLoadStoredSnapshot = false
             snapshot = .empty
+            currentRates = nil
         }
-        if !didLoadStoredSnapshot {
-            didLoadStoredSnapshot = true
-            if let stored = store?.load(forKey: key), stored.version > 0 {
-                snapshot = stored
-                publishRates(stored.rates)
-            }
+        guard !didLoadStoredSnapshot else {
+            return
         }
+        didLoadStoredSnapshot = true
+        if let stored = store?.load(forKey: key), stored.version > 0 {
+            snapshot = stored
+            currentRates = stored.rates
+            publishRates(stored.rates)
+        }
+    }
+
+    /// Reads the stored configuration into effect before anything can be drawn under it.
+    ///
+    /// Blocking is the point: the caller is about to draw a session, and the whole reason the
+    /// snapshot is on disk is so that draw uses it rather than the values the app was built with.
+    /// It only touches storage — no request is made here.
+    func prime(source: RemoteSamplingSource, context: DatadogContext) -> RemoteSamplingRates? {
+        queue.sync {
+            loadStoredSnapshotIfNeeded(source: source, context: context)
+        }
+        return currentRates
+    }
+
+    private func handleTrigger(source: RemoteSamplingSource, context: DatadogContext) {
+        loadStoredSnapshotIfNeeded(source: source, context: context)
 
         guard !inFlight else {
             return
@@ -151,6 +180,18 @@ internal final class RemoteSamplingController {
             do {
                 let parsed = try RemoteSamplingResponse.parse(body: body, etag: remoteSamplingETag(for: body))
                 activate(parsed)
+            } catch let error as RemoteSamplingUnsupportedSchemaError {
+                // The server answered; this SDK simply cannot use the answer until it is updated.
+                // Asking again would fetch the same refusal, so the ask is over.
+                telemetry.error(
+                    """
+                    Remote sampling: ignoring a configuration written to schema version \
+                    \(error.received.map(String.init) ?? "none"); this SDK reads version \
+                    \(RemoteSamplingResponse.supportedSchemaVersion). Update the SDK to take the \
+                    console's settings again.
+                    """
+                )
+                inFlight = false
             } catch {
                 telemetry.debug("Remote sampling: rejecting an invalid configuration response, keeping the previous one")
                 scheduleRetry()
@@ -175,6 +216,7 @@ internal final class RemoteSamplingController {
         if let storageKey = storageKey {
             store?.save(snapshot, forKey: storageKey)
         }
+        currentRates = snapshot.rates
         publishRates(snapshot.rates)
         inFlight = false
 

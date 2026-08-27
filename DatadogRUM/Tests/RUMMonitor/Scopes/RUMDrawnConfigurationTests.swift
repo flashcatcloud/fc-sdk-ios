@@ -152,6 +152,104 @@ class RUMDrawnConfigurationTests: XCTestCase {
         XCTAssertNil(scope.drawnConfiguration)
     }
 
+    // MARK: - The synchronous read
+
+    func testSessionDrawReadsRatesSynchronouslyNotFromTheContext() {
+        // The context is empty, exactly as it is for the first session of a launch: the core has
+        // loaded the stored snapshot but the write onto the context queue has not landed yet. The
+        // draw must still see the stored rate.
+        let scope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: nil),
+            dependencies: .mockWith(
+                sessionSampler: .mockKeepAll(),
+                remoteSamplingRates: { RemoteSamplingRates(sessionSampleRate: 0, version: 3) }
+            )
+        )
+
+        XCTAssertFalse(scope.isSampled, "the stored 0% must decide the first session, not the init 100%")
+        XCTAssertEqual(scope.drawnConfiguration?.version, 3)
+    }
+
+    func testSessionDrawKeepsInitRateWhenNothingWasStored() {
+        // Negative control for the test above: with nothing stored and nothing on the context, the
+        // init rate decides — so the assertion above really is reading the stored value.
+        let scope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: nil),
+            dependencies: .mockWith(sessionSampler: .mockKeepAll(), remoteSamplingRates: { nil })
+        )
+
+        XCTAssertTrue(scope.isSampled)
+        XCTAssertNil(scope.drawnConfiguration)
+    }
+
+    // MARK: - beforeSampling
+
+    func testBeforeSamplingHasTheLastWordOverTheConsole() {
+        let scope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: RemoteSamplingRates(sessionSampleRate: 0, version: 7)),
+            dependencies: .mockWith(sessionSampler: .mockRejectAll(), beforeSampling: { _ in 100 })
+        )
+
+        XCTAssertTrue(scope.isSampled, "an allow-list must be able to keep a visitor the console's rate would drop")
+        XCTAssertEqual(scope.drawnConfiguration?.sessionSampleRate, 100, "events report the rate the draw actually used")
+    }
+
+    func testBeforeSamplingSeesTheRateAndCustomThatWouldApply() {
+        var seen: BeforeSamplingContext?
+        _ = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: RemoteSamplingRates(sessionSampleRate: 42, version: 7, custom: #"{"vip":["u-1"]}"#)),
+            dependencies: .mockWith(
+                sessionSampler: .mockKeepAll(),
+                beforeSampling: { ctx in
+                    seen = ctx
+                    return nil
+                }
+            )
+        )
+
+        XCTAssertEqual(seen?.sessionSampleRate, 42, "the hook is consulted after the console, so it sees the console's rate")
+        XCTAssertEqual(seen?.custom?["vip"] as? [String], ["u-1"])
+    }
+
+    func testBeforeSamplingKeepsTheIncomingRateWhenItReturnsNothingOrNonsense() {
+        for hook: BeforeSamplingCallback in [{ _ in nil }, { _ in 150 }, { _ in -1 }] {
+            let scope = RUMSessionScope.mockWith(
+                parent: parent,
+                context: context(rates: RemoteSamplingRates(sessionSampleRate: 0, version: 7)),
+                dependencies: .mockWith(sessionSampler: .mockKeepAll(), beforeSampling: hook)
+            )
+            XCTAssertFalse(scope.isSampled, "an unusable answer leaves the console's rate alone")
+        }
+    }
+
+    // MARK: - Forced session
+
+    func testForcedSessionSkipsTheDrawEntirely() {
+        let scope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: RemoteSamplingRates(sessionSampleRate: 0, version: 7)),
+            dependencies: .mockWith(sessionSampler: .mockRejectAll()),
+            isForced: true
+        )
+
+        XCTAssertTrue(scope.isSampled, "a coin flip could still say no, and the app has said it must not")
+        XCTAssertTrue(scope.context.sessionForced, "Session Replay reads this so a forced session comes out with replay")
+    }
+
+    func testUnforcedSessionDoesNotClaimToBeForced() {
+        let scope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: nil),
+            dependencies: .mockWith(sessionSampler: .mockKeepAll())
+        )
+
+        XCTAssertFalse(scope.context.sessionForced)
+    }
+
     // MARK: - View event
 
     func testViewEventReportsDrawnConfiguration() throws {

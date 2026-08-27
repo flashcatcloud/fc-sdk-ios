@@ -121,7 +121,7 @@ class RemoteSamplingControllerTests: XCTestCase {
     func testTriggerFetchesConfiguration() {
         let harness = Harness()
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
         }
 
         harness.controller.onSourcePublished(source)
@@ -137,7 +137,7 @@ class RemoteSamplingControllerTests: XCTestCase {
         let gate = DispatchSemaphore(value: 0)
         harness.client.handler = { _ in
             gate.wait()
-            return .success((.mockResponseWith(statusCode: 200), #"{ "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!))
+            return .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!))
         }
 
         harness.controller.onSourcePublished(source)
@@ -158,7 +158,7 @@ class RemoteSamplingControllerTests: XCTestCase {
     func testAppliedVersionIsSentOnceKnown() {
         let harness = Harness()
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "version": 42, "enabled": true, "rum": {} }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 42, "enabled": true, "rum": {} }"#.data(using: .utf8)!))
         }
 
         harness.controller.onSourcePublished(source)
@@ -176,7 +176,7 @@ class RemoteSamplingControllerTests: XCTestCase {
 
     func testETagStoredAndSentAsIfNoneMatch() {
         let harness = Harness()
-        let body = #"{ "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!
+        let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!
         harness.client.handler = { _ in .success((.mockResponseWith(statusCode: 200), body)) }
 
         harness.controller.onSourcePublished(source)
@@ -228,17 +228,54 @@ class RemoteSamplingControllerTests: XCTestCase {
         eventually(harness.recorder.scheduledDelays.count == 1)
 
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!))
         }
         harness.recorder.pendingWork[0]()
         eventually(harness.recorder.published.count == 1)
         XCTAssertEqual(harness.recorder.scheduledDelays.count, 1, "a successful retry schedules nothing further")
     }
 
+    func testUnsupportedSchemaKeepsOldValuesAndDoesNotRetry() {
+        let harness = Harness()
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+        }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.recorder.published.count == 1)
+
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 99, "version": 2, "enabled": true, "rum": { "sessionSampleRate": 90 } }"#.data(using: .utf8)!))
+        }
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 2)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+
+        // The server answered; this SDK cannot use the answer. Retrying would fetch the same
+        // refusal, so nothing is scheduled — and nothing of the refused body is published.
+        XCTAssertEqual(harness.recorder.scheduledDelays.count, 0)
+        XCTAssertEqual(harness.recorder.published.count, 1)
+        XCTAssertEqual(harness.recorder.published.last?.sessionSampleRate, 20)
+    }
+
+    func testUnsupportedSchemaDoesNotWedgeTheController() {
+        let harness = Harness()
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 99, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!))
+        }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 1)
+
+        // A refusal must still end the fetch: the next trigger has to reach the network.
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 2)
+    }
+
     func testInvalidSnapshotKeepsOldValuesAndRetries() {
         let harness = Harness()
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
         }
 
         harness.controller.onSourcePublished(source)
@@ -257,7 +294,7 @@ class RemoteSamplingControllerTests: XCTestCase {
         let harness = Harness()
         harness.client.handler = { _ in
             .success((.mockResponseWith(statusCode: 200), #"""
-            { "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 }, "custom": { "a": 1 } }
+            { "schema_version": 1, "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 }, "custom": { "a": 1 } }
             """#.data(using: .utf8)!))
         }
 
@@ -267,7 +304,7 @@ class RemoteSamplingControllerTests: XCTestCase {
         XCTAssertEqual(harness.recorder.published.last?.custom, #"{"a":1}"#)
 
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "version": 43, "enabled": false, "rum": {} }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 43, "enabled": false, "rum": {} }"#.data(using: .utf8)!))
         }
         harness.controller.onSourcePublished(source)
 
@@ -283,7 +320,7 @@ class RemoteSamplingControllerTests: XCTestCase {
     func testImmediateActivationNotifiesOnlyWhenDrawChanges() {
         let harness = Harness()
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "version": 1, "enabled": true, "activation": "immediate", "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "activation": "immediate", "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
         }
 
         harness.controller.onSourcePublished(source)
@@ -297,7 +334,7 @@ class RemoteSamplingControllerTests: XCTestCase {
 
         // A real change under `next_session`: no notification either.
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "version": 2, "enabled": true, "rum": { "sessionSampleRate": 30 } }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 2, "enabled": true, "rum": { "sessionSampleRate": 30 } }"#.data(using: .utf8)!))
         }
         harness.controller.onSourcePublished(source)
         eventually(harness.recorder.published.count == 3)
@@ -342,7 +379,7 @@ class RemoteSamplingControllerTests: XCTestCase {
         let store = try makeStore()
         let harness = Harness(store: store, context: .mockAny())
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
         }
 
         harness.controller.onSourcePublished(source)

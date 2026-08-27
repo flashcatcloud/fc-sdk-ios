@@ -83,6 +83,18 @@ public protocol RUMMonitorProtocol: RUMMonitorViewProtocol, AnyObject {
     /// If the session is started because of a call to `addAction`, the last known view is restarted in the new session.
     func stopSession()
 
+    /// Forces the session to be collected, with Session Replay, regardless of the configured
+    /// sample rates.
+    ///
+    /// Call it when your own code decides a user needs debugging (an allow-list, a support flow).
+    /// A session that was not being collected ends and a collected one starts in its place; a
+    /// session already being collected keeps running, because RUM cannot retro-collect what a
+    /// running session already dropped. Calling again while the forced session runs does nothing.
+    ///
+    /// The forced state lasts for the process lifetime, so decide on each app start whether to
+    /// call again.
+    func setForcedSession()
+
     /// The custom values delivered with the console's remote configuration.
     ///
     /// Delivery is the SDK's job; the meaning of the values belongs to the application. They are
@@ -454,11 +466,6 @@ extension RUMMonitorViewProtocol {
 
 // MARK: - NOP monitor
 
-extension RUMMonitorProtocol {
-    /// Default no-op so conformers predating remote configuration keep compiling.
-    func getRemoteConfig() -> [String: Any]? { nil }
-}
-
 internal class NOPMonitor: RUMMonitorProtocol {
     private func warn(method: StaticString = #function) {
         DD.logger.critical(
@@ -475,6 +482,8 @@ internal class NOPMonitor: RUMMonitorProtocol {
     func removeAttribute(forKey key: AttributeKey) { warn() }
     func removeAttributes(forKeys keys: [AttributeKey]) {warn() }
     func stopSession() { warn() }
+    func setForcedSession() { warn() }
+    func getRemoteConfig() -> [String: Any]? { warn(); return nil }
     func reportAppFullyDisplayed() { warn() }
     func addError(message: String, type: String?, stack: String?, source: RUMErrorSource, attributes: [AttributeKey: AttributeValue], file: StaticString?, line: UInt?) { warn() }
     func addError(error: Error, source: RUMErrorSource, attributes: [AttributeKey: AttributeValue]) { warn() }

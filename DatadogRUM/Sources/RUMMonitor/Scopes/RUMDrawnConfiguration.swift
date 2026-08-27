@@ -19,15 +19,21 @@ internal struct RUMDrawnConfiguration: Equatable {
     /// remote configuration was in effect.
     let version: Int64
 
-    /// Resolves the draw from the rates the core published.
+    /// Records the draw that just happened.
     ///
     /// `nil` when no remote configuration is in effect at all: events then report the init values,
     /// exactly as before remote configuration existed.
-    init?(rates: RemoteSamplingRates?, fallbackSessionSampleRate: SampleRate) {
+    ///
+    /// - Parameters:
+    ///   - rates: what the console had published at the moment of the draw.
+    ///   - drawnSessionSampleRate: the rate the draw actually used — the console's, the init value,
+    ///     or whatever `beforeSampling` returned. It is what the events report, because it is what
+    ///     decided the session.
+    init?(rates: RemoteSamplingRates?, drawnSessionSampleRate: SampleRate) {
         guard let rates = rates else {
             return nil
         }
-        self.sessionSampleRate = rates.sessionSampleRate ?? fallbackSessionSampleRate
+        self.sessionSampleRate = drawnSessionSampleRate
         self.version = rates.version
     }
 }

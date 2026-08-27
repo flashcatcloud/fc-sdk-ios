@@ -171,6 +171,7 @@ internal class Monitor: RUMCommandSubscriber {
                     viewID: context.activeViewID?.rawValue.uuidString.lowercased(),
                     userActionID: context.activeUserActionID?.rawValue.uuidString.lowercased(),
                     viewServerTimeOffset: self.scopes.activeSession?.viewScopes.last?.serverTimeOffset,
+                    sessionForced: context.sessionForced
                 )
             }
         )
@@ -247,6 +248,10 @@ extension Monitor: RUMMonitorProtocol {
 
     func stopSession() {
         process(command: RUMStopSessionCommand(time: dateProvider.now))
+    }
+
+    func setForcedSession() {
+        process(command: RUMSetForcedSessionCommand(time: dateProvider.now))
     }
 
     func getRemoteConfig() -> [String: Any]? {

@@ -70,6 +70,15 @@ internal struct RemoteSamplingResponse: Equatable {
 /// the handling is the same whatever is wrong — keep the old snapshot.
 internal struct RemoteSamplingResponseError: Error {}
 
+/// A configuration written to a contract this SDK does not read.
+///
+/// Kept apart from `RemoteSamplingResponseError` because the two deserve opposite answers: an
+/// unreadable body is worth asking again for, a schema we do not know is not — the next answer
+/// would be the same refusal.
+internal struct RemoteSamplingUnsupportedSchemaError: Error {
+    let received: Int?
+}
+
 extension RemoteSamplingResponse {
     /// Reads a configuration response body.
     ///
@@ -85,6 +94,12 @@ extension RemoteSamplingResponse {
               let root = json as? [String: Any] else {
             throw RemoteSamplingResponseError()
         }
+
+        // Checked before anything else is read out of the body. The server states the shape it
+        // wrote, and a reader that guesses instead of checking is exactly what this field exists
+        // to prevent — which is why it has to be honoured by the first SDK that ships, not by a
+        // later one: only code already on the device can refuse.
+        try checkSchemaVersion(root)
 
         let version = try readVersion(root)
         let enabled = try readBoolean(root, key: Contract.enabled, default: false)
@@ -122,7 +137,22 @@ extension RemoteSamplingResponse {
 
     // MARK: - Whitelisted readers
 
+    /// The contract this SDK reads. Not the SDK version and not the settings version: it names the
+    /// SHAPE of the body, and the server bumps it only when a body would be misread by a reader
+    /// written against the previous shape.
+    static let supportedSchemaVersion = 1
+
+    private static func checkSchemaVersion(_ root: [String: Any]) throws {
+        guard let raw = root[Contract.schemaVersion],
+              let number = raw as? NSNumber, !isBoolean(raw),
+              number.intValue == supportedSchemaVersion else {
+            let received = (root[Contract.schemaVersion] as? NSNumber).map { $0.intValue }
+            throw RemoteSamplingUnsupportedSchemaError(received: received)
+        }
+    }
+
     private enum Contract {
+        static let schemaVersion = "schema_version"
         static let version = "version"
         static let enabled = "enabled"
         static let activation = "activation"

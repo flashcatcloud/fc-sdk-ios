@@ -62,6 +62,21 @@ internal struct RUMApplicationStartCommand: RUMCommand {
     let missedEventType: SessionEndedMetric.MissedEventType? = nil
 }
 
+/// FLASHCAT FORK - `RUMMonitorProtocol.setForcedSession()`: from here on every draw keeps the
+/// session, for the lifetime of the process.
+internal struct RUMSetForcedSessionCommand: RUMCommand {
+    var time: Date
+    var globalAttributes: [AttributeKey: AttributeValue] = [:]
+    var attributes: [AttributeKey: AttributeValue] = [:]
+    var canStartApplicationLaunchView = false
+    let canStartBackgroundView = false
+    let shouldRestartLastViewAfterSessionExpiration = false
+    let shouldRestartLastViewAfterSessionStop = false
+    let canStartBackgroundViewAfterSessionStop = false
+    let isUserInteraction = false
+    let missedEventType: SessionEndedMetric.MissedEventType? = nil
+}
+
 internal struct RUMStopSessionCommand: RUMCommand {
     var time: Date
     var globalAttributes: [AttributeKey: AttributeValue] = [:]

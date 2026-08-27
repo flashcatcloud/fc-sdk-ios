@@ -29,4 +29,8 @@ internal struct RUMContext {
     /// The configuration the current session was drawn with; `nil` when no remote configuration
     /// is in effect. Fixed for the session's life — it never changes mid-session.
     var drawnConfiguration: RUMDrawnConfiguration?
+
+    /// Whether the host application forced this session to be collected. Session Replay reads it
+    /// through the core context so a forced session comes out with replay.
+    var sessionForced: Bool = false
 }
