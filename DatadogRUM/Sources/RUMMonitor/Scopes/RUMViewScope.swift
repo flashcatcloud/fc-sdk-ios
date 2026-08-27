@@ -578,7 +578,7 @@ extension RUMViewScope {
                 configuration: .init(
                     rcVersion: drawnConfiguration.flatMap { $0.version > 0 ? $0.version : nil },
                     sessionReplaySampleRate: sessionReplayConfig.map { Double($0.sampleRate) },
-                    sessionSampleRate: Double(drawnConfiguration?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate),
+                    sessionSampleRate: self.context.reportedSessionSampleRate(initialisedWith: dependencies.sessionSampler),
                     startSessionReplayRecordingManually: sessionReplayConfig?.startRecordingManually,
                     traceSampleRate: context.additionalContext(ofType: TraceCoreContext.Configuration.self)
                         .map { Double($0.sampleRate) }
@@ -739,7 +739,7 @@ extension RUMViewScope {
         let errorEvent = RUMErrorEvent(
             dd: .init(
                 browserSdkVersion: nil,
-                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: Double(self.context.drawnConfiguration?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate)),
+                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: self.context.reportedSessionSampleRate(initialisedWith: dependencies.sessionSampler)),
                 session: .init(
                     plan: .plan1,
                     sessionPrecondition: self.context.sessionPrecondition
@@ -830,7 +830,7 @@ extension RUMViewScope {
         let longTaskEvent = RUMLongTaskEvent(
             dd: .init(
                 browserSdkVersion: nil,
-                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: Double(self.context.drawnConfiguration?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate)),
+                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: self.context.reportedSessionSampleRate(initialisedWith: dependencies.sessionSampler)),
                 discarded: nil,
                 session: .init(
                     plan: .plan1,
