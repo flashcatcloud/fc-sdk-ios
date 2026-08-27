@@ -162,7 +162,12 @@ class RemoteSamplingControllerTests: XCTestCase {
         }
 
         harness.controller.onSourcePublished(source)
-        eventually(harness.client.calls.count == 1)
+        // Wait for the exchange to finish, not merely for the request to go out. The version this
+        // test is about is only known once the answer has been applied, and the same act of
+        // applying it is what releases the in-flight guard — so triggering again on the strength of
+        // the request alone races the response and the second trigger is sometimes dropped.
+        eventually(harness.recorder.published.count == 1)
+        XCTAssertEqual(harness.client.calls.count, 1)
         let firstQuery = URLComponents(url: harness.client.calls[0].url!, resolvingAgainstBaseURL: false)?.queryItems
         XCTAssertNil(firstQuery?.first(where: { $0.name == "applied_version" }), "no version to report on the very first request")
 
@@ -266,6 +271,11 @@ class RemoteSamplingControllerTests: XCTestCase {
 
         harness.controller.onSourcePublished(source)
         eventually(harness.client.calls.count == 1)
+
+        // A refused body publishes nothing, so there is no state to wait on: give the controller
+        // the hop it needs to finish refusing, or the next trigger races the in-flight guard being
+        // released and is sometimes dropped.
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 
         // A refusal must still end the fetch: the next trigger has to reach the network.
         harness.controller.onSourcePublished(source)

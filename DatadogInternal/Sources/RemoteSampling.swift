@@ -24,10 +24,12 @@ public struct RemoteSamplingSource: AdditionalContext, Equatable {
 
 /// The configuration values the console last provided.
 ///
-/// The core is the only writer; RUM and Session Replay read it to decide whether to keep a session
-/// and whether to record it. A knob is absent — never zero — when the console did not set it, and
-/// the feature then keeps the value the app was initialised with. Reporting a zero we invented
-/// would silently stop collection nobody asked to stop.
+/// The core is the only writer and RUM the only reader: it draws each new session against these
+/// values. Session Replay is not a reader — it samples with the rate the app configured and follows
+/// RUM's decision about the session — so a replay rate is not delivered on this fork. A knob is
+/// absent — never zero — when the console did not set it, and the feature then keeps the value the
+/// app was initialised with. Reporting a zero we invented would silently stop collection nobody
+/// asked to stop.
 public struct RemoteSamplingRates: AdditionalContext, Equatable {
     public static let key = "remote-sampling-rates"
 

@@ -211,6 +211,18 @@ internal final class RemoteSamplingController {
     /// console asked for an immediate change that really changes what this client draws with,
     /// let RUM know so it ends the running session.
     private func activate(_ parsed: RemoteSamplingResponse) {
+        // A body older than what is already in force is a stale copy — an edge cache or a proxy
+        // answering 200 with something it held on to. Versions only ever climb: a rollback in the
+        // console republishes the older content under a new number, and pruning removes the oldest
+        // rows, so the newest version never goes down. Applying one that did would put this client
+        // back on settings the console has already replaced, and it would keep reporting that older
+        // number, so the rollout view would read as the change losing ground.
+        guard parsed.snapshot.version >= snapshot.version else {
+            telemetry.debug("Remote sampling: ignoring a configuration older than the one in force")
+            inFlight = false
+            return
+        }
+
         let previousSessionSampleRate = snapshot.rates.sessionSampleRate
         snapshot = parsed.snapshot
         if let storageKey = storageKey {

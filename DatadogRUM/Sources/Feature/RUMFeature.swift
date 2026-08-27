@@ -52,7 +52,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
         let remoteSamplingReader: RemoteSamplingReader? = configuration.remoteConfigurationEnabled
             ? core as? RemoteSamplingReader
             : nil
-        remoteSamplingReader?.primeRemoteSampling { context in
+        let primedRemoteSampling = remoteSamplingReader?.primeRemoteSampling { context in
             remoteSamplingConfigurationURL(customEndpoint: configuration.customEndpoint, context: context)
                 .map { RemoteSamplingSource(configurationURL: $0) }
         }
@@ -199,6 +199,14 @@ internal final class RUMFeature: DatadogRemoteFeature {
             dependencies: dependencies,
             dateProvider: configuration.dateProvider
         )
+
+        // FLASHCAT FORK - seed the custom values from the same synchronous read that primed the
+        // rates. They reach the monitor again on the next context broadcast, but that arrives on
+        // another queue, so an app calling `getRemoteConfig()` straight after `RUM.enable()` would
+        // be told nothing was published while the very same stored configuration was already
+        // deciding how its first session was drawn. Reading them to choose whether to force a
+        // session is exactly what the API is documented for, and that call happens at start-up.
+        self.monitor.remoteConfigCustom = primedRemoteSampling?.custom
 
         if let refreshRateVital = dependencies.vitalsReaders?.refreshRate as? RenderLoopReader {
             dependencies.renderLoopObserver?.register(refreshRateVital)

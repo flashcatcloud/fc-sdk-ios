@@ -35,7 +35,7 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
         custom: nil
     )
 
-    /// The rates RUM and Session Replay draw with.
+    /// The rates RUM draws each new session with.
     var rates: RemoteSamplingRates {
         guard enabled else {
             // Kill switch: no knob and no custom values, only the version survives.
