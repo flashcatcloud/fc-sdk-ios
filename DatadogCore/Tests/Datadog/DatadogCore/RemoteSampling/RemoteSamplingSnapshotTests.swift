@@ -163,18 +163,25 @@ class RemoteSamplingSnapshotTests: XCTestCase {
 
     // MARK: - ETag
 
-    func testETagIsQuotedHashPrefix() {
-        let body = #"{ "version": 1 }"#.data(using: .utf8)!
+    func testTheServersValidatorIsKeptVerbatim() throws {
+        let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!
 
-        let etag = remoteSamplingETag(for: body)
+        let response = try RemoteSamplingResponse.parse(body: body, etag: "W/\"0123456789abcdef\"")
 
-        XCTAssertTrue(etag.hasPrefix("\""))
-        XCTAssertTrue(etag.hasSuffix("\""))
-        XCTAssertEqual(etag.count, 18, "16 hex characters plus the quotes")
-        let same = remoteSamplingETag(for: body)
-        XCTAssertEqual(etag, same, "ETag must be stable for the same body")
-        let other = remoteSamplingETag(for: #"{ "version": 2 }"#.data(using: .utf8)!)
-        XCTAssertNotEqual(etag, other)
+        XCTAssertEqual(
+            response.snapshot.etag,
+            "W/\"0123456789abcdef\"",
+            "whatever the server stamped goes back on the next request untouched, weak form included"
+        )
+    }
+
+    func testAResponseWithoutAValidatorIsStillAccepted() throws {
+        let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!
+
+        let response = try RemoteSamplingResponse.parse(body: body, etag: nil)
+
+        XCTAssertNil(response.snapshot.etag, "with nothing to revalidate against, the next request simply asks in full")
+        XCTAssertEqual(response.snapshot.version, 1, "a missing validator is not a reason to reject the configuration")
     }
 
     // MARK: - Persistence
@@ -242,5 +249,32 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         store.save(snapshot, forKey: "key")
         XCTAssertEqual(store.load(forKey: "key"), snapshot)
         XCTAssertNil(store.load(forKey: "other-key"))
+    }
+
+    func testLoadingRemovesEntriesNoConfigurationCanReadAgain() throws {
+        CreateTemporaryDirectory()
+        defer { DeleteTemporaryDirectory() }
+
+        let coreDirectory = try Directory(url: temporaryDirectory).createSubdirectory(path: "core-\(UUID().uuidString)")
+        let store = try RemoteSamplingSnapshotStore(
+            coreDirectory: CoreDirectory(osDirectory: Directory(url: temporaryDirectory), coreDirectory: coreDirectory)
+        )
+        // The store keeps its entries in a subdirectory of the core directory; that is what to look in.
+        let entries = try coreDirectory.subdirectory(path: "remote-config")
+        let snapshot = RemoteSamplingSnapshot(version: 1, etag: nil, enabled: true, sessionSampleRate: 20, custom: nil)
+
+        // Two releases' worth of entries, as an app that shipped twice would leave behind:
+        store.save(snapshot, forKey: "app-1.0.0")
+        store.save(snapshot, forKey: "app-1.0.1")
+
+        // The launch that can no longer read them is the launch that removes them:
+        XCTAssertNil(store.load(forKey: "app-1.0.2"))
+
+        XCTAssertEqual(try entries.files().map { $0.name }, [], "nothing will ever read an entry written under another key")
+
+        // And the entry in use survives its own load:
+        store.save(snapshot, forKey: "app-1.0.2")
+        XCTAssertEqual(store.load(forKey: "app-1.0.2"), snapshot)
+        XCTAssertEqual(try entries.files().map { $0.name }, ["app-1.0.2"])
     }
 }

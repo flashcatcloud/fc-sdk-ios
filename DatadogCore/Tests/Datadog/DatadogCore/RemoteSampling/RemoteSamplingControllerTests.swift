@@ -179,10 +179,17 @@ class RemoteSamplingControllerTests: XCTestCase {
 
     // MARK: - ETag & 304
 
-    func testETagStoredAndSentAsIfNoneMatch() {
+    func testTheServersETagIsSentBackAsIfNoneMatch() {
         let harness = Harness()
         let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!
-        harness.client.handler = { _ in .success((.mockResponseWith(statusCode: 200), body)) }
+        // Deliberately not any hash of the body: the client must send back what the server
+        // stamped, not something it derived itself. A client that recomputes the validator has to
+        // track the server's derivation forever, and the day the two drift apart every conditional
+        // request misses in silence — full answers, no error, nothing to notice.
+        let serverETag = "\"not-a-hash-of-the-body\""
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200, headerFields: ["ETag": serverETag]), body))
+        }
 
         harness.controller.onSourcePublished(source)
         eventually(harness.recorder.published.count == 1)
@@ -191,12 +198,41 @@ class RemoteSamplingControllerTests: XCTestCase {
         harness.controller.onSourcePublished(source)
 
         eventually(harness.client.calls.count == 2)
-        XCTAssertEqual(
-            harness.client.calls[1].value(forHTTPHeaderField: "If-None-Match"),
-            remoteSamplingETag(for: body)
-        )
+        XCTAssertEqual(harness.client.calls[1].value(forHTTPHeaderField: "If-None-Match"), serverETag)
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
         XCTAssertEqual(harness.recorder.published.count, 1, "a 304 changes nothing")
+    }
+
+    func testTheETagHeaderIsFoundWhateverCaseTheServerWroteIt() {
+        let harness = Harness()
+        let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!
+        harness.client.handler = { _ in
+            // HTTP field names are case-insensitive and servers differ; `Etag` is as valid as `ETag`.
+            .success((.mockResponseWith(statusCode: 200, headerFields: ["Etag": "\"abc\""]), body))
+        }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.recorder.published.count == 1)
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 2)
+        XCTAssertEqual(harness.client.calls[1].value(forHTTPHeaderField: "If-None-Match"), "\"abc\"")
+    }
+
+    func testAResponseWithNoETagLeavesTheNextRequestUnconditional() {
+        let harness = Harness()
+        let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!
+        harness.client.handler = { _ in .success((.mockResponseWith(statusCode: 200), body)) }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.recorder.published.count == 1)
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 2)
+        XCTAssertNil(
+            harness.client.calls[1].value(forHTTPHeaderField: "If-None-Match"),
+            "with nothing to revalidate against, asking in full is the only honest request"
+        )
     }
 
     // MARK: - Backoff
@@ -389,7 +425,10 @@ class RemoteSamplingControllerTests: XCTestCase {
         let store = try makeStore()
         let harness = Harness(store: store, context: .mockAny())
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+            .success((
+                .mockResponseWith(statusCode: 200, headerFields: ["ETag": "\"server-stamped\""]),
+                #"{ "schema_version": 1, "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!
+            ))
         }
 
         harness.controller.onSourcePublished(source)
@@ -398,7 +437,7 @@ class RemoteSamplingControllerTests: XCTestCase {
         let stored = store.load(forKey: RemoteSamplingSnapshotStore.key(source: source, context: .mockAny()))
         XCTAssertEqual(stored?.version, 42)
         XCTAssertEqual(stored?.sessionSampleRate, 20)
-        XCTAssertNotNil(stored?.etag)
+        XCTAssertEqual(stored?.etag, "\"server-stamped\"", "the validator survives a restart so the next launch can revalidate")
     }
 
     // MARK: - Helpers

@@ -178,7 +178,7 @@ internal final class RemoteSamplingController {
         switch result {
         case .success((let response, let body)) where response.statusCode == 200:
             do {
-                let parsed = try RemoteSamplingResponse.parse(body: body, etag: remoteSamplingETag(for: body))
+                let parsed = try RemoteSamplingResponse.parse(body: body, etag: Self.etag(of: response))
                 activate(parsed)
             } catch let error as RemoteSamplingUnsupportedSchemaError {
                 // The server answered; this SDK simply cannot use the answer until it is updated.
@@ -236,6 +236,27 @@ internal final class RemoteSamplingController {
         if parsed.activation == .immediate && drawChanged {
             notifyImmediateChange()
         }
+    }
+
+    /// The validator the server stamped this response with.
+    ///
+    /// Read from the response rather than recomputed from the body: how the server derives its
+    /// validator is the server's business, and a client that reimplements it has to be updated in
+    /// lockstep with it forever. Get that wrong — the server changes the derivation, or anything
+    /// on the way re-serialises the body — and every conditional request misses, silently: the
+    /// answers stay correct and each one arrives in full, which costs bandwidth without ever
+    /// failing loudly enough to be noticed.
+    ///
+    /// Looked up case-insensitively because HTTP field names are, and `allHeaderFields` keeps
+    /// whatever case the server wrote (`value(forHTTPHeaderField:)` would do this for us, but it
+    /// is iOS 13 and this SDK supports 12).
+    private static func etag(of response: HTTPURLResponse) -> String? {
+        for (name, value) in response.allHeaderFields {
+            if let name = name as? String, name.caseInsensitiveCompare("ETag") == .orderedSame {
+                return value as? String
+            }
+        }
+        return nil
     }
 
     private func scheduleRetry() {

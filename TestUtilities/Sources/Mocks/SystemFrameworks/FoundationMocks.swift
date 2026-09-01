@@ -534,8 +534,8 @@ extension URLResponse {
         return .mockResponseWith(statusCode: 200)
     }
 
-    public static func mockResponseWith(statusCode: Int) -> HTTPURLResponse {
-        return HTTPURLResponse(url: .mockAny(), statusCode: statusCode, httpVersion: nil, headerFields: nil)!
+    public static func mockResponseWith(statusCode: Int, headerFields: [String: String]? = nil) -> HTTPURLResponse {
+        return HTTPURLResponse(url: .mockAny(), statusCode: statusCode, httpVersion: nil, headerFields: headerFields)!
     }
 
     public static func mockWith(

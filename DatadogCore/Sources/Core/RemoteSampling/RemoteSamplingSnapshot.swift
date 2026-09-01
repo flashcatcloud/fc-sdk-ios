@@ -4,7 +4,6 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
-import CommonCrypto
 import Foundation
 import DatadogInternal
 
@@ -88,8 +87,9 @@ extension RemoteSamplingResponse {
     ///
     /// - Parameters:
     ///   - body: The response body.
-    ///   - etag: The validator computed from the body by the caller.
-    static func parse(body: Data, etag: String) throws -> RemoteSamplingResponse {
+    ///   - etag: The validator the server stamped this body with, or nil when it sent none —
+    ///     the next request then simply asks unconditionally.
+    static func parse(body: Data, etag: String?) throws -> RemoteSamplingResponse {
         guard let json = try? JSONSerialization.jsonObject(with: body),
               let root = json as? [String: Any] else {
             throw RemoteSamplingResponseError()
@@ -245,16 +245,6 @@ extension RemoteSamplingResponse {
     }
 }
 
-/// Computes the validator of a configuration response body: the first 16 hex characters of its
-/// SHA-256, quoted, as the contract fixes it. Sent back as `If-None-Match`; the server answers
-/// `304` when the body would be identical.
-internal func remoteSamplingETag(for body: Data) -> String {
-    var digest: [UInt8] = Array(repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-    _ = body.withUnsafeBytes { CC_SHA256($0.baseAddress, UInt32(body.count), &digest) }
-    let hex = digest.map { String(format: "%02x", $0) }.joined()
-    return "\"\(hex.prefix(16))\""
-}
-
 /// Persists the last good snapshot on disk, so the first sessions after a cold start draw with
 /// the values the console provided on a previous launch instead of the ones the app was built with.
 ///
@@ -290,6 +280,12 @@ internal struct RemoteSamplingSnapshotStore {
     }
 
     func load(forKey key: String) -> RemoteSamplingSnapshot? {
+        // The key embeds the application version and the environment, so every release and every
+        // environment switch strands the entry written under the previous one. Nothing else ever
+        // collects them — the core's own retention only knows about the directories it writes —
+        // so the launch that stops being able to read an entry is the launch that removes it.
+        prune(keeping: key)
+
         let url = fileURL(forKey: key)
         guard let data = try? Data(contentsOf: url) else {
             return nil
@@ -302,6 +298,19 @@ internal struct RemoteSamplingSnapshotStore {
             return
         }
         try? data.write(to: fileURL(forKey: key), options: .atomic)
+    }
+
+    /// Removes every entry but the one this configuration can still read.
+    ///
+    /// Best effort throughout: a file that will not go stays, and is retried on the next launch.
+    /// Failing to tidy up is never a reason to fail the load it runs before.
+    private func prune(keeping key: String) {
+        guard let files = try? directory.files() else {
+            return
+        }
+        for file in files where file.name != key {
+            try? file.delete()
+        }
     }
 
     private func fileURL(forKey key: String) -> URL {
