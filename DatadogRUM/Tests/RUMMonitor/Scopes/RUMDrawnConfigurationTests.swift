@@ -240,6 +240,39 @@ class RUMDrawnConfigurationTests: XCTestCase {
         XCTAssertTrue(scope.context.sessionForced, "Session Replay reads this so a forced session comes out with replay")
     }
 
+    func testForcedSessionReportsCertainty() {
+        let scope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: RemoteSamplingRates(sessionSampleRate: 1, version: 7)),
+            dependencies: .mockWith(sessionSampler: Sampler(samplingRate: 80)),
+            isForced: true
+        )
+
+        XCTAssertEqual(
+            scope.drawnConfiguration?.sessionSampleRate,
+            100,
+            """
+            A forced session was collected for certain, and 100 is how certainty is written. \
+            Reporting the console's 1 would have weighted extrapolation count this one session \
+            as a hundred, and would leave nothing to tell it apart from a session the draw \
+            happened to keep at 1%.
+            """
+        )
+        XCTAssertEqual(scope.drawnConfiguration?.version, 7, "the configuration in force is still what it was drawn under")
+    }
+
+    func testForcedSessionReportsCertaintyWithNoRemoteConfiguration() {
+        let scope = RUMSessionScope.mockWith(
+            parent: parent,
+            context: context(rates: nil),
+            dependencies: .mockWith(sessionSampler: Sampler(samplingRate: 20)),
+            isForced: true
+        )
+
+        XCTAssertEqual(scope.drawnConfiguration?.sessionSampleRate, 100, "forcing does not need the console to be involved")
+        XCTAssertEqual(scope.drawnConfiguration?.version, 0, "nothing was published, so there is no version to report")
+    }
+
     func testUnforcedSessionDoesNotClaimToBeForced() {
         let scope = RUMSessionScope.mockWith(
             parent: parent,

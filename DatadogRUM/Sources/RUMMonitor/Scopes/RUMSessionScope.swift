@@ -139,9 +139,17 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         // A forced session skips the draw entirely: the app has said this visitor must be
         // collected, and a coin flip could still say no.
         self.isSampled = isForced || Sampler(samplingRate: drawnRate).sample()
+        // What the events report. A forced session reports 100, because 100 is what decided it:
+        // being collected was certain. Reporting the rate the draw WOULD have used says the
+        // opposite of the truth twice over — weighted extrapolation multiplies the session back
+        // up by 1/rate, so one session kept on purpose is counted as the whole cohort it was
+        // taken from; and because that number equals the rate the console published, the session
+        // reads afterwards as one the draw happened to keep, with nothing left to say it was
+        // forced. This is the reporting the other SDKs use.
+        let reportedRate: SampleRate = isForced ? 100 : drawnRate
         self.drawnConfiguration = RUMDrawnConfiguration(
             rates: remoteRates,
-            drawnSessionSampleRate: drawnRate,
+            drawnSessionSampleRate: reportedRate,
             initialSessionSampleRate: dependencies.sessionSampler.samplingRate
         )
         self.startPrecondition = startPrecondition
