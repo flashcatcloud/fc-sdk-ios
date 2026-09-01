@@ -62,26 +62,35 @@ internal final class DatadogCore {
     /// reached both from the context queue (a published source) and from the thread that enables
     /// RUM (the priming read), and Swift's lazy initialisation is not atomic.
     @ReadWriteLock
-    private var _remoteSamplingController: RemoteSamplingController?
+    private var cachedRemoteSamplingController: RemoteSamplingController?
 
     var remoteSamplingController: RemoteSamplingController {
-        if let existing = _remoteSamplingController {
-            return existing
-        }
-        let created = RemoteSamplingController(
-            httpClient: httpClient,
-            contextProvider: contextProvider,
-            store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
-            telemetry: telemetry,
-            publishRates: { [weak self] rates in
-                self?.contextProvider.write { $0.set(additionalContext: rates) }
-            },
-            notifyImmediateChange: { [weak self] in
-                self?.send(message: .payload(RemoteSamplingChangedMessage()), else: {})
+        // The whole get-or-create holds the write lock, not a read followed by a write. Two
+        // threads that each found it empty would each build a controller and one would be
+        // dropped — along with the snapshot it had already loaded and the fetch it had in
+        // flight — while the caller that built it went on using the copy nobody else can see.
+        var controller: RemoteSamplingController!
+        _cachedRemoteSamplingController.mutate { existing in
+            if let existing = existing {
+                controller = existing
+                return
             }
-        )
-        _remoteSamplingController = created
-        return created
+            let created = RemoteSamplingController(
+                httpClient: httpClient,
+                contextProvider: contextProvider,
+                store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
+                telemetry: telemetry,
+                publishRates: { [weak self] rates in
+                    self?.contextProvider.write { $0.set(additionalContext: rates) }
+                },
+                notifyImmediateChange: { [weak self] in
+                    self?.send(message: .payload(RemoteSamplingChangedMessage()), else: {})
+                }
+            )
+            existing = created
+            controller = created
+        }
+        return controller
     }
 
     /// Registry for Features.
@@ -693,6 +702,6 @@ extension DatadogCore: RemoteSamplingReader {
     var remoteSamplingRates: RemoteSamplingRates? {
         // Only the controller that was actually built can have rates; asking for one here would
         // create it for an app that never opted in.
-        _remoteSamplingController?.currentRates
+        cachedRemoteSamplingController?.currentRates
     }
 }
