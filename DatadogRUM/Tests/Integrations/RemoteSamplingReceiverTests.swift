@@ -29,6 +29,20 @@ class RemoteSamplingReceiverTests: XCTestCase {
         XCTAssertNil(monitor.scopes.activeSession, "the session ends so the next one starts under the new rates")
     }
 
+    func testImmediateChangeMessageLeavesAForcedSessionRunning() throws {
+        monitor.notifySDKInit()
+        monitor.setForcedSession()
+        let sessionBefore = try XCTUnwrap(monitor.scopes.activeSession?.sessionUUID)
+
+        _ = receiver.receive(message: .payload(RemoteSamplingChangedMessage()), from: NOPDatadogCore())
+
+        XCTAssertEqual(
+            monitor.scopes.activeSession?.sessionUUID,
+            sessionBefore,
+            "a forced session is collected whatever the rates say, so ending it would only buy an identical one"
+        )
+    }
+
     func testContextMessageKeepsCustomValuesForHostApp() throws {
         let rates = RemoteSamplingRates(
             sessionSampleRate: nil,

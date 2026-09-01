@@ -254,6 +254,12 @@ extension Monitor: RUMMonitorProtocol {
         process(command: RUMSetForcedSessionCommand(time: dateProvider.now))
     }
 
+    /// FLASHCAT FORK - the console asked for new rates to take effect immediately. Whether that
+    /// ends the running session is decided in `RUMApplicationScope`, which knows if it was forced.
+    func notifyRemoteSamplingChanged() {
+        process(command: RUMRemoteSamplingChangedCommand(time: dateProvider.now))
+    }
+
     func getRemoteConfig() -> [String: Any]? {
         guard let json = remoteConfigCustom,
               let data = json.data(using: .utf8),

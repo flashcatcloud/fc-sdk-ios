@@ -100,6 +100,38 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     }
 
     private func _process(command: RUMCommand, context: DatadogContext, writer: Writer) {
+        if command is RUMSetForcedSessionCommand {
+            // Set before any other handling, because this command can be the one that starts a
+            // session: the flow below creates one whenever none is active, and a session drawn a
+            // moment before the flag is set would be an ordinary session that has to be thrown
+            // away and replaced, leaving a stopped session behind for no reason.
+            isForcedSession = true
+        }
+
+        if let rateChange = command as? RUMRemoteSamplingChangedCommand {
+            // The console asked for new rates to take effect immediately: end the running session
+            // so the next one is drawn under them.
+            //
+            // Answered here, ahead of everything else, because this is a signal from the console
+            // rather than something the visitor did: the flow below starts a session for any
+            // command that finds none running, and a rate change must never be the reason a
+            // session exists. Letting it start one would put a session on the record for every
+            // idle app in the fleet each time somebody moves a slider — and would then end it
+            // again, having drawn it under the very rates it was about to be re-drawn for.
+            //
+            // A forced session is left running too. It is collected whatever the rates say, so
+            // ending it buys another forced session that behaves identically — the same session,
+            // cut in two, with the visitor's current view lost from the recording somebody turned
+            // forcing on in order to watch.
+            //
+            // The stop below re-enters `_process`, which does the `lastActiveView` bookkeeping on
+            // the way through, so returning early here costs the next session nothing.
+            if activeSession != nil && !isForcedSession {
+                _process(command: RUMStopSessionCommand(time: rateChange.time), context: context, writer: writer)
+            }
+            return
+        }
+
         // `RUMSDKInitCommand` forces the creation of the initial session
         // Added in https://github.com/DataDog/dd-sdk-ios/pull/1278 to ensure that logs and traces
         // can be correlated with valid RUM session id (even if occurring before any user interaction).
@@ -155,11 +187,11 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         lastActiveView = lastActiveForegroundView ?? lastActiveView
 
         if let forced = command as? RUMSetForcedSessionCommand {
-            isForcedSession = true
             // A session already being collected keeps running: RUM cannot retro-collect what a
             // running session already dropped, and cutting it in two would gain nothing. One that
-            // was NOT collected ends now, so a collected one starts in its place.
-            if activeSession?.isSampled != true {
+            // was NOT collected ends now, so a collected one starts in its place. A session
+            // started by this very command is already forced, so there is nothing to replace.
+            if let activeSession = activeSession, !activeSession.isSampled {
                 _process(command: RUMStopSessionCommand(time: forced.time), context: context, writer: writer)
             }
             return

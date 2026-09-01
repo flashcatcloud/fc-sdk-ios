@@ -15,7 +15,7 @@ import Foundation
 ///   under the new rates. Ending and restarting is deliberate: a session that was not being
 ///   collected has no id and no history, so flipping its decision in place would invent a session
 ///   that appears to begin mid-use, and a collected session flipped off would simply stop, looking
-///   like it ended early.
+///   like it ended early. A forced session is left alone — see `RUMApplicationScope`.
 /// - context updates, which carry the console's custom values for the host application to read
 ///   through `RUMMonitorProtocol.getRemoteConfig()`.
 internal struct RemoteSamplingReceiver: FeatureMessageReceiver {
@@ -23,8 +23,8 @@ internal struct RemoteSamplingReceiver: FeatureMessageReceiver {
 
     func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
         switch message {
-        case .payload(let payload as RemoteSamplingChangedMessage):
-            monitor.stopSession()
+        case .payload(is RemoteSamplingChangedMessage):
+            monitor.notifyRemoteSamplingChanged()
             return true
         case .context(let context):
             monitor.remoteConfigCustom = context.additionalContext(ofType: RemoteSamplingRates.self)?.custom

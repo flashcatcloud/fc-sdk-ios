@@ -77,6 +77,24 @@ internal struct RUMSetForcedSessionCommand: RUMCommand {
     let missedEventType: SessionEndedMetric.MissedEventType? = nil
 }
 
+/// FLASHCAT FORK - the console asked for a rate change to take effect immediately.
+///
+/// A command rather than a direct `stopSession()` because whether to stop depends on whether the
+/// session was forced, and that is known only to `RUMApplicationScope`, on the queue commands are
+/// processed on. Reading it from the message bus thread would be a data race.
+internal struct RUMRemoteSamplingChangedCommand: RUMCommand {
+    var time: Date
+    var globalAttributes: [AttributeKey: AttributeValue] = [:]
+    var attributes: [AttributeKey: AttributeValue] = [:]
+    var canStartApplicationLaunchView = false
+    let canStartBackgroundView = false
+    let shouldRestartLastViewAfterSessionExpiration = false
+    let shouldRestartLastViewAfterSessionStop = false
+    let canStartBackgroundViewAfterSessionStop = false
+    let isUserInteraction = false
+    let missedEventType: SessionEndedMetric.MissedEventType? = nil
+}
+
 internal struct RUMStopSessionCommand: RUMCommand {
     var time: Date
     var globalAttributes: [AttributeKey: AttributeValue] = [:]
