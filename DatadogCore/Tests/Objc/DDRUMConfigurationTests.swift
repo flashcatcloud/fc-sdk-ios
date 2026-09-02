@@ -31,6 +31,50 @@ class DDRUMConfigurationTests: XCTestCase {
         XCTAssertEqual(swift.telemetrySampleRate, 30)
     }
 
+    func testRemoteConfigurationEnabled() {
+        XCTAssertFalse(objc.remoteConfigurationEnabled, "off unless the application asks for it")
+        objc.remoteConfigurationEnabled = true
+        XCTAssertTrue(objc.remoteConfigurationEnabled)
+        XCTAssertTrue(swift.remoteConfigurationEnabled)
+    }
+
+    func testBeforeSampling() throws {
+        var seen: objc_RUMBeforeSamplingContext?
+        let block: (objc_RUMBeforeSamplingContext) -> NSNumber? = { context in
+            seen = context
+            return NSNumber(value: 100)
+        }
+
+        objc.beforeSampling = block
+
+        XCTAssertNotNil(objc.beforeSampling, "the getter hands back what the caller set")
+        let swiftHook = try XCTUnwrap(swift.beforeSampling, "the block reaches the Swift configuration")
+
+        let override = swiftHook(BeforeSamplingContext(sessionSampleRate: 20, custom: ["vip": ["u-1"]]))
+
+        XCTAssertEqual(override, 100)
+        XCTAssertEqual(seen?.sessionSampleRate, 20, "the rate that would apply crosses the bridge")
+        XCTAssertEqual(seen?.custom?["vip"] as? [String], ["u-1"], "so do the console's custom values")
+    }
+
+    func testBeforeSamplingReturningNilLeavesTheDrawAlone() throws {
+        // `nil` is how "do not interfere" is said, which is why the block returns NSNumber rather
+        // than a float: zero is a rate someone may well mean.
+        objc.beforeSampling = { _ in nil }
+
+        let swiftHook = try XCTUnwrap(swift.beforeSampling)
+
+        XCTAssertNil(swiftHook(BeforeSamplingContext(sessionSampleRate: 20, custom: nil)))
+    }
+
+    func testBeforeSamplingClearedAgain() {
+        objc.beforeSampling = { _ in NSNumber(value: 100) }
+        objc.beforeSampling = nil
+
+        XCTAssertNil(objc.beforeSampling)
+        XCTAssertNil(swift.beforeSampling, "clearing it on the bridge clears it underneath")
+    }
+
     func testUIKitViewsPredicate() {
         class ObjcPredicate: objc_UIKitRUMViewsPredicate {
             func rumView(for viewController: UIViewController) -> objc_RUMView? { nil }
