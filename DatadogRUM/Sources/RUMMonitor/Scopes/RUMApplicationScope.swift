@@ -109,9 +109,6 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         }
 
         if let rateChange = command as? RUMRemoteSamplingChangedCommand {
-            // The console asked for new rates to take effect immediately: end the running session
-            // so the next one is drawn under them.
-            //
             // Answered here, ahead of everything else, because this is a signal from the console
             // rather than something the visitor did: the flow below starts a session for any
             // command that finds none running, and a rate change must never be the reason a
@@ -119,14 +116,9 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             // idle app in the fleet each time somebody moves a slider — and would then end it
             // again, having drawn it under the very rates it was about to be re-drawn for.
             //
-            // A forced session is left running too. It is collected whatever the rates say, so
-            // ending it buys another forced session that behaves identically — the same session,
-            // cut in two, with the visitor's current view lost from the recording somebody turned
-            // forcing on in order to watch.
-            //
             // The stop below re-enters `_process`, which does the `lastActiveView` bookkeeping on
             // the way through, so returning early here costs the next session nothing.
-            if activeSession != nil && !isForcedSession {
+            if shouldEndRunningSession(on: rateChange) {
                 _process(command: RUMStopSessionCommand(time: rateChange.time), context: context, writer: writer)
             }
             return
@@ -250,6 +242,43 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     }
 
     // MARK: - Private
+
+    /// FLASHCAT FORK - whether a change in the rates ends the session that is running.
+    ///
+    /// Two reasons, and they are not the same question.
+    ///
+    /// `immediate` is the console saying "apply this now". It carries no claim about what the new
+    /// rates decide — only that the operator does not want to wait — so the session ends and the
+    /// next one is drawn afresh, whatever the rates turn out to be.
+    ///
+    /// A rate of zero needs no such instruction, because it is the one value that answers the
+    /// question on its own: nothing is to be collected. A session that is collecting right now
+    /// would otherwise go on collecting until it happens to rotate, which can be hours away — and
+    /// "stop collecting" is the one request where waiting hours is the wrong answer. Every other
+    /// rate is silent on this session's fate: whether it "should" still be kept can only be
+    /// answered by drawing again, and drawing twice is not the same as drawing once.
+    ///
+    /// The rate that counts is the one that would decide a session drawn now — the console's where
+    /// it published one, the value the app was initialised with where it did not. The console can
+    /// clear a knob as well as set it, and clearing it hands the decision back to the init value,
+    /// which the core never sees. That is why this is answered here and not there.
+    ///
+    /// A forced session answers no to both. It is collected whatever the rates say, so ending it
+    /// would only buy an identical forced session — the same session, cut in two, with the
+    /// visitor's current view lost from the recording somebody turned forcing on to watch.
+    private func shouldEndRunningSession(on command: RUMRemoteSamplingChangedCommand) -> Bool {
+        guard let activeSession = activeSession, !isForcedSession else {
+            return false
+        }
+        if command.activation == .immediate {
+            return true
+        }
+        let rateNowInForce = dependencies.remoteSamplingRates()?.sessionSampleRate
+            ?? dependencies.sessionSampler.samplingRate
+        // A session that is not being collected has nothing to stop, and ending it would only put
+        // a stopped session on the record and leave its replacement reporting an explicit stop.
+        return rateNowInForce == 0 && activeSession.isSampled
+    }
 
     /// Sanity count to make sure initial session is created only once.
     private var didCreateInitialSessionCount = 0

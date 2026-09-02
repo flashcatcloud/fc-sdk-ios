@@ -23,8 +23,8 @@ internal struct RemoteSamplingReceiver: FeatureMessageReceiver {
 
     func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
         switch message {
-        case .payload(is RemoteSamplingChangedMessage):
-            monitor.notifyRemoteSamplingChanged()
+        case .payload(let changed as RemoteSamplingChangedMessage):
+            monitor.notifyRemoteSamplingChanged(activation: changed.activation)
             return true
         case .context(let context):
             monitor.remoteConfigCustom = context.additionalContext(ofType: RemoteSamplingRates.self)?.custom

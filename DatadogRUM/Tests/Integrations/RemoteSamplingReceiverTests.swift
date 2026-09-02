@@ -23,7 +23,7 @@ class RemoteSamplingReceiverTests: XCTestCase {
         monitor.notifySDKInit()
         try XCTSkipIf(monitor.scopes.activeSession == nil, "no session to end")
 
-        let handled = receiver.receive(message: .payload(RemoteSamplingChangedMessage()), from: NOPDatadogCore())
+        let handled = receiver.receive(message: .payload(RemoteSamplingChangedMessage(activation: .immediate)), from: NOPDatadogCore())
 
         XCTAssertTrue(handled)
         XCTAssertNil(monitor.scopes.activeSession, "the session ends so the next one starts under the new rates")
@@ -34,7 +34,7 @@ class RemoteSamplingReceiverTests: XCTestCase {
         monitor.setForcedSession()
         let sessionBefore = try XCTUnwrap(monitor.scopes.activeSession?.sessionUUID)
 
-        _ = receiver.receive(message: .payload(RemoteSamplingChangedMessage()), from: NOPDatadogCore())
+        _ = receiver.receive(message: .payload(RemoteSamplingChangedMessage(activation: .immediate)), from: NOPDatadogCore())
 
         XCTAssertEqual(
             monitor.scopes.activeSession?.sessionUUID,

@@ -47,7 +47,7 @@ class RemoteSamplingControllerTests: XCTestCase {
     private final class Recorder {
         private let lock = NSLock()
         private var _published: [RemoteSamplingRates] = []
-        private var _immediateChangeCount = 0
+        private var _ratesChanged: [RemoteSamplingActivation] = []
         private var _scheduledDelays: [TimeInterval] = []
         private var _pendingWork: [() -> Void] = []
 
@@ -55,9 +55,9 @@ class RemoteSamplingControllerTests: XCTestCase {
             lock.lock(); defer { lock.unlock() }
             return _published
         }
-        var immediateChangeCount: Int {
+        var ratesChanged: [RemoteSamplingActivation] {
             lock.lock(); defer { lock.unlock() }
-            return _immediateChangeCount
+            return _ratesChanged
         }
         var scheduledDelays: [TimeInterval] {
             lock.lock(); defer { lock.unlock() }
@@ -71,8 +71,8 @@ class RemoteSamplingControllerTests: XCTestCase {
         func publish(_ rates: RemoteSamplingRates) {
             lock.lock(); _published.append(rates); lock.unlock()
         }
-        func notifyImmediateChange() {
-            lock.lock(); _immediateChangeCount += 1; lock.unlock()
+        func notifyRatesChanged(_ activation: RemoteSamplingActivation) {
+            lock.lock(); _ratesChanged.append(activation); lock.unlock()
         }
         func schedule(_ delay: TimeInterval, work: @escaping () -> Void) {
             lock.lock()
@@ -95,7 +95,7 @@ class RemoteSamplingControllerTests: XCTestCase {
                 store: store,
                 telemetry: NOPTelemetry(),
                 publishRates: { recorder.publish($0) },
-                notifyImmediateChange: { recorder.notifyImmediateChange() },
+                notifyRatesChanged: { recorder.notifyRatesChanged($0) },
                 schedule: { recorder.schedule($0, work: $1) },
                 jitter: { $0 } // no jitter in tests
             )
@@ -363,7 +363,10 @@ class RemoteSamplingControllerTests: XCTestCase {
 
     // MARK: - Immediate activation
 
-    func testImmediateActivationNotifiesOnlyWhenDrawChanges() {
+    func testEveryRealRateChangeIsReportedWithTheConsolesInstruction() {
+        // The core reports the change and carries what the console asked for; it does not rule on
+        // it. A rate of zero ends the running session on its own meaning, and only RUM can see
+        // that, so filtering to `immediate` here would hide it.
         let harness = Harness()
         harness.client.handler = { _ in
             .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "activation": "immediate", "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
@@ -371,20 +374,20 @@ class RemoteSamplingControllerTests: XCTestCase {
 
         harness.controller.onSourcePublished(source)
         eventually(harness.recorder.published.count == 1)
-        XCTAssertEqual(harness.recorder.immediateChangeCount, 1, "the draw changed from nothing to 20")
+        XCTAssertEqual(harness.recorder.ratesChanged, [.immediate], "the draw changed from nothing to 20")
 
-        // Same rates again: no change, no notification.
+        // Same rates again: nothing changed, so there is nothing to report.
         harness.controller.onSourcePublished(source)
         eventually(harness.recorder.published.count == 2)
-        XCTAssertEqual(harness.recorder.immediateChangeCount, 1)
+        XCTAssertEqual(harness.recorder.ratesChanged, [.immediate])
 
-        // A real change under `next_session`: no notification either.
+        // A real change the console did not mark `immediate` is still a real change.
         harness.client.handler = { _ in
-            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 2, "enabled": true, "rum": { "sessionSampleRate": 30 } }"#.data(using: .utf8)!))
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 2, "enabled": true, "rum": { "sessionSampleRate": 0 } }"#.data(using: .utf8)!))
         }
         harness.controller.onSourcePublished(source)
         eventually(harness.recorder.published.count == 3)
-        XCTAssertEqual(harness.recorder.immediateChangeCount, 1)
+        XCTAssertEqual(harness.recorder.ratesChanged, [.immediate, .nextSession])
     }
 
     // MARK: - Persistence

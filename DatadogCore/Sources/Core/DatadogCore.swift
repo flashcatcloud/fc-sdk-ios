@@ -83,8 +83,8 @@ internal final class DatadogCore {
                 publishRates: { [weak self] rates in
                     self?.contextProvider.write { $0.set(additionalContext: rates) }
                 },
-                notifyImmediateChange: { [weak self] in
-                    self?.send(message: .payload(RemoteSamplingChangedMessage()), else: {})
+                notifyRatesChanged: { [weak self] activation in
+                    self?.send(message: .payload(RemoteSamplingChangedMessage(activation: activation)), else: {})
                 }
             )
             existing = created

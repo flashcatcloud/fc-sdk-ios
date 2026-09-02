@@ -60,15 +60,32 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
     }
 }
 
-/// Sent by the core when the console asked for a change to take effect immediately and the rates
-/// this app will now draw with really changed.
+/// How the console wants a change to land on a client that is already running.
+public enum RemoteSamplingActivation: String, Equatable {
+    /// New sessions draw with the new values; the running session is untouched.
+    case nextSession = "next_session"
+    /// The running session ends so the next one starts under the new values.
+    case immediate = "immediate"
+}
+
+/// Sent by the core when the rates this app draws with have changed.
 ///
-/// RUM answers it by ending the running session so a new one starts under the new rates. Ending and
-/// restarting is deliberate: a session that was not being collected has no id and no history, so
-/// flipping its decision in place would invent a session that appears to begin mid-use, and a
-/// collected session flipped off would simply stop, looking like it ended early.
+/// Whether that ends the running session is RUM's to decide, and the answer depends on things only
+/// RUM knows — whether the visitor was forced, whether the session is being collected at all, and
+/// what rate applies once the console's value falls back to the one the app was initialised with.
+/// The core reports the change and carries the console's instruction; it does not rule on it.
+///
+/// Ending a session is how a change is applied mid-flight, and it is deliberate: a session that was
+/// not being collected has no id and no history, so flipping its decision in place would invent a
+/// session that appears to begin mid-use, and a collected session flipped off would simply stop,
+/// looking like it ended early.
 public struct RemoteSamplingChangedMessage {
-    public init() {}
+    /// What the console asked for. `nextSession` unless it said otherwise.
+    public let activation: RemoteSamplingActivation
+
+    public init(activation: RemoteSamplingActivation = .nextSession) {
+        self.activation = activation
+    }
 }
 
 /// Synchronous access to the remote sampling configuration a previous launch stored.

@@ -31,8 +31,9 @@ internal final class RemoteSamplingController {
 
     /// Hands the rates to the core, which publishes them as additional context for all features.
     private let publishRates: (RemoteSamplingRates) -> Void
-    /// Tells the core the console asked for an immediate change; the core notifies RUM on the bus.
-    private let notifyImmediateChange: () -> Void
+    /// Tells the core the rates changed, with the console's instruction about the running
+    /// session; the core passes it to RUM on the bus, which is where that instruction is judged.
+    private let notifyRatesChanged: (RemoteSamplingActivation) -> Void
     /// Schedules a retry; injectable so tests do not wait.
     private let schedule: (TimeInterval, @escaping () -> Void) -> Void
     /// Applies ±20% jitter to a retry delay; injectable so tests are deterministic.
@@ -63,7 +64,7 @@ internal final class RemoteSamplingController {
         store: RemoteSamplingSnapshotStore?,
         telemetry: Telemetry,
         publishRates: @escaping (RemoteSamplingRates) -> Void,
-        notifyImmediateChange: @escaping () -> Void,
+        notifyRatesChanged: @escaping (RemoteSamplingActivation) -> Void,
         schedule: ((TimeInterval, @escaping () -> Void) -> Void)? = nil,
         jitter: ((TimeInterval) -> TimeInterval)? = nil
     ) {
@@ -72,7 +73,7 @@ internal final class RemoteSamplingController {
         self.store = store
         self.telemetry = telemetry
         self.publishRates = publishRates
-        self.notifyImmediateChange = notifyImmediateChange
+        self.notifyRatesChanged = notifyRatesChanged
         self.schedule = schedule ?? { delay, work in
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay, execute: work)
         }
@@ -208,8 +209,13 @@ internal final class RemoteSamplingController {
     }
 
     /// Activates a validated snapshot all-or-nothing: persist it, publish its rates, and when the
-    /// console asked for an immediate change that really changes what this client draws with,
-    /// let RUM know so it ends the running session.
+    /// rates this client draws with really changed, tell RUM so.
+    ///
+    /// Every real change is reported, not only the ones the console marked `immediate`: a rate of
+    /// zero ends the running session on its own meaning, without the console having to ask. What to
+    /// do about it is decided in RUM, which is the only side that knows whether the visitor was
+    /// forced, whether the session is being collected, and what rate applies once a cleared knob
+    /// falls back to the value the app was initialised with.
     private func activate(_ parsed: RemoteSamplingResponse) {
         // A body older than what is already in force is a stale copy — an edge cache or a proxy
         // answering 200 with something it held on to. Versions only ever climb: a rollback in the
@@ -233,8 +239,8 @@ internal final class RemoteSamplingController {
         inFlight = false
 
         let drawChanged = previousSessionSampleRate != snapshot.rates.sessionSampleRate
-        if parsed.activation == .immediate && drawChanged {
-            notifyImmediateChange()
+        if drawChanged {
+            notifyRatesChanged(parsed.activation)
         }
     }
 
