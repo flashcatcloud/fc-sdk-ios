@@ -186,7 +186,7 @@ class RemoteSamplingSnapshotTests: XCTestCase {
 
     // MARK: - Persistence
 
-    func testStorageKeyComposition() {
+    func testStorageKeyNamesOnlyWhatChangesTheAnswer() {
         let source = RemoteSamplingSource(configurationURL: URL(string: "https://intake.example.com/api/v2/rum/config?client_token=t")!)
         let base: DatadogContext = .mockWith(
             clientToken: "t",
@@ -198,35 +198,34 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         )
         let key = RemoteSamplingSnapshotStore.key(source: source, context: base)
 
-        // SDK version is deliberately not part of the key:
-        let otherSDK: DatadogContext = .mockWith(
-            clientToken: "t",
-            service: "shop",
-            env: "prod",
-            version: "1.2.3",
-            sdkVersion: "9.9.9",
-            applicationBundleIdentifier: "com.example.shop"
-        )
-        XCTAssertEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherSDK))
-
-        // Everything else that identifies a configuration is:
-        let otherAppVersion: DatadogContext = .mockWith(
-            clientToken: "t", service: "shop", env: "prod", version: "9.9.9", applicationBundleIdentifier: "com.example.shop"
-        )
-        XCTAssertNotEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherAppVersion))
-
-        let otherEnv: DatadogContext = .mockWith(
-            clientToken: "t", service: "shop", env: "staging", version: "1.2.3", applicationBundleIdentifier: "com.example.shop"
-        )
+        // The environment is matched on by the server, so two of them are two configurations:
+        let otherEnv: DatadogContext = .mockWith(clientToken: "t", service: "shop", env: "staging", version: "1.2.3")
         XCTAssertNotEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherEnv))
 
-        let otherService: DatadogContext = .mockWith(
-            clientToken: "t", service: "other", env: "prod", version: "1.2.3", applicationBundleIdentifier: "com.example.shop"
-        )
-        XCTAssertNotEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherService))
-
+        // So is the intake the answer came from, which an application can point elsewhere:
         let otherHost = RemoteSamplingSource(configurationURL: URL(string: "https://other.example.com/api/v2/rum/config")!)
         XCTAssertNotEqual(key, RemoteSamplingSnapshotStore.key(source: otherHost, context: base))
+
+        // The application version is not, though the server does match on it: keying by it would
+        // put the first session after every release back on the value the app was built with, to
+        // guard against settings that at worst are one release out of date until the next fetch.
+        let otherAppVersion: DatadogContext = .mockWith(clientToken: "t", service: "shop", env: "prod", version: "9.9.9")
+        XCTAssertEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherAppVersion))
+
+        // Nor is the service name — the server is never told it, so it cannot change the answer.
+        let otherService: DatadogContext = .mockWith(clientToken: "t", service: "other", env: "prod", version: "1.2.3")
+        XCTAssertEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherService))
+
+        // Nor the SDK version: an SDK update must not throw away the console's answer.
+        let otherSDK: DatadogContext = .mockWith(clientToken: "t", service: "shop", env: "prod", version: "1.2.3", sdkVersion: "9.9.9")
+        XCTAssertEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherSDK))
+
+        // Nor the bundle identifier: the store lives in the application's own container, so one
+        // key is only ever reachable by one bundle.
+        let otherBundle: DatadogContext = .mockWith(
+            clientToken: "t", service: "shop", env: "prod", version: "1.2.3", applicationBundleIdentifier: "com.example.other"
+        )
+        XCTAssertEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherBundle))
     }
 
     func testStoreRoundTrip() throws {

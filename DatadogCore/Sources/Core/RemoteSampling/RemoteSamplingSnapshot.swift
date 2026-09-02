@@ -53,16 +53,8 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
 
 /// The outcome of reading a `200` response body against the configuration contract.
 internal struct RemoteSamplingResponse: Equatable {
-    /// How the console wants the configuration to take effect.
-    enum Activation: String, Equatable {
-        /// New sessions draw with the new values; the running session is untouched.
-        case nextSession = "next_session"
-        /// The running session ends so the next one starts under the new values.
-        case immediate = "immediate"
-    }
-
     let snapshot: RemoteSamplingSnapshot
-    let activation: Activation
+    let activation: RemoteSamplingActivation
 }
 
 /// An unparseable or invalid configuration response. Carries no details on purpose:
@@ -189,11 +181,11 @@ extension RemoteSamplingResponse {
         return number.boolValue
     }
 
-    private static func readActivation(_ root: [String: Any]) throws -> Activation {
+    private static func readActivation(_ root: [String: Any]) throws -> RemoteSamplingActivation {
         guard let raw = root[Contract.activation] else {
             return .nextSession
         }
-        guard let string = raw as? String, let activation = Activation(rawValue: string) else {
+        guard let string = raw as? String, let activation = RemoteSamplingActivation(rawValue: string) else {
             throw RemoteSamplingResponseError()
         }
         return activation
@@ -248,11 +240,9 @@ extension RemoteSamplingResponse {
 /// Persists the last good snapshot on disk, so the first sessions after a cold start draw with
 /// the values the console provided on a previous launch instead of the ones the app was built with.
 ///
-/// The storage key embeds everything that makes a configuration entry invalid for another
-/// configuration: a cache-format version (bumped when the layout changes), the endpoint host, the
-/// application (service and bundle id), the environment and the application version. The SDK
-/// version is deliberately not part of it — an SDK update must not throw away the console's
-/// answer. Entries another key cannot see are simply never read.
+/// The storage key names only what would make one entry the wrong answer for another — see
+/// `key(source:context:)` for what that is and, just as importantly, what it is not. Entries
+/// another key cannot see are never read, and are removed on the next load.
 internal struct RemoteSamplingSnapshotStore {
     /// Bumped when the persisted layout changes, so old entries are left behind instead of misread.
     private static let cacheFormatVersion = "cfv1"
@@ -266,24 +256,41 @@ internal struct RemoteSamplingSnapshotStore {
     }
 
     /// Builds the storage key for the given source and application context.
+    ///
+    /// Only what this directory does not already separate, and only what changes the answer.
+    ///
+    /// The directory is `sha256(instanceName + site)` inside the application's own container, so
+    /// the SDK instance, the site and the application itself are settled before a key is asked
+    /// for — which is why neither the bundle identifier nor the service name appears here. Two
+    /// applications on one device cannot reach each other's container at all.
+    ///
+    /// What is left is what the server's answer actually depends on: which host it came from, and
+    /// the environment it was matched on. The address matters only when the application points the
+    /// SDK at its own intake, because then the site in the directory says nothing about where the
+    /// configuration came from.
+    ///
+    /// The application version is deliberately absent, though the server does match on it. Keying
+    /// by it would mean the first session after every release draws at the value the app was built
+    /// with — which can be an order of magnitude away from what the console set — to protect
+    /// against a version-targeted rule that would at worst leave that session on the previous
+    /// release's settings, and only until the next fetch. The web SDK does key by version, because
+    /// two releases of a site are served at the same time and would overwrite each other's entry;
+    /// an installed application is only ever one version, so that reason does not carry over.
     static func key(source: RemoteSamplingSource, context: DatadogContext) -> String {
         let material = [
             cacheFormatVersion,
             source.configurationURL.host ?? "",
             source.configurationURL.port.map { String($0) } ?? "",
-            context.service,
-            context.applicationBundleIdentifier,
-            context.env,
-            context.version
+            context.env
         ].joined(separator: "|")
         return sha256(material)
     }
 
     func load(forKey key: String) -> RemoteSamplingSnapshot? {
-        // The key embeds the application version and the environment, so every release and every
-        // environment switch strands the entry written under the previous one. Nothing else ever
-        // collects them — the core's own retention only knows about the directories it writes —
-        // so the launch that stops being able to read an entry is the launch that removes it.
+        // An environment switch, or a move to a different intake, strands the entry written under
+        // the previous one. Nothing else ever collects them — the core's own retention only knows
+        // about the directories it writes — so the launch that stops being able to read an entry
+        // is the launch that removes it.
         prune(keeping: key)
 
         let url = fileURL(forKey: key)
