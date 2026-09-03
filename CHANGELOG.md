@@ -11,24 +11,24 @@
 
 ### Added
 
-- **RUM 远程采样配置**：新增 `RUM.Configuration.remoteConfigurationEnabled`（默认 `false`）。开启后，SDK 会在 SDK 初始化以及每次新会话创建时向 RUM 接入点请求会话采样率，从而无需发版即可调整采集比例；未开启时不产生任何额外请求，行为与之前完全一致。
-  - 配置请求为 `GET {intake}/config`，与事件上报同源推导（`customEndpoint ?? site.endpoint + api/v2/rum`），因此配置了代理的应用不会出现一个走代理、一个不走的情况。
-  - 请求在 `RUM.enable()` 时即发出，**不受 `TrackingConsent` 影响**；请求只携带 client token、`env`、应用版本与 SDK 版本，不含任何用户数据。
-  - 拉取失败、超时、响应无法解析或 schema 不受支持时，一律保留已生效的取值，绝不清空。失败按 5s、60s 退避重试两次，之后等待下一次会话创建。
-  - 控制台提供的取值会持久化在应用沙盒内，冷启动后的第一个会话即可按上次取到的配置抽签。
-- **`RUM.Configuration.beforeSampling`**：宿主应用在每次会话抽签时的最后一票，可基于控制台下发的自定义值决定是否覆盖采样率。返回 `nil` 表示不干预；超出 `0...100` 的返回值会被忽略并保留原采样率。
-- **`RUMMonitorProtocol.setForcedSession()`**：强制当前访客的会话被采集，不受采样率影响，作用于进程生命周期。
-- **`RUMMonitorProtocol.getRemoteConfig()`**：读取控制台下发的自定义值（解码后的 JSON 对象）。
-- 以上能力同时提供 Objective-C 接口：`DDRUMConfiguration.remoteConfigurationEnabled`、`DDRUMConfiguration.beforeSampling`（配套 `DDRUMBeforeSamplingContext`）、`-[DDRUMMonitor setForcedSession]`、`-[DDRUMMonitor getRemoteConfig]`。`beforeSampling` 的 block 返回 `NSNumber *` 而非 `float`，因为「不干预」需要用 `nil` 表达，而 `0` 本身是一个有效的采样率。
+- **Remote sampling configuration for RUM**: `RUM.Configuration.remoteConfigurationEnabled` (default `false`). When enabled, the SDK asks the RUM intake for the session sample rate at SDK initialisation and again whenever a session is created, so the rate can be changed from the console without shipping a release. When it is off, no extra request is made and behaviour is unchanged.
+  - The request is `GET {intake}/config`, derived the same way as the event intake (`customEndpoint ?? site.endpoint + api/v2/rum`), so an application behind a proxy does not end up with one going through it and the other not.
+  - The request goes out when `RUM.enable()` is called and is **not gated on `TrackingConsent`**. It carries the client token, `env`, the application version and the SDK version, and no user data.
+  - A failed, timed-out, unreadable or unsupported response leaves the values already in force untouched — they are never cleared. Failures are retried after 5s and 60s and then wait for the next session.
+  - The values the console provided are persisted in the application's own container, so the first session after a cold start already draws under them.
+- **`RUM.Configuration.beforeSampling`**: the host application's last word on each session draw. It receives the rate that would apply and the console's custom values, and returns a rate to override it or `nil` to leave it alone. A returned value outside `0...100` is ignored and the incoming rate applies.
+- **`RUMMonitorProtocol.setForcedSession()`**: collects the visitor's session regardless of the sample rates, for the lifetime of the process.
+- **`RUMMonitorProtocol.getRemoteConfig()`**: reads the custom values the console delivered, decoded.
+- All of the above are available to Objective-C: `DDRUMConfiguration.remoteConfigurationEnabled`, `DDRUMConfiguration.beforeSampling` (with `DDRUMBeforeSamplingContext`), `-[DDRUMMonitor setForcedSession]` and `-[DDRUMMonitor getRemoteConfig]`. The `beforeSampling` block returns `NSNumber *` rather than `float`, because "no opinion" has to be expressible as `nil` and `0` is a rate somebody may well mean.
 
 ### Changed
 
-- 事件 `_dd.configuration.session_sample_rate` 现在上报**实际决定该会话的采样率**（控制台下发值、初始化值或 `beforeSampling` 的返回值），此前恒为初始化值。未启用远程配置且未使用 `beforeSampling` 时，上报值与之前一致。
-- View 事件新增 `_dd.configuration.rc_version`，标识该会话抽签时所依据的配置版本；无远程配置生效时不携带该字段。
+- `_dd.configuration.session_sample_rate` on RUM events now reports **the rate that actually decided the session** — the console's value, the value passed to `init`, or whatever `beforeSampling` returned — where it previously always reported the value passed to `init`. With remote configuration off and no `beforeSampling` hook, the reported value is unchanged.
+- View events carry `_dd.configuration.rc_version`, naming the console configuration the session was drawn under. It is absent when no remote configuration was in effect.
 
 ### Breaking Changes
 
-- `RUMMonitorProtocol` 新增两个必须实现的方法：`setForcedSession()` 与 `getRemoteConfig()`。自行实现该协议的代码（例如测试替身）需要补齐这两个方法才能通过编译。通过 `RUMMonitor.shared()` 使用 SDK 的常规接入方式不受影响。
+- `RUMMonitorProtocol` gained two required methods, `setForcedSession()` and `getRemoteConfig()`. Code that implements this protocol itself — a test double, most likely — must add them to compile. Integrating through `RUMMonitor.shared()` is unaffected.
 
 ---
 
