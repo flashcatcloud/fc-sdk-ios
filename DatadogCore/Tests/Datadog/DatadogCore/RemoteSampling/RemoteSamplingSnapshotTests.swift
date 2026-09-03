@@ -61,7 +61,6 @@ class RemoteSamplingSnapshotTests: XCTestCase {
             #"{ "schema_version": 1, "version": "42", "enabled": true }"#, // version of wrong type
             #"{ "schema_version": 1, "enabled": true, "rum": {} }"#, // no version
             #"{ "schema_version": 1, "version": 1, "enabled": "yes" }"#, // enabled of wrong type
-            #"{ "schema_version": 1, "version": 1, "enabled": true, "activation": "sometimes" }"#, // unknown activation
             #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": "nope" }"#, // rum of wrong type
             #"{ "schema_version": 1, "version": 1, "enabled": true, "custom": "nope" }"#, // custom of wrong type
             #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": "20" } }"#, // rate of wrong type
@@ -71,6 +70,21 @@ class RemoteSamplingSnapshotTests: XCTestCase {
             let body = string.data(using: .utf8)!
             XCTAssertThrowsError(try RemoteSamplingResponse.parse(body: body, etag: .mockAny()), "should reject: \(string)")
         }
+    }
+
+    func testAnActivationItCannotReadDoesNotCostItTheConfiguration() throws {
+        // The one field that must not refuse a body. Reading by whitelist exists so that an older
+        // SDK can still talk to a newer console; refusing here would mean that the day the server
+        // learns a third way to apply a change, every client on this version stops accepting any
+        // configuration at all — rates included, which have nothing to do with it.
+        let body = #"""
+        { "schema_version": 1, "version": 1, "enabled": true, "activation": "sometimes", "rum": { "sessionSampleRate": 20 } }
+        """#.data(using: .utf8)!
+
+        let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
+
+        XCTAssertEqual(response.snapshot.sessionSampleRate, 20, "the values still apply")
+        XCTAssertEqual(response.activation, .nextSession, "and the running session is left alone, which is the safe reading")
     }
 
     func testRejectsWholeSnapshotOnOutOfRangeRate() {

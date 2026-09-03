@@ -179,7 +179,7 @@ internal final class RemoteSamplingController {
         switch result {
         case .success((let response, let body)) where response.statusCode == 200:
             do {
-                let parsed = try RemoteSamplingResponse.parse(body: body, etag: Self.etag(of: response))
+                let parsed = try RemoteSamplingResponse.parse(body: body, etag: Self.etag(of: response), telemetry: telemetry)
                 activate(parsed)
             } catch let error as RemoteSamplingUnsupportedSchemaError {
                 // The server answered; this SDK simply cannot use the answer until it is updated.
@@ -198,6 +198,13 @@ internal final class RemoteSamplingController {
                 scheduleRetry()
             }
         case .success((let response, _)) where response.statusCode == 304:
+            inFlight = false
+        case .success((let response, _)) where Self.isARefusal(response.statusCode):
+            // A refusal is not a hiccup: the same request gets the same answer. Retrying spends two
+            // more requests per session on a verdict that will not change — and the ordinary way to
+            // land here is a private deployment whose proxy has no `/config` route at all, where
+            // that waste is paid by every session of every client.
+            telemetry.debug("Remote sampling: the configuration endpoint refused the request (\(response.statusCode)); waiting for the next trigger")
             inFlight = false
         case .success((let response, _)):
             telemetry.debug("Remote sampling: configuration request answered \(response.statusCode), keeping the previous values")
@@ -263,6 +270,14 @@ internal final class RemoteSamplingController {
             }
         }
         return nil
+    }
+
+    /// Whether the server has refused this request rather than failed to answer it.
+    ///
+    /// `408` and `429` are the two 4xx that mean "not now" rather than "not ever", so they keep
+    /// the retry they would have had.
+    private static func isARefusal(_ statusCode: Int) -> Bool {
+        (400..<500).contains(statusCode) && statusCode != 408 && statusCode != 429
     }
 
     private func scheduleRetry() {

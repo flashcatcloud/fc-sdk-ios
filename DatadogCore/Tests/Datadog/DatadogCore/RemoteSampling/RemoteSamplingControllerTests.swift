@@ -253,6 +253,9 @@ class RemoteSamplingControllerTests: XCTestCase {
 
         harness.recorder.pendingWork[1]()
         eventually(harness.client.calls.count == 3)
+        // Asserting that nothing more was scheduled means waiting long enough to be sure nothing
+        // will be — there is no arrival to wait on. The window is generous: retries are scheduled
+        // inside the same hop that handles the response, so anything coming at all comes at once.
         RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         XCTAssertEqual(harness.recorder.scheduledDelays.count, 2, "after two retries the controller waits for the next trigger")
 

@@ -81,7 +81,7 @@ extension RemoteSamplingResponse {
     ///   - body: The response body.
     ///   - etag: The validator the server stamped this body with, or nil when it sent none —
     ///     the next request then simply asks unconditionally.
-    static func parse(body: Data, etag: String?) throws -> RemoteSamplingResponse {
+    static func parse(body: Data, etag: String?, telemetry: Telemetry = NOPTelemetry()) throws -> RemoteSamplingResponse {
         guard let json = try? JSONSerialization.jsonObject(with: body),
               let root = json as? [String: Any] else {
             throw RemoteSamplingResponseError()
@@ -95,7 +95,7 @@ extension RemoteSamplingResponse {
 
         let version = try readVersion(root)
         let enabled = try readBoolean(root, key: Contract.enabled, default: false)
-        let activation = try readActivation(root)
+        let activation = readActivation(root, telemetry: telemetry)
 
         guard enabled else {
             // Kill switch: clear every knob, keep the version. `rum` and `custom` are not read —
@@ -181,12 +181,26 @@ extension RemoteSamplingResponse {
         return number.boolValue
     }
 
-    private static func readActivation(_ root: [String: Any]) throws -> RemoteSamplingActivation {
+    /// How the console wants the change applied — and never a reason to refuse the change itself.
+    ///
+    /// Everything else here refuses a body it cannot read, because a half-applied configuration is
+    /// worse than none. This field is the exception, and it has to be: the whole point of reading
+    /// by whitelist is that an older SDK can still talk to a newer console, and an activation mode
+    /// this SDK has not heard of is exactly that case. Refusing on it would mean the day the server
+    /// learns a third way to apply a change, every client on this version stops accepting any
+    /// configuration at all — rates included, which have nothing to do with it. Falling back to the
+    /// conservative mode leaves the running session alone, which is the safe way to read an
+    /// instruction we cannot follow.
+    private static func readActivation(_ root: [String: Any], telemetry: Telemetry) -> RemoteSamplingActivation {
         guard let raw = root[Contract.activation] else {
             return .nextSession
         }
         guard let string = raw as? String, let activation = RemoteSamplingActivation(rawValue: string) else {
-            throw RemoteSamplingResponseError()
+            telemetry.debug(
+                "Remote sampling: this SDK does not read the activation the console asked for; " +
+                "applying the configuration to new sessions and leaving the running one alone"
+            )
+            return .nextSession
         }
         return activation
     }
