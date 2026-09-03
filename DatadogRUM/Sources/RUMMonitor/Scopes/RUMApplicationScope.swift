@@ -252,7 +252,9 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     /// next one is drawn afresh, whatever the rates turn out to be.
     ///
     /// A rate of zero needs no such instruction, because it is the one value that answers the
-    /// question on its own: nothing is to be collected. A session that is collecting right now
+    /// question on its own — in both directions. Moving TO zero says nothing is to be collected;
+    /// moving AWAY from a session that was drawn at zero says this visitor was never in the draw
+    /// at all and now could be. A session that is collecting right now
     /// would otherwise go on collecting until it happens to rotate, which can be hours away — and
     /// "stop collecting" is the one request where waiting hours is the wrong answer. Every other
     /// rate is silent on this session's fate: whether it "should" still be kept can only be
@@ -275,9 +277,31 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         }
         let rateNowInForce = dependencies.remoteSamplingRates()?.sessionSampleRate
             ?? dependencies.sessionSampler.samplingRate
-        // A session that is not being collected has nothing to stop, and ending it would only put
-        // a stopped session on the record and leave its replacement reporting an explicit stop.
-        return rateNowInForce == 0 && activeSession.isSampled
+
+        if rateNowInForce == 0 {
+            // A session that is not being collected has nothing to stop, and ending it would only
+            // put a stopped session on the record and leave its replacement reporting an explicit
+            // stop.
+            return activeSession.isSampled
+        }
+
+        // The other direction, and the reason it is written against the rate the session was DRAWN
+        // at rather than against whether it is being collected.
+        //
+        // Re-drawing only the sessions that were not collected, while leaving the collected ones
+        // alone, spares the winners and re-rolls the losers — a fleet drawn at 20 and moved to 50
+        // would come out at 60, because the 20 that were already kept stay kept. A rate of 0 is the
+        // one value with no winners to spare: nothing was collected, no coin was flipped, and
+        // re-drawing everyone at the new rate lands exactly on it.
+        //
+        // What it buys is the case where the console is the only thing that ever turns collection
+        // on. An application built at 0 shows the operator nothing at all until its sessions
+        // happen to rotate, and nothing at all is indistinguishable from broken. What it costs is
+        // nothing: a session drawn at 0 has no id, no events and no history — it does not exist in
+        // the data, so there is no seam for ending it to leave.
+        let rateItWasDrawnAt = activeSession.drawnConfiguration?.sessionSampleRate
+            ?? dependencies.sessionSampler.samplingRate
+        return rateItWasDrawnAt == 0
     }
 
     /// Sanity count to make sure initial session is created only once.

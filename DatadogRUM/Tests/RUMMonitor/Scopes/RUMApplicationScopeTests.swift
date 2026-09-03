@@ -381,6 +381,46 @@ class RUMApplicationScopeTests: XCTestCase {
         XCTAssertNil(scope.activeSession, "nothing was running, so nothing was started and nothing was ended")
     }
 
+    func testGivenSessionDrawnAtZero_whenTheRateRises_itEndsSoTheVisitorCanBeCollected() throws {
+        // The case where the console is the only thing that ever turns collection on: an
+        // application built at 0 shows the operator nothing until its sessions happen to rotate,
+        // and nothing is indistinguishable from broken. Ending this one costs nothing — drawn at 0
+        // it has no id, no events and no history, so it does not exist in the data at all.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 0, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 50, version: 2),
+            at: currentTime
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, false, "the ground state: drawn at 0, collecting nothing")
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertNil(scope.activeSession, "the next session is drawn under the rate the operator just set")
+    }
+
+    func testGivenSessionDrawnAtARealRate_whenTheRateRises_theRunningSessionIsLeftAlone() throws {
+        // The negative control, and the reason the rule reads the rate the session was DRAWN at
+        // rather than whether it is being collected. Re-drawing only the sessions that lost, while
+        // leaving the ones that won alone, spares the winners and re-rolls the losers: a fleet
+        // drawn at 20 and moved to 50 would come out at 60. Zero is the only rate with no winners
+        // to spare, which is why it is the only one acted on.
+        //
+        // The assertion holds whichever way this session's own draw at 20 fell, so nothing here
+        // rides on a coin flip.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 20, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 50, version: 2),
+            at: currentTime
+        )
+        let sessionBefore = try XCTUnwrap(scope.activeSession?.sessionUUID)
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertEqual(scope.activeSession?.sessionUUID, sessionBefore)
+    }
+
     func testGivenForcingTurnedOn_whenRatesChangeImmediately_theRunningSessionIsKept() throws {
         // A forced session is collected whatever the rates say, so ending it would only buy
         // another forced session that behaves identically — at the cost of cutting the recording
