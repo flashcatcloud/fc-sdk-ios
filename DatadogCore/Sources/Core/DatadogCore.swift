@@ -69,13 +69,11 @@ internal final class DatadogCore {
         // threads that each found it empty would each build a controller and one would be
         // dropped — along with the snapshot it had already loaded and the fetch it had in
         // flight — while the caller that built it went on using the copy nobody else can see.
-        var controller: RemoteSamplingController!
         _cachedRemoteSamplingController.mutate { existing in
-            if let existing = existing {
-                controller = existing
+            guard existing == nil else {
                 return
             }
-            let created = RemoteSamplingController(
+            existing = RemoteSamplingController(
                 httpClient: httpClient,
                 contextProvider: contextProvider,
                 store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
@@ -87,8 +85,12 @@ internal final class DatadogCore {
                     self?.send(message: .payload(RemoteSamplingChangedMessage(activation: activation)), else: {})
                 }
             )
-            existing = created
-            controller = created
+        }
+        // Written inside the lock above and never cleared, so this read always finds it. Reading it
+        // back rather than returning it from the closure is what keeps the whole get-or-create
+        // inside one write lock, which is the entire point.
+        guard let controller = cachedRemoteSamplingController else {
+            preconditionFailure("the remote sampling controller is created above and never cleared")
         }
         return controller
     }

@@ -381,8 +381,7 @@ public class objc_RUMConfiguration: NSObject {
     ///
     /// Kept because the Swift closure it is wrapped into cannot be unwrapped back into it, and a
     /// property whose getter returned something the caller never set would be worse than useless.
-    @nonobjc
-    private var objcBeforeSampling: ((objc_RUMBeforeSamplingContext) -> NSNumber?)?
+    @nonobjc private var objcBeforeSampling: ((objc_RUMBeforeSamplingContext) -> NSNumber?)?
 
     public init(applicationID: String) {
         swiftConfig = .init(applicationID: applicationID)

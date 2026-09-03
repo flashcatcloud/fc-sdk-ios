@@ -64,7 +64,8 @@ final class RemoteSamplingIntegrationTests: XCTestCase {
     /// would be a data race — and this target runs under ThreadSanitizer, which says so. This
     /// listener is the supported way to watch a draw from outside.
     private final class DrawRecorder {
-        @ReadWriteLock private(set) var collected: Bool?
+        @ReadWriteLock
+        private(set) var collected: Bool?
         var listener: RUM.SessionListener { { [self] _, isDiscarded in collected = !isDiscarded } }
     }
 

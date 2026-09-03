@@ -414,9 +414,9 @@ class RUMApplicationScopeTests: XCTestCase {
     private func scopeWithSessionDrawn(
         under first: RemoteSamplingRates?,
         thenRatesBecome second: RemoteSamplingRates?,
+        at currentTime: Date,
         initialSampleRate: SampleRate = 100,
-        forced: Bool = false,
-        at currentTime: Date
+        forced: Bool = false
     ) -> RUMApplicationScope {
         var rates = first
         let scope = createRUMApplicationScope(
@@ -501,8 +501,8 @@ class RUMApplicationScopeTests: XCTestCase {
         let scope = scopeWithSessionDrawn(
             under: RemoteSamplingRates(sessionSampleRate: 100, version: 1),
             thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 0, version: 2),
-            forced: true,
-            at: currentTime
+            at: currentTime,
+            forced: true
         )
         let sessionBefore = try XCTUnwrap(scope.activeSession?.sessionUUID)
 
@@ -519,8 +519,8 @@ class RUMApplicationScopeTests: XCTestCase {
         let scope = scopeWithSessionDrawn(
             under: RemoteSamplingRates(sessionSampleRate: 100, version: 1),
             thenRatesBecome: RemoteSamplingRates(sessionSampleRate: nil, version: 2),
-            initialSampleRate: 0,
-            at: currentTime
+            at: currentTime,
+            initialSampleRate: 0
         )
         XCTAssertEqual(scope.activeSession?.isSampled, true)
 
