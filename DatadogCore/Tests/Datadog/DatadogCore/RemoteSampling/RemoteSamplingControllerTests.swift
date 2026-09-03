@@ -390,6 +390,45 @@ class RemoteSamplingControllerTests: XCTestCase {
         XCTAssertEqual(harness.recorder.ratesChanged, [.immediate, .nextSession])
     }
 
+    // MARK: - Stale configuration
+
+    func testAConfigurationOlderThanTheOneInForceIsRefusedWithoutWedgingTheController() {
+        // Versions only climb: a rollback in the console republishes the older content under a new
+        // number. So a body carrying a lower one is a stale copy — an edge cache or a proxy
+        // answering 200 with something it held on to. Applying it would put this client back on
+        // settings the console has already replaced, and it would go on reporting that older
+        // number, so the rollout view would read as the change losing ground.
+        let harness = Harness()
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+        }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.recorder.published.count == 1)
+        XCTAssertEqual(harness.recorder.published.last?.version, 42)
+
+        // A stale answer arrives, and it carries a rate that would be very visible if applied.
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 41, "enabled": true, "rum": { "sessionSampleRate": 90 } }"#.data(using: .utf8)!))
+        }
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 2)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+
+        XCTAssertEqual(harness.recorder.published.count, 1, "the stale body is refused whole")
+        XCTAssertEqual(harness.recorder.published.last?.sessionSampleRate, 20, "the values in force are untouched")
+
+        // And refusing one must not leave the controller deaf: the next real change still lands.
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 43, "enabled": true, "rum": { "sessionSampleRate": 90 } }"#.data(using: .utf8)!))
+        }
+        harness.controller.onSourcePublished(source)
+
+        eventually(harness.recorder.published.count == 2)
+        XCTAssertEqual(harness.recorder.published.last?.version, 43)
+        XCTAssertEqual(harness.recorder.published.last?.sessionSampleRate, 90)
+    }
+
     // MARK: - Persistence
 
     func testStoredSnapshotAppliesBeforeNetworkAnswers() throws {
