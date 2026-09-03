@@ -171,7 +171,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 startDate: crashTimings.realCrashDate,
                 sessionUUID: RUMUUID(rawValue: lastRUMSessionState.sessionUUID), // link it to previous RUM Session
                 context: crashContext,
-                hasReplay: lastRUMSessionState.didStartWithReplay
+                hasReplay: lastRUMSessionState.didStartWithReplay,
+                drawnBy: lastRUMSessionState
             )
         case .handleInBackgroundView:
             // It means that the crash occurred as the very first event after sending app to background in previous session.
@@ -182,7 +183,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 startDate: crashTimings.realCrashDate,
                 sessionUUID: RUMUUID(rawValue: lastRUMSessionState.sessionUUID), // link it to previous RUM Session
                 context: crashContext,
-                hasReplay: lastRUMSessionState.didStartWithReplay
+                hasReplay: lastRUMSessionState.didStartWithReplay,
+                drawnBy: lastRUMSessionState
             )
         case .doNotHandle:
             DD.logger.debug("There was a crash in background, but it is ignored due to Background Event Tracking disabled or sampling.")
@@ -299,7 +301,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         startDate: Date,
         sessionUUID: RUMUUID,
         context: CrashContext,
-        hasReplay: Bool?
+        hasReplay: Bool?,
+        drawnBy drawnSession: RUMSessionState? = nil
     ) -> RUMViewEvent {
         let viewUUID = uuidGenerator.generateUnique()
 
@@ -308,8 +311,14 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 browserSdkVersion: nil,
                 cls: nil,
                 configuration: .init(
+                    // The version the session was drawn under, and the rate that decided it. Both
+                    // come from the session that crashed, not from what the app was built with:
+                    // once the console is setting the rate, the init value is the one number we
+                    // know did not decide it. A session we are inventing here — because the crash
+                    // came before any session existed — has no draw to report, and falls back.
+                    rcVersion: drawnSession?.drawnConfigurationVersion.flatMap { $0 > 0 ? $0 : nil },
                     sessionReplaySampleRate: nil,
-                    sessionSampleRate: Double(self.sessionSampler.samplingRate),
+                    sessionSampleRate: drawnSession?.drawnSessionSampleRate ?? Double(self.sessionSampler.samplingRate),
                     startSessionReplayRecordingManually: nil
                 ),
                 documentVersion: 1,

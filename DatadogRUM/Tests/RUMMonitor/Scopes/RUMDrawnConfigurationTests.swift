@@ -216,13 +216,17 @@ class RUMDrawnConfigurationTests: XCTestCase {
     }
 
     func testBeforeSamplingKeepsTheIncomingRateWhenItReturnsNothingOrNonsense() {
+        // Drawn against a console rate of 100 rather than 0, so that a rate slipping through
+        // unchecked would be visible: `Sampler` clamps -1 to 0, so with a base of 0 this test
+        // passed whether or not the guard existed.
         for hook: BeforeSamplingCallback in [{ _ in nil }, { _ in 150 }, { _ in -1 }] {
             let scope = RUMSessionScope.mockWith(
                 parent: parent,
-                context: context(rates: RemoteSamplingRates(sessionSampleRate: 0, version: 7)),
-                dependencies: .mockWith(sessionSampler: .mockKeepAll(), beforeSampling: hook)
+                context: context(rates: RemoteSamplingRates(sessionSampleRate: 100, version: 7)),
+                dependencies: .mockWith(sessionSampler: .mockRejectAll(), beforeSampling: hook)
             )
-            XCTAssertFalse(scope.isSampled, "an unusable answer leaves the console's rate alone")
+            XCTAssertTrue(scope.isSampled, "an unusable answer leaves the console's rate alone")
+            XCTAssertEqual(scope.drawnConfiguration?.sessionSampleRate, 100)
         }
     }
 
@@ -258,7 +262,15 @@ class RUMDrawnConfigurationTests: XCTestCase {
             happened to keep at 1%.
             """
         )
-        XCTAssertEqual(scope.drawnConfiguration?.version, 7, "the configuration in force is still what it was drawn under")
+        XCTAssertEqual(
+            scope.drawnConfiguration?.version,
+            0,
+            """
+            And no configuration version, because none of them decided it. An audit asking which \
+            sessions version 7 produced must not be handed sessions that would have been kept \
+            whatever version 7 said.
+            """
+        )
     }
 
     func testForcedSessionReportsCertaintyWithNoRemoteConfiguration() {

@@ -31,18 +31,19 @@ internal struct RUMDrawnConfiguration: Equatable {
     /// rate that actually decided the session.
     ///
     /// - Parameters:
-    ///   - rates: what the console had published at the moment of the draw.
+    ///   - configurationVersion: the console configuration the draw used, or nil when none was in
+    ///     effect — and also when the session was forced, because forcing decided it instead.
     ///   - drawnSessionSampleRate: the rate the draw actually used — the console's, the init value,
     ///     or whatever `beforeSampling` returned. It is what the events report, because it is what
     ///     decided the session.
     ///   - initialSessionSampleRate: the value the app was initialised with, to tell "nothing
     ///     happened" from "the draw moved".
-    init?(rates: RemoteSamplingRates?, drawnSessionSampleRate: SampleRate, initialSessionSampleRate: SampleRate) {
-        guard rates != nil || drawnSessionSampleRate != initialSessionSampleRate else {
+    init?(configurationVersion: Int64?, drawnSessionSampleRate: SampleRate, initialSessionSampleRate: SampleRate) {
+        guard configurationVersion != nil || drawnSessionSampleRate != initialSessionSampleRate else {
             return nil
         }
         self.sessionSampleRate = drawnSessionSampleRate
-        self.version = rates?.version ?? 0
+        self.version = configurationVersion ?? 0
     }
 }
 

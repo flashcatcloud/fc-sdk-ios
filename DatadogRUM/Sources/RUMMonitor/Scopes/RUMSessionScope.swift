@@ -37,7 +37,9 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
                     sessionUUID: state.sessionUUID,
                     isInitialSession: state.isInitialSession,
                     hasTrackedAnyView: true,
-                    didStartWithReplay: state.didStartWithReplay
+                    didStartWithReplay: state.didStartWithReplay,
+                    drawnSessionSampleRate: state.drawnSessionSampleRate,
+                    drawnConfigurationVersion: state.drawnConfigurationVersion
                 )
             }
         }
@@ -148,7 +150,10 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         // forced. This is the reporting the other SDKs use.
         let reportedRate: SampleRate = isForced ? 100 : drawnRate
         self.drawnConfiguration = RUMDrawnConfiguration(
-            rates: remoteRates,
+            // A forced session reports no configuration version, because none of them decided it:
+            // an audit asking which sessions version 5 produced must not be handed sessions that
+            // were kept whatever version 5 said.
+            configurationVersion: isForced ? nil : remoteRates?.version,
             drawnSessionSampleRate: reportedRate,
             initialSessionSampleRate: dependencies.sessionSampler.samplingRate
         )
@@ -163,7 +168,9 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             sessionUUID: sessionUUID.rawValue,
             isInitialSession: isInitialSession,
             hasTrackedAnyView: false,
-            didStartWithReplay: context.hasReplay
+            didStartWithReplay: context.hasReplay,
+            drawnSessionSampleRate: drawnConfiguration.map { Double($0.sessionSampleRate) },
+            drawnConfigurationVersion: drawnConfiguration?.version
         )
         self.interactionToNextViewMetric = dependencies.interactionToNextViewMetricFactory()
 

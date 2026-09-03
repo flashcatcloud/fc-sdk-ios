@@ -53,6 +53,31 @@ class RecordingCoordinatorTests: XCTestCase {
         XCTAssertEqual(recordingMock.captureNextRecordCallsCount, 0)
     }
 
+    // MARK: - FLASHCAT FORK - forced sessions
+
+    func test_whenTheSessionWasForced_itRecordsEvenThoughReplaysOwnDrawSaidNo() throws {
+        // Forcing exists to watch one visitor. A recording of them without the replay is not the
+        // thing that was asked for, so the host application's decision outranks replay's own draw.
+        prepareRecordingCoordinator(sampler: .mockRejectAll())
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "app", sessionID: "session", sessionForced: true))
+
+        let hasReplay = try XCTUnwrap(core.context.additionalContext(ofType: SessionReplayCoreContext.HasReplay.self))
+        XCTAssertTrue(scheduler.isRunning)
+        XCTAssertTrue(hasReplay.value)
+    }
+
+    func test_whenTheSessionWasNotForced_replaysOwnDrawStillDecides() throws {
+        // The negative control for the test above: without the flag, a rejecting sampler rejects.
+        prepareRecordingCoordinator(sampler: .mockRejectAll())
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "app", sessionID: "session", sessionForced: false))
+
+        let hasReplay = try XCTUnwrap(core.context.additionalContext(ofType: SessionReplayCoreContext.HasReplay.self))
+        XCTAssertFalse(scheduler.isRunning)
+        XCTAssertFalse(hasReplay.value)
+    }
+
     func test_whenSampled_itStartsScheduler_andShouldRecord() throws {
         // Given
         let textAndInputPrivacy = TextAndInputPrivacyLevel.mockRandom()
