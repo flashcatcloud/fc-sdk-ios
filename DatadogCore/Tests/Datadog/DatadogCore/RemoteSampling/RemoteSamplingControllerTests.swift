@@ -429,6 +429,34 @@ class RemoteSamplingControllerTests: XCTestCase {
         XCTAssertEqual(harness.recorder.published.last?.sessionSampleRate, 90)
     }
 
+    func testAConfigurationForAnotherIdentityIsNotJudgedAgainstThisOnesVersion() {
+        // Versions are counted per application, so an entry belonging to another one is not merely
+        // wrong — it is ahead. Without dropping it when the identity changes, the guard above would
+        // refuse every answer the new identity gives until its own count passed the old one, and
+        // the wrong rates would hold for as long as that took. Nothing about that self-heals.
+        let harness = Harness()
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 42, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+        }
+        harness.controller.onSourcePublished(source)
+        eventually(harness.recorder.published.count == 1)
+        XCTAssertEqual(harness.recorder.published.last?.version, 42)
+
+        // A different identity — here a different intake, which lands in the key the same way a
+        // different client token does — answering with its own, much lower, version.
+        let otherIdentity = RemoteSamplingSource(
+            configurationURL: URL(string: "https://other.example.com/api/v2/rum/config?client_token=t&sdk=ios")!
+        )
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 90 } }"#.data(using: .utf8)!))
+        }
+        harness.controller.onSourcePublished(otherIdentity)
+
+        eventually(harness.recorder.published.count == 2)
+        XCTAssertEqual(harness.recorder.published.last?.version, 1, "the new identity starts from its own count")
+        XCTAssertEqual(harness.recorder.published.last?.sessionSampleRate, 90)
+    }
+
     // MARK: - Persistence
 
     func testStoredSnapshotAppliesBeforeNetworkAnswers() throws {

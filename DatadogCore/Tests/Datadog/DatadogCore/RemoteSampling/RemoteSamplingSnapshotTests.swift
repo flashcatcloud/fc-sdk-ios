@@ -206,6 +206,12 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         let otherHost = RemoteSamplingSource(configurationURL: URL(string: "https://other.example.com/api/v2/rum/config")!)
         XCTAssertNotEqual(key, RemoteSamplingSnapshotStore.key(source: otherHost, context: base))
 
+        // The client token names the application, and versions are counted per application. An
+        // entry written for another one is not just wrong, it is AHEAD — see the controller test
+        // that shows what the version guard would otherwise do with it.
+        let otherToken: DatadogContext = .mockWith(clientToken: "other", service: "shop", env: "prod", version: "1.2.3")
+        XCTAssertNotEqual(key, RemoteSamplingSnapshotStore.key(source: source, context: otherToken))
+
         // The application version is not, though the server does match on it: keying by it would
         // put the first session after every release back on the value the app was built with, to
         // guard against settings that at worst are one release out of date until the next fetch.

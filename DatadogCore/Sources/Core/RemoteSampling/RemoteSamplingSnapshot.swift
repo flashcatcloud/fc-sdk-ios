@@ -264,10 +264,18 @@ internal struct RemoteSamplingSnapshotStore {
     /// for — which is why neither the bundle identifier nor the service name appears here. Two
     /// applications on one device cannot reach each other's container at all.
     ///
-    /// What is left is what the server's answer actually depends on: which host it came from, and
-    /// the environment it was matched on. The address matters only when the application points the
-    /// SDK at its own intake, because then the site in the directory says nothing about where the
-    /// configuration came from.
+    /// What is left is what the server's answer actually depends on: which host it came from, which
+    /// application it was asked for, and the environment it was matched on. The address matters
+    /// only when the application points the SDK at its own intake, because then the site in the
+    /// directory says nothing about where the configuration came from.
+    ///
+    /// The client token names the application, and leaving it out is not the small mistake it
+    /// looks like. Versions are counted per application and only ever climb, so an entry written
+    /// for one application is not merely wrong for another — it is AHEAD of it. The guard that
+    /// refuses a configuration older than the one in force would then refuse every answer the new
+    /// application gives until its own version passes the old one, and the wrong rates would hold
+    /// for as long as that takes. The token is hashed with the rest and never lands on disk in
+    /// clear.
     ///
     /// The application version is deliberately absent, though the server does match on it. Keying
     /// by it would mean the first session after every release draws at the value the app was built
@@ -281,6 +289,7 @@ internal struct RemoteSamplingSnapshotStore {
             cacheFormatVersion,
             source.configurationURL.host ?? "",
             source.configurationURL.port.map { String($0) } ?? "",
+            context.clientToken,
             context.env
         ].joined(separator: "|")
         return sha256(material)
