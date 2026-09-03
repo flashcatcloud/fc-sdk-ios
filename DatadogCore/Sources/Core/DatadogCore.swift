@@ -61,38 +61,39 @@ internal final class DatadogCore {
     /// configuration must not pay for the store's directory. `lazy` cannot do that job here: it is
     /// reached both from the context queue (a published source) and from the thread that enables
     /// RUM (the priming read), and Swift's lazy initialisation is not atomic.
-    @ReadWriteLock
+    ///
+    /// Guarded by a plain lock rather than `@ReadWriteLock` for one reason: the whole get-or-create
+    /// has to happen inside a single critical section, and that wrapper's `mutate` cannot hand a
+    /// value back out. Every way of working around that ends in unwrapping something the compiler
+    /// cannot see is already there — and an SDK is the wrong place to answer that with a trap.
+    private let remoteSamplingControllerLock = NSLock()
     private var cachedRemoteSamplingController: RemoteSamplingController?
 
     var remoteSamplingController: RemoteSamplingController {
-        // The whole get-or-create holds the write lock, not a read followed by a write. Two
-        // threads that each found it empty would each build a controller and one would be
-        // dropped — along with the snapshot it had already loaded and the fetch it had in
-        // flight — while the caller that built it went on using the copy nobody else can see.
-        _cachedRemoteSamplingController.mutate { existing in
-            guard existing == nil else {
-                return
+        remoteSamplingControllerLock.lock()
+        defer { remoteSamplingControllerLock.unlock() }
+
+        if let existing = cachedRemoteSamplingController {
+            return existing
+        }
+        // Created and returned without leaving the lock. Two threads that each found it empty would
+        // otherwise each build a controller and one would be dropped — along with the snapshot it
+        // had already loaded and the fetch it had in flight — while the caller that built it went
+        // on using the copy nobody else can see.
+        let created = RemoteSamplingController(
+            httpClient: httpClient,
+            contextProvider: contextProvider,
+            store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
+            telemetry: telemetry,
+            publishRates: { [weak self] rates in
+                self?.contextProvider.write { $0.set(additionalContext: rates) }
+            },
+            notifyRatesChanged: { [weak self] activation in
+                self?.send(message: .payload(RemoteSamplingChangedMessage(activation: activation)), else: {})
             }
-            existing = RemoteSamplingController(
-                httpClient: httpClient,
-                contextProvider: contextProvider,
-                store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
-                telemetry: telemetry,
-                publishRates: { [weak self] rates in
-                    self?.contextProvider.write { $0.set(additionalContext: rates) }
-                },
-                notifyRatesChanged: { [weak self] activation in
-                    self?.send(message: .payload(RemoteSamplingChangedMessage(activation: activation)), else: {})
-                }
-            )
-        }
-        // Written inside the lock above and never cleared, so this read always finds it. Reading it
-        // back rather than returning it from the closure is what keeps the whole get-or-create
-        // inside one write lock, which is the entire point.
-        guard let controller = cachedRemoteSamplingController else {
-            preconditionFailure("the remote sampling controller is created above and never cleared")
-        }
-        return controller
+        )
+        cachedRemoteSamplingController = created
+        return created
     }
 
     /// Registry for Features.
@@ -702,8 +703,10 @@ extension DatadogCore: RemoteSamplingReader {
     }
 
     var remoteSamplingRates: RemoteSamplingRates? {
+        remoteSamplingControllerLock.lock()
+        defer { remoteSamplingControllerLock.unlock() }
         // Only the controller that was actually built can have rates; asking for one here would
         // create it for an app that never opted in.
-        cachedRemoteSamplingController?.currentRates
+        return cachedRemoteSamplingController?.currentRates
     }
 }
