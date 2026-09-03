@@ -1155,6 +1155,8 @@
 		282EF63D069B9056BD53AF91 /* RemoteSamplingSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 852FB55E25A09C9D285F7114 /* RemoteSamplingSnapshotTests.swift */; };
 		12D14979916A036A2CC36DBE /* RemoteSamplingSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 852FB55E25A09C9D285F7114 /* RemoteSamplingSnapshotTests.swift */; };
 		0E81AE3C56D66A15CCF3B697 /* RemoteSamplingControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D9E6D53F2A132243281BF3 /* RemoteSamplingControllerTests.swift */; };
+		A1B2C3D40000000000000002 /* RemoteSamplingIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000001 /* RemoteSamplingIntegrationTests.swift */; };
+		A1B2C3D40000000000000003 /* RemoteSamplingIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000001 /* RemoteSamplingIntegrationTests.swift */; };
 		5CEEC145E560188306A44870 /* RemoteSamplingControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D9E6D53F2A132243281BF3 /* RemoteSamplingControllerTests.swift */; };
 		96F69D6D2CBE94A900A6178B /* DatadogCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614B78EA296D7B63009C6B92 /* DatadogCoreTests.swift */; };
 		96F70D452DD793C400D3736B /* RUMAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F70D442DD793C400D3736B /* RUMAction.swift */; };
@@ -3257,6 +3259,7 @@
 		614B78EA296D7B63009C6B92 /* DatadogCoreTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DatadogCoreTests.swift; sourceTree = "<group>"; };
 		852FB55E25A09C9D285F7114 /* RemoteSamplingSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSamplingSnapshotTests.swift; sourceTree = "<group>"; };
 		C7D9E6D53F2A132243281BF3 /* RemoteSamplingControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSamplingControllerTests.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000001 /* RemoteSamplingIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSamplingIntegrationTests.swift; sourceTree = "<group>"; };
 		614B78EC296D7B63009C6B92 /* LowPowerModePublisherTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LowPowerModePublisherTests.swift; sourceTree = "<group>"; };
 		614CADD62510BAC000B93D2D /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
 		615192CC2BD6948B0005A782 /* HTTPHeadersWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPHeadersWriterTests.swift; sourceTree = "<group>"; };
@@ -7792,6 +7795,7 @@
 			isa = PBXGroup;
 			children = (
 				C7D9E6D53F2A132243281BF3 /* RemoteSamplingControllerTests.swift */,
+				A1B2C3D40000000000000001 /* RemoteSamplingIntegrationTests.swift */,
 				852FB55E25A09C9D285F7114 /* RemoteSamplingSnapshotTests.swift */,
 			);
 			path = RemoteSampling;
@@ -9847,6 +9851,7 @@
 				96F69D6C2CBE94A800A6178B /* DatadogCoreTests.swift in Sources */,
 				12D14979916A036A2CC36DBE /* RemoteSamplingSnapshotTests.swift in Sources */,
 				5CEEC145E560188306A44870 /* RemoteSamplingControllerTests.swift in Sources */,
+				A1B2C3D40000000000000002 /* RemoteSamplingIntegrationTests.swift in Sources */,
 				A731B7FB2EE096B5003D1E4F /* SharedContextTests.swift in Sources */,
 				A731B7FC2EE096B5003D1E4F /* ContextSharingTransformerTests.swift in Sources */,
 				11F55FD62DCBBAD700DE4944 /* DDURLSessionInstrumentationTests+apiTests.m in Sources */,
@@ -11430,6 +11435,7 @@
 				96F69D6D2CBE94A900A6178B /* DatadogCoreTests.swift in Sources */,
 				282EF63D069B9056BD53AF91 /* RemoteSamplingSnapshotTests.swift in Sources */,
 				0E81AE3C56D66A15CCF3B697 /* RemoteSamplingControllerTests.swift in Sources */,
+				A1B2C3D40000000000000003 /* RemoteSamplingIntegrationTests.swift in Sources */,
 				D28F836B29C9E7A300EF8EA2 /* TracingURLSessionHandlerTests.swift in Sources */,
 				D2CB6F1827C520D400A62B57 /* DatadogTestsObserver.swift in Sources */,
 				D2CB6F1927C520D400A62B57 /* RequestBuilderTests.swift in Sources */,
