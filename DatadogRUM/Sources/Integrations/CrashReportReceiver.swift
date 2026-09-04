@@ -44,11 +44,16 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     /// crashes from the sessions invented here, drawn and reported at a rate the console had
     /// already replaced.
     ///
+    /// It takes the console's rates as an argument rather than reading them, because the draw and
+    /// the report are two separate moments and the rates can change between them. Read twice, this
+    /// SDK could report a rate that did not decide the very crash it is reporting on — which is the
+    /// one thing the reported rate is for. One crash reads them once; see `send(report:with:)`.
+    ///
     /// It only reaches the crash that arrives with no session of its own to speak for it. A crash
     /// belonging to a session that really ran reports what THAT session was drawn with, which is
     /// carried on its stored state and is the better answer wherever it exists.
-    private var drawnSessionSampleRate: SampleRate {
-        remoteSamplingRates()?.sessionSampleRate ?? sessionSampler.samplingRate
+    private func drawnSessionSampleRate(under remoteRates: RemoteSamplingRates?) -> SampleRate {
+        remoteRates?.sessionSampleRate ?? sessionSampler.samplingRate
     }
 
     // MARK: - Initialization
@@ -104,6 +109,11 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             timeSinceAppStart: timeSinceAppStart
         )
 
+        // FLASHCAT FORK - read once, for this whole crash. The controller updates these on its own
+        // queue whenever the console answers, so reading them again further down could draw with
+        // one rate and report another.
+        let remoteRates = remoteSamplingRates()
+
         // RUMM-2516 if a cross-platform crash was reported, do not send its native version
         if var lastRUMViewEvent = context.lastRUMViewEvent {
             if let lastRUMAttributes = context.lastRUMAttributes {
@@ -123,9 +133,15 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 return false
             }
         } else if let lastRUMSessionState = context.lastRUMSessionState {
-            sendCrashReportToPreviousSession(report, crashContext: context, lastRUMSessionStateInPreviousSession: lastRUMSessionState, using: adjustedCrashTimings)
-        } else if Sampler(samplingRate: drawnSessionSampleRate).sample() { // before producing a new RUM session, we must consider sampling
-            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings)
+            sendCrashReportToPreviousSession(
+                report,
+                crashContext: context,
+                lastRUMSessionStateInPreviousSession: lastRUMSessionState,
+                using: adjustedCrashTimings,
+                under: remoteRates
+            )
+        } else if Sampler(samplingRate: drawnSessionSampleRate(under: remoteRates)).sample() { // before producing a new RUM session, we must consider sampling
+            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates)
         } else {
             DD.logger.debug("There was a crash in previous session, but it is ignored due to sampling.")
             return false
@@ -168,7 +184,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         _ crashReport: DDCrashReport,
         crashContext: CrashContext,
         lastRUMSessionStateInPreviousSession lastRUMSessionState: RUMSessionState,
-        using crashTimings: AdjustedCrashTimings
+        using crashTimings: AdjustedCrashTimings,
+        under remoteRates: RemoteSamplingRates?
     ) {
         let handlingRule = RUMOffViewEventsHandlingRule(
             applicationState: nil,
@@ -192,7 +209,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 sessionUUID: RUMUUID(rawValue: lastRUMSessionState.sessionUUID), // link it to previous RUM Session
                 context: crashContext,
                 hasReplay: lastRUMSessionState.didStartWithReplay,
-                drawnBy: lastRUMSessionState
+                drawnBy: lastRUMSessionState,
+                under: remoteRates
             )
         case .handleInBackgroundView:
             // It means that the crash occurred as the very first event after sending app to background in previous session.
@@ -204,7 +222,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 sessionUUID: RUMUUID(rawValue: lastRUMSessionState.sessionUUID), // link it to previous RUM Session
                 context: crashContext,
                 hasReplay: lastRUMSessionState.didStartWithReplay,
-                drawnBy: lastRUMSessionState
+                drawnBy: lastRUMSessionState,
+                under: remoteRates
             )
         case .doNotHandle:
             DD.logger.debug("There was a crash in background, but it is ignored due to Background Event Tracking disabled or sampling.")
@@ -221,7 +240,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     private func sendCrashReportToNewSession(
         _ crashReport: DDCrashReport,
         crashContext: CrashContext,
-        using crashTimings: AdjustedCrashTimings
+        using crashTimings: AdjustedCrashTimings,
+        under remoteRates: RemoteSamplingRates?
     ) {
         // We can ignore `sessionState` for building the rule as we can assume there was no session sent - otherwise,
         // the `lastRUMSessionState` would have been set in `CrashContext` and we could be sending the crash to previous session
@@ -247,7 +267,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 // As the crash occurred after initializing SDK but before starting the first view,
                 // we can't know if Session Replay was configured. However, lack of view implies
                 // that there must be no replay collected:
-                hasReplay: false
+                hasReplay: false,
+                under: remoteRates
             )
         case .handleInBackgroundView:
             newRUMView = createNewRUMViewEvent(
@@ -259,7 +280,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 // As the crash occurred after initializing SDK but before starting the first view,
                 // we can't know if Session Replay was configured. However, lack of view implies
                 // that there must be no replay collected:
-                hasReplay: false
+                hasReplay: false,
+                under: remoteRates
             )
         case .doNotHandle:
             DD.logger.debug("There was a crash in background, but it is ignored due to Background Event Tracking disabled.")
@@ -322,7 +344,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         sessionUUID: RUMUUID,
         context: CrashContext,
         hasReplay: Bool?,
-        drawnBy drawnSession: RUMSessionState? = nil
+        drawnBy drawnSession: RUMSessionState? = nil,
+        under remoteRates: RemoteSamplingRates? = nil
     ) -> RUMViewEvent {
         let viewUUID = uuidGenerator.generateUnique()
 
@@ -332,8 +355,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         // because the crash came before any session existed — has no draw of its own, so it
         // reports the configuration in force now, which is also the one that just decided whether
         // this crash is collected at all.
-        let drawnRate = drawnSession?.drawnSessionSampleRate ?? Double(self.drawnSessionSampleRate)
-        let drawnVersion = drawnSession.map { $0.drawnConfigurationVersion } ?? self.remoteSamplingRates()?.version
+        let drawnRate = drawnSession?.drawnSessionSampleRate ?? Double(drawnSessionSampleRate(under: remoteRates))
+        let drawnVersion = drawnSession.map { $0.drawnConfigurationVersion } ?? remoteRates?.version
 
         return RUMViewEvent(
             dd: .init(

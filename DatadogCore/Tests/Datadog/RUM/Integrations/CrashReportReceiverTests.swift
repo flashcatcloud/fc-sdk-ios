@@ -740,6 +740,75 @@ class CrashReportReceiverTests: XCTestCase {
 
     // MARK: - FLASHCAT FORK - the rate that decided the crashed session
 
+    /// Sends a crash that arrives with no session of its own — nothing to rebuild from and no
+    /// stored session state — so the receiver has to draw one for it, and hands back what was
+    /// written.
+    private func eventsForCrashWithNoSessionOfItsOwn(
+        initialisedAt initialSampleRate: SampleRate,
+        console remoteRates: RemoteSamplingRates?
+    ) -> FeatureScopeMock {
+        let featureScope = FeatureScopeMock()
+        let crashDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: crashDate),
+            sessionSampler: Sampler(samplingRate: initialSampleRate),
+            remoteSamplingRates: { remoteRates },
+            uuidGenerator: DefaultRUMUUIDGenerator()
+        )
+
+        _ = receiver.receive(
+            message: .payload(Crash(
+                report: .mockWith(date: crashDate),
+                context: .mockWith(
+                    trackingConsent: .granted,
+                    lastRUMViewEvent: nil,
+                    lastRUMSessionState: nil, // no session ever existed — the receiver draws one
+                    lastIsAppInForeground: true
+                )
+            )),
+            from: NOPDatadogCore()
+        )
+        return featureScope
+    }
+
+    func testACrashWithNoSessionOfItsOwnIsDrawnAtTheRateTheConsoleSet() throws {
+        // The one path that draws a session of its own, and so the one place the kill switch could
+        // fail to hold: an operator setting the rate to zero must stop these too, however high the
+        // value the application was built with.
+        let dropped = eventsForCrashWithNoSessionOfItsOwn(
+            initialisedAt: 100,
+            console: RemoteSamplingRates(sessionSampleRate: 0, version: 7)
+        )
+
+        XCTAssertTrue(dropped.eventsWritten(ofType: RUMViewEvent.self).isEmpty, "the console said collect nothing")
+        XCTAssertTrue(dropped.eventsWritten(ofType: RUMErrorEvent.self).isEmpty)
+    }
+
+    func testACrashWithNoSessionOfItsOwnReportsTheRateThatDrewIt() throws {
+        // The negative control for the test above, and the reporting side of the same change: with
+        // the console keeping everything, the view it writes must name the console's rate and the
+        // version it came from — not the value the application was initialised with, which is the
+        // one number we know did not decide this.
+        let kept = eventsForCrashWithNoSessionOfItsOwn(
+            initialisedAt: 1,
+            console: RemoteSamplingRates(sessionSampleRate: 100, version: 7)
+        )
+
+        let view = try XCTUnwrap(kept.eventsWritten(ofType: RUMViewEvent.self).first)
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 100)
+        XCTAssertEqual(view.dd.configuration?.rcVersion, 7)
+    }
+
+    func testWithNoRemoteConfigurationACrashStillReportsTheValueTheAppWasBuiltWith() throws {
+        // Nothing about this path changes for an application that never opted in.
+        let kept = eventsForCrashWithNoSessionOfItsOwn(initialisedAt: 100, console: nil)
+
+        let view = try XCTUnwrap(kept.eventsWritten(ofType: RUMViewEvent.self).first)
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 100)
+        XCTAssertNil(view.dd.configuration?.rcVersion)
+    }
+
     /// Sends a crash that has to be rebuilt into a view, and hands back that view.
     ///
     /// `isInitialSession` with no view tracked and the app in the foreground is what makes the
