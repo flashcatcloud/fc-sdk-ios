@@ -87,10 +87,16 @@ class RemoteSamplingControllerTests: XCTestCase {
         let recorder = Recorder()
         let controller: RemoteSamplingController
 
-        init(store: RemoteSamplingSnapshotStore? = nil, context: DatadogContext = .mockAny()) {
+        /// - Parameter httpClient: defaults to the stub; pass a real one to exercise `URLSession`
+        ///   itself, which is where a request deadline is honoured or quietly is not.
+        init(
+            store: RemoteSamplingSnapshotStore? = nil,
+            context: DatadogContext = .mockAny(),
+            httpClient: HTTPClient? = nil
+        ) {
             let recorder = self.recorder
             controller = RemoteSamplingController(
-                httpClient: client,
+                httpClient: httpClient ?? client,
                 contextProvider: DatadogContextProvider(context: context),
                 store: store,
                 telemetry: NOPTelemetry(),
@@ -114,6 +120,62 @@ class RemoteSamplingControllerTests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.01))
         }
         XCTAssertTrue(condition(), "condition not met within \(timeout)s", file: file, line: line)
+    }
+
+    // MARK: - The deadline, over a real URLSession
+
+    /// Accepts a request and never answers it, so only a timeout can end it.
+    ///
+    /// It counts what it received, because the requests under test never reach the stub client the
+    /// other tests here count — they go out through a real `URLSession`.
+    private final class HangingURLProtocol: URLProtocol {
+        private static let lock = NSLock()
+        private static var _received = 0
+        static var received: Int {
+            lock.lock(); defer { lock.unlock() }
+            return _received
+        }
+        static func reset() {
+            lock.lock(); _received = 0; lock.unlock()
+        }
+
+        override class func canInit(with request: URLRequest) -> Bool { true }
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+        override func startLoading() {
+            Self.lock.lock(); Self._received += 1; Self.lock.unlock()
+            // and then nothing, deliberately
+        }
+        override func stopLoading() {}
+    }
+
+    func testAStalledRequestIsGivenUpOnLongBeforeURLSessionsOwnDefault() {
+        // Worth a real `URLSession` rather than a stub, because the thing that could quietly undo
+        // the deadline lives inside one: `URLSessionConfiguration.ephemeral` carries its own
+        // 60-second `timeoutIntervalForRequest`, and if that took precedence over the 10 seconds
+        // set on the request, this fix would do nothing and no stubbed client would ever say so.
+        //
+        // What the deadline actually protects is the deduplication guard: a request that never
+        // ends holds it, and every trigger arriving meanwhile is dropped. So the assertion is not
+        // only that the request ended, but that the controller went on to ask again.
+        HangingURLProtocol.reset()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [HangingURLProtocol.self]
+        let harness = Harness(httpClient: URLSessionClient(session: URLSession(configuration: configuration)))
+
+        let startedAt = Date()
+        harness.controller.onSourcePublished(source)
+        eventually(HangingURLProtocol.received == 1, timeout: 10)
+
+        // A failed fetch schedules a retry, which is the first observable thing that happens once
+        // the request has given up.
+        eventually(harness.recorder.scheduledDelays.count == 1, timeout: 45)
+        let elapsed = Date().timeIntervalSince(startedAt)
+        XCTAssertLessThan(elapsed, 30, "gave up after \(elapsed)s — the request's own deadline was ignored in favour of the session's 60s")
+        XCTAssertGreaterThan(elapsed, 5, "ended far too early to have been the deadline at all")
+
+        // And the guard really was released: a later trigger asks again rather than being dropped.
+        harness.controller.onSourcePublished(source)
+        eventually(HangingURLProtocol.received == 2, timeout: 10)
     }
 
     // MARK: - Fetch model
