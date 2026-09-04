@@ -347,6 +347,19 @@ internal final class DatadogCore {
     /// Stops all processes for this instance of the Datadog core by
     /// deallocating all Features and their storage & upload units.
     func stop() {
+        // Told to stop asking before the Features go, so a retry already on its timer cannot put a
+        // configuration request on the wire after `flushAndTearDown` has promised the caller that
+        // this instance is done.
+        //
+        // Taken out from under the lock and told outside it: `stop()` waits on the controller's own
+        // queue, and holding this lock across that wait would put a lock and a queue hop in the
+        // same order that the context queue — which takes this lock to reach the controller —
+        // could one day meet head on.
+        remoteSamplingControllerLock.lock()
+        let remoteSampling = cachedRemoteSamplingController
+        remoteSamplingControllerLock.unlock()
+        remoteSampling?.stop()
+
         stores = [:]
         features = [:]
     }

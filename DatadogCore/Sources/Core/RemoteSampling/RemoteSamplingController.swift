@@ -11,15 +11,28 @@ import DatadogInternal
 ///
 /// The fetch model is session-driven: RUM publishes `RemoteSamplingSource` when the SDK starts and
 /// again every time a session begins, and each publication is one opportunity to fetch. There is no
-/// polling — the console's `ttl` is intentionally not honoured on iOS. A request in flight
+/// polling — the console's `ttl` is intentionally not honoured on iOS. A request already outstanding
 /// deduplicates triggers; a failed request is retried after 5s and then 60s (±20% jitter), after
-/// which the controller waits for the next trigger. Nothing here can hold up the SDK or interrupt
+/// which the controller waits for the next trigger. A trigger arriving mid-backoff drops the
+/// pending retry and asks straight away, so a session never sits out a wait it did not schedule.
+///
+/// Nothing here can hold up the SDK or interrupt
 /// collection: a request that fails, times out or comes back unreadable leaves the stored values
 /// exactly as they were. Wiping them on a bad minute would swing a whole fleet back to the rates it
 /// was built with, which is the opposite of what someone who turned a knob deliberately wants.
 internal final class RemoteSamplingController {
     /// The delays before the first and second retry of a failed fetch.
     private static let retryDelays: [TimeInterval] = [5, 60]
+
+    /// How long one configuration request may take before it is given up on.
+    ///
+    /// Set explicitly rather than left to `URLSession`'s 60s default, because the whole point of
+    /// the default is to give a request that carries the user's own work every chance to finish.
+    /// This one carries none: nothing waits for it, a failure changes nothing, and the next
+    /// session asks again. What the long default costs instead is the deduplication guard — one
+    /// stalled request would hold it for a minute and swallow every trigger arriving in that
+    /// window.
+    private static let fetchTimeout: TimeInterval = 10
 
     /// The queue every piece of state below lives on.
     private let queue = DispatchQueue(label: "com.datadoghq.remote-sampling", target: .global(qos: .utility))
@@ -51,12 +64,22 @@ internal final class RemoteSamplingController {
     private var storageKey: String?
     /// Whether the stored snapshot was already loaded for `storageKey`.
     private var didLoadStoredSnapshot = false
-    /// Whether a fetch or a pending retry is in flight, deduplicating triggers.
-    private var inFlight = false
+    /// Whether a request is outstanding right now, deduplicating triggers.
+    ///
+    /// It covers the request and nothing else. A retry merely *waiting* on its timer does not hold
+    /// it, so a trigger arriving mid-backoff asks immediately instead of sitting out the wait —
+    /// see `handleTrigger`.
+    private var isFetching = false
     /// How many retries the current fetch chain already used.
     private var retryAttempt = 0
+    /// Invalidates a scheduled retry. `DispatchQueue.asyncAfter` cannot be cancelled, so a retry
+    /// checks on arrival that the chain it belongs to is still the current one.
+    private var retryGeneration = 0
     /// The last source a trigger arrived with; retries aim at the same address.
     private var lastSource: RemoteSamplingSource?
+    /// Set when the core is torn down. Nothing is fetched afterwards: a pending retry firing after
+    /// `flushAndTearDown` would put a request on the wire the SDK promised it was done making.
+    private var isStopped = false
 
     init(
         httpClient: HTTPClient,
@@ -95,6 +118,18 @@ internal final class RemoteSamplingController {
                     self.handleTrigger(source: source, context: context)
                 }
             }
+        }
+    }
+
+    /// Stops asking, for good. Called when the core is torn down.
+    ///
+    /// Blocking, because the caller is `flushAndTearDown`, which returns having told the
+    /// application this instance is done. A retry timer that fired a moment before this call would
+    /// otherwise already be queued behind it, and would go on to make a request after that promise
+    /// had been given.
+    func stop() {
+        queue.sync {
+            isStopped = true
         }
     }
 
@@ -139,19 +174,33 @@ internal final class RemoteSamplingController {
     private func handleTrigger(source: RemoteSamplingSource, context: DatadogContext) {
         loadStoredSnapshotIfNeeded(source: source, context: context)
 
-        guard !inFlight else {
+        guard !isStopped else {
             return
         }
-        inFlight = true
+
+        // A natural trigger re-arms the whole backoff and asks now. A new session is the one moment
+        // a changed configuration can matter, and making it sit out a 60s retry it did not schedule
+        // would leave the draw after it on values that were already stale — for a request that
+        // costs one round trip. The web and Android SDKs do the same. Dropping the pending retry is
+        // what keeps that from doubling the request budget.
+        retryGeneration &+= 1
         retryAttempt = 0
+
+        guard !isFetching else {
+            return
+        }
+        isFetching = true
         fetch(source: source)
     }
 
     private func fetch(source: RemoteSamplingSource) {
         var components = URLComponents(url: source.configurationURL, resolvingAgainstBaseURL: false)
         if snapshot.version > 0 {
-            // Telling the server which version this app runs is what lets the console answer
-            // "has my change reached everyone yet".
+            // Which version this client is running, reported on the request every client makes.
+            // Nothing reads it today — the console works out how far a change has reached from the
+            // `rc_version` the sessions themselves carry — but it rides along from the first
+            // release because it is the only signal a client that is NOT being collected can send,
+            // and clients already deployed cannot be asked for it retroactively.
             var items = components?.queryItems ?? []
             items.append(URLQueryItem(name: "applied_version", value: String(snapshot.version)))
             components?.queryItems = items
@@ -159,11 +208,12 @@ internal final class RemoteSamplingController {
 
         guard let url = components?.url else {
             telemetry.error("Remote sampling: could not build the configuration URL from \(source.configurationURL)")
-            inFlight = false
+            isFetching = false
             return
         }
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = Self.fetchTimeout
         if let etag = snapshot.etag {
             request.setValue(etag, forHTTPHeaderField: "If-None-Match")
         }
@@ -176,6 +226,12 @@ internal final class RemoteSamplingController {
     }
 
     private func handleResponse(_ result: Result<(response: HTTPURLResponse, body: Data), Error>) {
+        // Released here, once, whatever the answer turns out to be. Every later fetch — a new
+        // session, a retry — is gated on this flag, so any path that got out of here without
+        // clearing it would end remote configuration for the rest of the process's life, silently
+        // and with nothing left to ask again.
+        isFetching = false
+
         switch result {
         case .success((let response, let body)) where response.statusCode == 200:
             do {
@@ -187,25 +243,23 @@ internal final class RemoteSamplingController {
                 telemetry.error(
                     """
                     Remote sampling: ignoring a configuration written to schema version \
-                    \(error.received.map(String.init) ?? "none"); this SDK reads version \
+                    \(error.received); this SDK reads version \
                     \(RemoteSamplingResponse.supportedSchemaVersion). Update the SDK to take the \
                     console's settings again.
                     """
                 )
-                inFlight = false
             } catch {
                 telemetry.debug("Remote sampling: rejecting an invalid configuration response, keeping the previous one")
                 scheduleRetry()
             }
         case .success((let response, _)) where response.statusCode == 304:
-            inFlight = false
+            break
         case .success((let response, _)) where Self.isARefusal(response.statusCode):
             // A refusal is not a hiccup: the same request gets the same answer. Retrying spends two
             // more requests per session on a verdict that will not change — and the ordinary way to
             // land here is a private deployment whose proxy has no `/config` route at all, where
             // that waste is paid by every session of every client.
             telemetry.debug("Remote sampling: the configuration endpoint refused the request (\(response.statusCode)); waiting for the next trigger")
-            inFlight = false
         case .success((let response, _)):
             telemetry.debug("Remote sampling: configuration request answered \(response.statusCode), keeping the previous values")
             scheduleRetry()
@@ -232,7 +286,6 @@ internal final class RemoteSamplingController {
         // number, so the rollout view would read as the change losing ground.
         guard parsed.snapshot.version >= snapshot.version else {
             telemetry.debug("Remote sampling: ignoring a configuration older than the one in force")
-            inFlight = false
             return
         }
 
@@ -243,7 +296,6 @@ internal final class RemoteSamplingController {
         }
         currentRates = snapshot.rates
         publishRates(snapshot.rates)
-        inFlight = false
 
         let drawChanged = previousSessionSampleRate != snapshot.rates.sessionSampleRate
         if drawChanged {
@@ -283,17 +335,25 @@ internal final class RemoteSamplingController {
     private func scheduleRetry() {
         guard retryAttempt < Self.retryDelays.count else {
             // Out of retries: keep the stored values and wait for the next session trigger.
-            inFlight = false
             return
         }
         let delay = jitter(Self.retryDelays[retryAttempt])
         retryAttempt += 1
+        let generation = retryGeneration
         schedule(delay) { [weak self] in
             self?.queue.async {
-                // The retry only fires when the chain is still expected to be in flight.
-                guard let self = self, self.inFlight, let source = self.lastSource else {
+                // A retry only fires for the chain that scheduled it: a trigger arriving in the
+                // meantime has already asked, and this one would be a second request for the same
+                // answer. Nor does it fire while a request is outstanding, or after the core has
+                // been torn down.
+                guard let self = self,
+                      self.retryGeneration == generation,
+                      !self.isFetching,
+                      !self.isStopped,
+                      let source = self.lastSource else {
                     return
                 }
+                self.isFetching = true
                 self.fetch(source: source)
             }
         }

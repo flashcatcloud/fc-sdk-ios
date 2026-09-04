@@ -264,6 +264,88 @@ class RemoteSamplingControllerTests: XCTestCase {
         eventually(harness.client.calls.count == 4)
     }
 
+    func testATriggerDuringBackoffAsksStraightAwayInsteadOfWaitingItOut() {
+        let harness = Harness()
+        harness.client.handler = { _ in .failure(NSError.mockAny()) }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 1)
+        eventually(harness.recorder.scheduledDelays.count == 1)
+
+        // A new session begins while the 5s retry is still waiting. It must not sit the wait out:
+        // a session is the one moment a changed configuration can matter, and the draw after this
+        // one would otherwise be made on values already known to be stale.
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 2)
+
+        // And the retry it displaced does not come back to spend a second request on the same
+        // question — the trigger re-armed the chain, so the pending one belongs to a chain that no
+        // longer exists.
+        harness.recorder.pendingWork[0]()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        XCTAssertEqual(harness.client.calls.count, 2, "a displaced retry must not double the request budget")
+    }
+
+    func testTheConfigurationRequestGivesUpRatherThanHoldingTheGuardForAMinute() {
+        let harness = Harness()
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": {} }"#.data(using: .utf8)!))
+        }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 1)
+
+        // Nothing waits for this request, so it has no claim on `URLSession`'s minute-long default.
+        // What that default would cost is the deduplication guard: one stalled request holding it
+        // swallows every trigger arriving in the window.
+        XCTAssertEqual(harness.client.calls[0].timeoutInterval, 10)
+    }
+
+    func testAfterStoppingTheCoreNothingIsAskedAgain() {
+        let harness = Harness()
+        harness.client.handler = { _ in .failure(NSError.mockAny()) }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 1)
+        eventually(harness.recorder.scheduledDelays.count == 1)
+
+        harness.controller.stop()
+
+        // Neither the retry already on its timer nor a later trigger may put a request on the wire:
+        // `flushAndTearDown` has told the caller this instance is done making them.
+        harness.recorder.pendingWork[0]()
+        harness.controller.onSourcePublished(source)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        XCTAssertEqual(harness.client.calls.count, 1)
+    }
+
+    func testABodyThatIsNotAConfigurationCannotSetTheVersionFloor() {
+        let harness = Harness()
+        // What a private deployment's proxy answers when `/config` lands on some other service:
+        // a perfectly good 200, a numeric `version`, and nothing that says it is a configuration.
+        // Accepted, it would empty the knobs, persist that number, and then refuse every genuine
+        // answer beneath it — the console's own repair included — for as long as the app is
+        // installed.
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "version": 20240101, "status": "ok" }"#.data(using: .utf8)!))
+        }
+
+        harness.controller.onSourcePublished(source)
+        eventually(harness.client.calls.count == 1)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        XCTAssertEqual(harness.recorder.published.count, 0, "nothing was learned, so nothing is published")
+
+        // The console's own configuration, numbered far below what that body carried, still applies.
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#.data(using: .utf8)!))
+        }
+        harness.controller.onSourcePublished(source)
+
+        eventually(harness.recorder.published.count == 1)
+        XCTAssertEqual(harness.recorder.published.last?.sessionSampleRate, 20)
+        XCTAssertEqual(harness.recorder.published.last?.version, 3)
+    }
+
     func testSuccessResetsBackoff() {
         let harness = Harness()
         harness.client.handler = { _ in .failure(NSError.mockAny()) }
