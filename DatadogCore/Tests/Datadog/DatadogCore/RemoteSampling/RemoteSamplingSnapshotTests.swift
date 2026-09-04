@@ -54,21 +54,35 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         XCTAssertEqual(response.snapshot.sessionSampleRate, 30)
     }
 
-    func testRejectsWholeSnapshotOnInvalidType() {
+    func testRejectsABodyThatIsNotRecognisablyAConfiguration() {
+        // Every field the contract makes mandatory is checked, not just one of them. A 200 is no
+        // proof the body came from the configuration endpoint, and taking something else for one
+        // is not a wasted request: `version` is a floor that only ever moves forward, so a stray
+        // number stored here refuses every genuine answer beneath it — the console's own repair
+        // included — until the app is reinstalled.
         let bodies = [
             #"not json"#,
             #"["array"]"#,
+            #"{ "version": 1, "enabled": true, "rum": {} }"#, // no schema stamp at all
+            #"{ "schema_version": null, "version": 1, "enabled": true, "rum": {} }"#, // an explicit null is no stamp
             #"{ "schema_version": 1, "version": "42", "enabled": true }"#, // version of wrong type
+            #"{ "schema_version": 1, "version": 1.5, "enabled": true }"#, // a publish counter is a whole number
+            #"{ "schema_version": 1, "version": -1, "enabled": true }"#, // and never negative
             #"{ "schema_version": 1, "enabled": true, "rum": {} }"#, // no version
+            #"{ "schema_version": 1, "version": 1 }"#, // no kill switch
             #"{ "schema_version": 1, "version": 1, "enabled": "yes" }"#, // enabled of wrong type
             #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": "nope" }"#, // rum of wrong type
-            #"{ "schema_version": 1, "version": 1, "enabled": true, "custom": "nope" }"#, // custom of wrong type
-            #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": "20" } }"#, // rate of wrong type
+            #"{ "schema_version": 1, "version": 1, "enabled": false, "rum": "nope" }"#, // ... even behind the kill switch
         ]
 
         for string in bodies {
             let body = string.data(using: .utf8)!
-            XCTAssertThrowsError(try RemoteSamplingResponse.parse(body: body, etag: .mockAny()), "should reject: \(string)")
+            XCTAssertThrowsError(try RemoteSamplingResponse.parse(body: body, etag: .mockAny()), "should reject: \(string)") { error in
+                XCTAssertTrue(
+                    error is RemoteSamplingResponseError,
+                    "should read as an unreadable body, which is worth asking again for: \(string)"
+                )
+            }
         }
     }
 
@@ -87,11 +101,36 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         XCTAssertEqual(response.activation, .nextSession, "and the running session is left alone, which is the safe reading")
     }
 
-    func testRejectsWholeSnapshotOnOutOfRangeRate() {
-        for rate in [-1, 100.5] {
-            let body = #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": \#(rate) } }"#.data(using: .utf8)!
-            XCTAssertThrowsError(try RemoteSamplingResponse.parse(body: body, etag: .mockAny()))
+    func testAKnobItCannotUseDoesNotCostItTheConfiguration() throws {
+        // A rate we cannot trust is never clamped — it is not a rate to sample a customer's
+        // traffic with. But only that field is dropped: refusing the response would take the
+        // version and the custom values down with it, and because the version is a floor, keep
+        // them down. The web and Android SDKs read it the same way.
+        let bodies = [
+            #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": -1 }, "custom": { "a": 1 } }"#,
+            #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": 100.5 }, "custom": { "a": 1 } }"#,
+            #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": "20" }, "custom": { "a": 1 } }"#,
+        ]
+
+        for string in bodies {
+            let response = try RemoteSamplingResponse.parse(body: string.data(using: .utf8)!, etag: .mockAny())
+            XCTAssertNil(response.snapshot.sessionSampleRate, "the init value keeps applying: \(string)")
+            XCTAssertEqual(response.snapshot.version, 3, "the rest of the configuration still lands: \(string)")
+            XCTAssertEqual(response.snapshot.custom, #"{"a":1}"#, "including the values beside it: \(string)")
         }
+    }
+
+    func testACustomBagItCannotReadDoesNotCostItTheKnobs() throws {
+        // The application's own bag is not part of what makes a body a configuration. A mistake at
+        // the application's level must not switch the platform's settings back off.
+        let body = #"""
+        { "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": 20 }, "custom": "nope" }
+        """#.data(using: .utf8)!
+
+        let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
+
+        XCTAssertNil(response.snapshot.custom)
+        XCTAssertEqual(response.snapshot.sessionSampleRate, 20)
     }
 
     func testAcceptsBoundaryRates() throws {
@@ -135,8 +174,7 @@ class RemoteSamplingSnapshotTests: XCTestCase {
     func testRefusesASchemaItDoesNotRead() {
         let bodies = [
             #"{ "schema_version": 2, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#,
-            #"{ "schema_version": "1", "version": 1, "enabled": true }"#, // schema of wrong type
-            #"{ "schema_version": true, "version": 1, "enabled": true }"#, // JSON bools bridge to NSNumber
+            #"{ "schema_version": 0, "version": 1, "enabled": true }"#,
         ]
 
         for string in bodies {
@@ -149,11 +187,30 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         }
     }
 
-    func testReadsABodyWithNoSchemaStampAtAll() throws {
-        // A body with no stamp is, by construction, the shape that existed before the stamp did —
-        // the shape this reader was written against. Refusing it would switch remote configuration
-        // silently off for every client on this platform against a server that merely predates the
-        // field, and nothing would say so.
+    func testAStampThatIsNotANumberIsNotAStamp() {
+        // `"1"` must not be quietly read as `1`: the whole point of the field is that every SDK
+        // agrees about the same response. A stamp we cannot even read means this is not our
+        // envelope, which is the unreadable-body answer, not the unknown-schema one.
+        let bodies = [
+            #"{ "schema_version": "1", "version": 1, "enabled": true }"#,
+            #"{ "schema_version": true, "version": 1, "enabled": true }"#, // JSON bools bridge to NSNumber
+        ]
+
+        for string in bodies {
+            let body = string.data(using: .utf8)!
+            XCTAssertThrowsError(try RemoteSamplingResponse.parse(body: body, etag: .mockAny()), "should refuse: \(string)") { error in
+                XCTAssertTrue(error is RemoteSamplingResponseError, "should refuse as unreadable: \(string)")
+            }
+        }
+    }
+
+    func testABodyWithNoSchemaStampIsNotAConfiguration() {
+        // Refused, and refused as UNREADABLE rather than as a schema we do not know: no server
+        // predating the stamp exists — this endpoint has stamped every response since it existed —
+        // so an unstamped body did not come from it, and the next answer may well come from the
+        // real endpoint. Accepting one would leave `version` as the only thing telling a
+        // configuration apart from any other JSON object carrying a number, which is exactly what
+        // a captive portal or a misrouted proxy supplies. See `checkSchemaVersion`.
         let bodies = [
             #"{ "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#, // no key at all
             #"{ "schema_version": null, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#,
@@ -161,8 +218,9 @@ class RemoteSamplingSnapshotTests: XCTestCase {
 
         for string in bodies {
             let body = string.data(using: .utf8)!
-            let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
-            XCTAssertEqual(response.snapshot.sessionSampleRate, 20, "should read: \(string)")
+            XCTAssertThrowsError(try RemoteSamplingResponse.parse(body: body, etag: .mockAny()), "should refuse: \(string)") { error in
+                XCTAssertTrue(error is RemoteSamplingResponseError, "should be worth asking again for: \(string)")
+            }
         }
     }
 

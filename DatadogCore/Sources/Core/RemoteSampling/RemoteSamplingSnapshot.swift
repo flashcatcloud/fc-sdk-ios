@@ -67,15 +67,20 @@ internal struct RemoteSamplingResponseError: Error {}
 /// unreadable body is worth asking again for, a schema we do not know is not — the next answer
 /// would be the same refusal.
 internal struct RemoteSamplingUnsupportedSchemaError: Error {
-    let received: Int?
+    let received: Int
 }
 
 extension RemoteSamplingResponse {
     /// Reads a configuration response body.
     ///
     /// The contract is a flat JSON object. Keys the SDK does not know are ignored, so an older SDK
-    /// can talk to a newer console. A known key carrying the wrong type — or a rate outside
-    /// 0...100 — rejects the whole response: half-activated configuration is worse than none.
+    /// can talk to a newer console. What is NOT ignored is the envelope — `schema_version`,
+    /// `version`, `enabled` and the shape of `rum` — because that is the only thing separating a
+    /// configuration from any other JSON object that happens to carry a number. See
+    /// `checkSchemaVersion` for why getting that wrong is not merely a wasted request.
+    ///
+    /// Inside a valid envelope the reading is per-field: a knob this SDK cannot use is dropped and
+    /// the rest of the response still applies, which is what the web and Android SDKs do.
     ///
     /// - Parameters:
     ///   - body: The response body.
@@ -94,7 +99,11 @@ extension RemoteSamplingResponse {
         try checkSchemaVersion(root)
 
         let version = try readVersion(root)
-        let enabled = try readBoolean(root, key: Contract.enabled, default: false)
+        let enabled = try readEnabled(root)
+        // Read here rather than inside the branch below so its SHAPE is checked even when the kill
+        // switch is off and its contents are deliberately not used: a body whose `rum` is not an
+        // object is not a configuration response, and must not be allowed to set the version floor.
+        let rum = try readDictionary(root, key: Contract.rum) ?? [:]
         let activation = readActivation(root, telemetry: telemetry)
 
         guard enabled else {
@@ -112,16 +121,13 @@ extension RemoteSamplingResponse {
             )
         }
 
-        let rum = try readDictionary(root, key: Contract.rum) ?? [:]
-        let custom = try readCustom(root)
-
         return RemoteSamplingResponse(
             snapshot: RemoteSamplingSnapshot(
                 version: version,
                 etag: etag,
                 enabled: true,
-                sessionSampleRate: try readRate(rum, key: Contract.sessionSampleRate),
-                custom: custom
+                sessionSampleRate: readRate(rum, key: Contract.sessionSampleRate),
+                custom: readCustom(root)
             ),
             activation: activation
         )
@@ -134,20 +140,29 @@ extension RemoteSamplingResponse {
     /// written against the previous shape.
     static let supportedSchemaVersion = 1
 
+    /// The stamp the server writes on every configuration response, and the first thing read.
+    ///
+    /// Required, and required to be a number. An absent stamp used to be read as "a server that
+    /// predates the field", but no such server exists: this endpoint has stamped every response
+    /// since it existed. What accepting an unstamped body costs is severe and permanent. Strip the
+    /// stamp and the only thing left telling a configuration apart from any other JSON object is a
+    /// numeric `version` — which a captive portal, a misrouted proxy, or a private deployment
+    /// whose `/config` route lands on some other service can all supply. Taking one of those for a
+    /// configuration empties every knob, persists whatever number it carried, and then refuses
+    /// every genuine answer beneath it, the console's own repair included: `version` is a floor
+    /// that only ever moves forward. Nothing short of a reinstall or an environment switch clears
+    /// it. The web SDK reads the field this way, and for this reason.
+    ///
+    /// The two refusals are kept apart because they deserve opposite answers. A body we cannot
+    /// recognise as a configuration at all is worth asking again for — the next answer may come
+    /// from the real endpoint. A stamp we can read and do not know is an answered question, and
+    /// asking again would fetch the same refusal.
     private static func checkSchemaVersion(_ root: [String: Any]) throws {
-        // A body carrying no stamp at all is, by construction, the shape that existed before the
-        // stamp did — which is the shape this reader was written against. Refusing it would switch
-        // remote configuration silently off for every client on this platform whenever it is
-        // pointed at a server that merely predates the field, and nothing would say so. Only a
-        // stamp we can see and do not recognise is a reason to refuse.
-        // A key that is absent, or present as an explicit null, both say the same thing: nothing
-        // was stamped. The other SDKs read them the same way.
-        guard let raw = root[Contract.schemaVersion], !(raw is NSNull) else {
-            return
+        guard let raw = root[Contract.schemaVersion], let number = raw as? NSNumber, !isBoolean(raw) else {
+            throw RemoteSamplingResponseError()
         }
-        guard let number = raw as? NSNumber, !isBoolean(raw), number.intValue == supportedSchemaVersion else {
-            let received = (raw as? NSNumber).map { $0.intValue }
-            throw RemoteSamplingUnsupportedSchemaError(received: received)
+        guard number.intValue == supportedSchemaVersion else {
+            throw RemoteSamplingUnsupportedSchemaError(received: number.intValue)
         }
     }
 
@@ -161,21 +176,33 @@ extension RemoteSamplingResponse {
         static let sessionSampleRate = "sessionSampleRate"
     }
 
+    /// The console's publish counter, so anything that is not a whole, non-negative number cannot
+    /// be one.
+    ///
+    /// Checked this strictly because a version is the one value that can refuse a later answer: an
+    /// implausible one does not merely go unused, it freezes the settings stored beside it. The
+    /// upper bound is the largest integer a JSON number survives a round trip at — the same one the
+    /// web SDK uses — and a fractional value is refused rather than truncated, because a counter
+    /// that arrives as `1.5` did not come from the console.
     private static func readVersion(_ root: [String: Any]) throws -> Int64 {
-        guard let raw = root[Contract.version] else {
+        guard let raw = root[Contract.version], let number = raw as? NSNumber, !isBoolean(raw) else {
             throw RemoteSamplingResponseError() // a configuration without a version cannot be reported back
         }
-        guard let version = raw as? NSNumber, !isBoolean(raw), version.int64Value >= 0 else {
+        let value = number.doubleValue
+        guard value >= 0, value <= 9_007_199_254_740_991, value.rounded(.towardZero) == value else {
             throw RemoteSamplingResponseError()
         }
-        return version.int64Value
+        return number.int64Value
     }
 
-    private static func readBoolean(_ root: [String: Any], key: String, default defaultValue: Bool) throws -> Bool {
-        guard let raw = root[key] else {
-            return defaultValue
-        }
-        guard let number = raw as? NSNumber, isBoolean(raw) else {
+    /// The kill switch, required and required to be a boolean.
+    ///
+    /// Absent used to read as `false`, which meant any object that merely lacked the field asked
+    /// this client to drop every knob it had — and, with the version stored beside it, to keep
+    /// refusing the answers that would have put them back. Part of the envelope for that reason:
+    /// see `checkSchemaVersion`.
+    private static func readEnabled(_ root: [String: Any]) throws -> Bool {
+        guard let raw = root[Contract.enabled], let number = raw as? NSNumber, isBoolean(raw) else {
             throw RemoteSamplingResponseError()
         }
         return number.boolValue
@@ -216,31 +243,34 @@ extension RemoteSamplingResponse {
     }
 
     /// A rate the response did not send stays absent, so the value passed to init keeps applying.
-    /// A rate outside 0...100 rejects the whole response rather than being clamped: a rate we
-    /// cannot trust is not a rate to sample a customer's traffic with.
-    private static func readRate(_ rum: [String: Any], key: String) throws -> SampleRate? {
-        guard let raw = rum[key] else {
+    ///
+    /// So does one this SDK cannot use — the wrong type, or outside 0...100. Never clamped: a rate
+    /// we cannot trust is not a rate to sample a customer's traffic with. But the single field is
+    /// dropped rather than the whole response, which is what the web and Android SDKs do, and the
+    /// reason is that refusing the response lets one damaged knob take the version and the custom
+    /// values down with it — and, because the version is a floor, keep them down.
+    private static func readRate(_ rum: [String: Any], key: String) -> SampleRate? {
+        guard let raw = rum[key], let number = raw as? NSNumber, !isBoolean(raw) else {
             return nil
-        }
-        guard let number = raw as? NSNumber, !isBoolean(raw) else {
-            throw RemoteSamplingResponseError()
         }
         let rate = number.doubleValue
         guard rate >= 0, rate <= 100 else {
-            throw RemoteSamplingResponseError()
+            return nil
         }
         return SampleRate(rate)
     }
 
     /// Custom values are delivered to the host application as the raw JSON object they arrived in.
-    private static func readCustom(_ root: [String: Any]) throws -> String? {
-        guard let dictionary = try readDictionary(root, key: Contract.custom) else {
-            return nil
-        }
-        guard JSONSerialization.isValidJSONObject(dictionary),
+    ///
+    /// The application's own bag is not part of what makes a body a configuration, so one that is
+    /// not a keyed object is dropped and the knobs beside it still apply: a mistake at the
+    /// application's level must not switch the platform's settings back off.
+    private static func readCustom(_ root: [String: Any]) -> String? {
+        guard let dictionary = root[Contract.custom] as? [String: Any],
+              JSONSerialization.isValidJSONObject(dictionary),
               let data = try? JSONSerialization.data(withJSONObject: dictionary, options: [.sortedKeys]),
               let string = String(data: data, encoding: .utf8) else {
-            throw RemoteSamplingResponseError()
+            return nil
         }
         return string
     }
