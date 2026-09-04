@@ -14,7 +14,9 @@
 - **Remote sampling configuration for RUM**: `RUM.Configuration.remoteConfigurationEnabled` (default `false`). When enabled, the SDK asks the RUM intake for the session sample rate at SDK initialisation and again whenever a session is created, so the rate can be changed from the console without shipping a release. When it is off, no extra request is made and behaviour is unchanged.
   - The request is `GET {intake}/config`, derived the same way as the event intake (`customEndpoint ?? site.endpoint + api/v2/rum`), so an application behind a proxy does not end up with one going through it and the other not.
   - The request goes out when `RUM.enable()` is called and is **not gated on `TrackingConsent`**. It carries the client token, `env`, the application version and the SDK version, and no user data.
-  - A failed, timed-out, unreadable or unsupported response leaves the values already in force untouched — they are never cleared. Failures are retried after 5s and 60s and then wait for the next session.
+  - A failed, timed-out, unreadable or unsupported response leaves the values already in force untouched — they are never cleared. Failures are retried after 5s and 60s and then wait for the next session; a session starting mid-backoff asks straight away rather than waiting the retry out. The request gives up after 10s.
+  - Only a response carrying the endpoint's own envelope — `schema_version`, a whole `version`, a boolean `enabled`, and `rum` as an object — is read as a configuration. Anything else is treated as a request that did not arrive, because `version` is a floor that only ever moves forward: a stray number taken from some other 200 would refuse every genuine answer beneath it, the console's own repair included.
+  - Inside a valid envelope, a knob this SDK cannot use (wrong type, or a rate outside `0...100`) is dropped on its own and the rest of the configuration still applies.
   - The values the console provided are persisted in the application's own container, so the first session after a cold start already draws under them.
 - **`RUM.Configuration.beforeSampling`**: the host application's last word on each session draw. It receives the rate that would apply and the console's custom values, and returns a rate to override it or `nil` to leave it alone. A returned value outside `0...100` is ignored and the incoming rate applies.
 - **`RUMMonitorProtocol.setForcedSession()`**: collects the visitor's session regardless of the sample rates, for the lifetime of the process.
@@ -25,6 +27,9 @@
 
 - `_dd.configuration.session_sample_rate` on RUM events now reports **the rate that actually decided the session** — the console's value, the value passed to `init`, or whatever `beforeSampling` returned — where it previously always reported the value passed to `init`. With remote configuration off and no `beforeSampling` hook, the reported value is unchanged.
 - View events carry `_dd.configuration.rc_version`, naming the console configuration the session was drawn under. It is absent when no remote configuration was in effect.
+- A crash that arrives with no session of its own to speak for it is drawn and reported at the rate the console set, not at the value passed to `init`, so the console's rate — zero included — governs that path too.
+- Ending a session so the next one can be drawn under changed rates (or under `setForcedSession()`) is no longer recorded as the application having stopped collection. It previously suppressed the handling of events arriving with no active view, which meant raising a rate off zero while the app sat in the background switched off the very background events the change was meant to start collecting.
+- An `NSException` raised by an Objective-C `beforeSampling` block is caught and read as "no opinion", leaving the incoming rate in place. It runs inside session creation, and a mistake about which sessions to keep must not be fatal to the host application.
 
 ### Breaking Changes
 

@@ -83,8 +83,7 @@ public protocol RUMMonitorProtocol: RUMMonitorViewProtocol, AnyObject {
     /// If the session is started because of a call to `addAction`, the last known view is restarted in the new session.
     func stopSession()
 
-    /// Forces the session to be collected, with Session Replay, regardless of the configured
-    /// sample rates.
+    /// Forces sessions to be collected regardless of the configured sample rates.
     ///
     /// Call it when your own code decides a user needs debugging (an allow-list, a support flow).
     /// A session that was not being collected ends and a collected one starts in its place; a
@@ -93,6 +92,12 @@ public protocol RUMMonitorProtocol: RUMMonitorViewProtocol, AnyObject {
     ///
     /// The forced state lasts for the process lifetime, so decide on each app start whether to
     /// call again.
+    ///
+    /// Session Replay follows the same rule, and for the same reason. Every session DRAWN after
+    /// this call is recorded whatever the replay rate says; a session already under way is not
+    /// re-decided, so one that was being collected without replay keeps running without it. Ending
+    /// it to gain a recording would cost the visitor's current view — the part somebody turned
+    /// forcing on to watch.
     func setForcedSession()
 
     /// The custom values delivered with the console's remote configuration.
