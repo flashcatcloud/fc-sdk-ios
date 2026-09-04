@@ -25,6 +25,9 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     let applicationID: String
     let dateProvider: DateProvider
     let sessionSampler: Sampler
+    /// FLASHCAT FORK - the console's rates as they stand right now; always nil when the
+    /// application did not opt in to remote configuration.
+    let remoteSamplingRates: () -> RemoteSamplingRates?
     let trackBackgroundEvents: Bool
     let uuidGenerator: RUMUUIDGenerator
     /// Integration with CIApp tests. It contains the CIApp test context when active.
@@ -33,6 +36,21 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     let syntheticsTest: RUMSyntheticsTest?
     let eventsMapper: RUMEventsMapper
 
+    /// FLASHCAT FORK - the rate a session invented for a crash is drawn at, and reported with.
+    ///
+    /// The console's value where it published one, the value the app was initialised with
+    /// otherwise — the same order every other draw uses. Without it the kill switch would not hold
+    /// on this one path: an operator setting the rate to zero to stop collection would still get
+    /// crashes from the sessions invented here, drawn and reported at a rate the console had
+    /// already replaced.
+    ///
+    /// It only reaches the crash that arrives with no session of its own to speak for it. A crash
+    /// belonging to a session that really ran reports what THAT session was drawn with, which is
+    /// carried on its stored state and is the better answer wherever it exists.
+    private var drawnSessionSampleRate: SampleRate {
+        remoteSamplingRates()?.sessionSampleRate ?? sessionSampler.samplingRate
+    }
+
     // MARK: - Initialization
 
     init(
@@ -40,6 +58,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         applicationID: String,
         dateProvider: DateProvider,
         sessionSampler: Sampler,
+        remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
         trackBackgroundEvents: Bool,
         uuidGenerator: RUMUUIDGenerator,
         ciTest: RUMCITest?,
@@ -50,6 +69,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         self.applicationID = applicationID
         self.dateProvider = dateProvider
         self.sessionSampler = sessionSampler
+        self.remoteSamplingRates = remoteSamplingRates
         self.trackBackgroundEvents = trackBackgroundEvents
         self.uuidGenerator = uuidGenerator
         self.ciTest = ciTest
@@ -104,7 +124,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             }
         } else if let lastRUMSessionState = context.lastRUMSessionState {
             sendCrashReportToPreviousSession(report, crashContext: context, lastRUMSessionStateInPreviousSession: lastRUMSessionState, using: adjustedCrashTimings)
-        } else if sessionSampler.sample() { // before producing a new RUM session, we must consider sampling
+        } else if Sampler(samplingRate: drawnSessionSampleRate).sample() { // before producing a new RUM session, we must consider sampling
             sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings)
         } else {
             DD.logger.debug("There was a crash in previous session, but it is ignored due to sampling.")
@@ -306,19 +326,23 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     ) -> RUMViewEvent {
         let viewUUID = uuidGenerator.generateUnique()
 
+        // The configuration this view reports. A session that really ran speaks for itself: its
+        // own draw is on its stored state, and once the console is setting the rate the init value
+        // is the one number we know did not decide it. A session being invented right here —
+        // because the crash came before any session existed — has no draw of its own, so it
+        // reports the configuration in force now, which is also the one that just decided whether
+        // this crash is collected at all.
+        let drawnRate = drawnSession?.drawnSessionSampleRate ?? Double(self.drawnSessionSampleRate)
+        let drawnVersion = drawnSession.map { $0.drawnConfigurationVersion } ?? self.remoteSamplingRates()?.version
+
         return RUMViewEvent(
             dd: .init(
                 browserSdkVersion: nil,
                 cls: nil,
                 configuration: .init(
-                    // The version the session was drawn under, and the rate that decided it. Both
-                    // come from the session that crashed, not from what the app was built with:
-                    // once the console is setting the rate, the init value is the one number we
-                    // know did not decide it. A session we are inventing here — because the crash
-                    // came before any session existed — has no draw to report, and falls back.
-                    rcVersion: drawnSession?.drawnConfigurationVersion.flatMap { $0 > 0 ? $0 : nil },
+                    rcVersion: drawnVersion.flatMap { $0 > 0 ? $0 : nil },
                     sessionReplaySampleRate: nil,
-                    sessionSampleRate: drawnSession?.drawnSessionSampleRate ?? Double(self.sessionSampler.samplingRate),
+                    sessionSampleRate: drawnRate,
                     startSessionReplayRecordingManually: nil
                 ),
                 documentVersion: 1,

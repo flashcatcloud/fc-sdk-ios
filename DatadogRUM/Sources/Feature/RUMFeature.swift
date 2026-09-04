@@ -273,6 +273,10 @@ internal final class RUMFeature: DatadogRemoteFeature {
                 applicationID: configuration.applicationID,
                 dateProvider: configuration.dateProvider,
                 sessionSampler: Sampler(samplingRate: configuration.debugSDK ? 100 : configuration.sessionSampleRate),
+                // FLASHCAT FORK - so a crash that arrives with no session of its own is drawn and
+                // reported at the rate the console set, exactly as an ordinary session would be.
+                // Without it an operator who set the rate to zero would still be sent crashes.
+                remoteSamplingRates: { [weak remoteSamplingReader] in remoteSamplingReader?.remoteSamplingRates },
                 trackBackgroundEvents: configuration.trackBackgroundEvents,
                 uuidGenerator: configuration.uuidGenerator,
                 ciTest: configuration.ciTestExecutionID.map { RUMCITest(testExecutionId: $0) },
