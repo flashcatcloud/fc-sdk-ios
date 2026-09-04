@@ -86,9 +86,11 @@ public protocol RUMMonitorProtocol: RUMMonitorViewProtocol, AnyObject {
     /// Forces sessions to be collected regardless of the configured sample rates.
     ///
     /// Call it when your own code decides a user needs debugging (an allow-list, a support flow).
-    /// A session that was not being collected ends and a collected one starts in its place; a
-    /// session already being collected keeps running, because RUM cannot retro-collect what a
-    /// running session already dropped. Calling again while the forced session runs does nothing.
+    /// A session that was not being collected ends here and a collected one is drawn in its place
+    /// at the visitor's next activity — nothing is lost by the wait, because a session nobody is
+    /// using has nothing to collect. A session already being collected keeps running, because RUM
+    /// cannot retro-collect what a running session already dropped. Calling again while the forced
+    /// session runs does nothing.
     ///
     /// The forced state lasts for the process lifetime, so decide on each app start whether to
     /// call again.
