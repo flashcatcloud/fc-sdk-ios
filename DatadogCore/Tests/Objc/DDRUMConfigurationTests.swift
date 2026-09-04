@@ -7,6 +7,7 @@
 import XCTest
 import TestUtilities
 import DatadogInternal
+@testable import DatadogCore
 @_spi(objc)
 @testable import DatadogRUM
 
@@ -29,6 +30,81 @@ class DDRUMConfigurationTests: XCTestCase {
         objc.telemetrySampleRate = 30
         XCTAssertEqual(objc.telemetrySampleRate, 30)
         XCTAssertEqual(swift.telemetrySampleRate, 30)
+    }
+
+    func testRemoteConfigurationEnabled() {
+        XCTAssertFalse(objc.remoteConfigurationEnabled, "off unless the application asks for it")
+        objc.remoteConfigurationEnabled = true
+        XCTAssertTrue(objc.remoteConfigurationEnabled)
+        XCTAssertTrue(swift.remoteConfigurationEnabled)
+    }
+
+    func testBeforeSampling() throws {
+        var seen: objc_RUMBeforeSamplingContext?
+        let block: (objc_RUMBeforeSamplingContext) -> NSNumber? = { context in
+            seen = context
+            return NSNumber(value: 100)
+        }
+
+        objc.beforeSampling = block
+
+        XCTAssertNotNil(objc.beforeSampling, "the getter hands back what the caller set")
+        let swiftHook = try XCTUnwrap(swift.beforeSampling, "the block reaches the Swift configuration")
+
+        let override = swiftHook(BeforeSamplingContext(sessionSampleRate: 20, custom: ["vip": ["u-1"]]))
+
+        XCTAssertEqual(override, 100)
+        XCTAssertEqual(seen?.sessionSampleRate, 20, "the rate that would apply crosses the bridge")
+        XCTAssertEqual(seen?.custom?["vip"] as? [String], ["u-1"], "so do the console's custom values")
+    }
+
+    func testBeforeSamplingReturningNilLeavesTheDrawAlone() throws {
+        // `nil` is how "do not interfere" is said, which is why the block returns NSNumber rather
+        // than a float: zero is a rate someone may well mean.
+        objc.beforeSampling = { _ in nil }
+
+        let swiftHook = try XCTUnwrap(swift.beforeSampling)
+
+        XCTAssertNil(swiftHook(BeforeSamplingContext(sessionSampleRate: 20, custom: nil)))
+    }
+
+    func testBeforeSamplingSurvivesAnExceptionRaisedByTheApplication() throws {
+        // The block is the one piece of application code the SDK runs synchronously inside session
+        // creation, so an `NSException` raised by it comes down through the SDK's own stack. An
+        // application making a mistake about which sessions to keep must not be fatal to that
+        // application.
+        //
+        // The handler that turns an Objective-C exception into a Swift error is installed by
+        // `Datadog.initialize`; installed here as well so this test does not depend on some other
+        // test having run first. Without it `objc_rethrow` is a pass-through, and this test does
+        // not fail — it takes the whole test process down with it, which is the clearest evidence
+        // available that the guard is what is being measured.
+        registerObjcExceptionHandlerOnce()
+
+        var didRaise = false
+        objc.beforeSampling = { _ in
+            didRaise = true
+            NSException(
+                name: .invalidArgumentException,
+                reason: "the application reached for something the console never sent",
+                userInfo: nil
+            ).raise()
+            return NSNumber(value: 0) // unreachable; a raised exception does not return
+        }
+
+        let swiftHook = try XCTUnwrap(swift.beforeSampling)
+        let override = swiftHook(BeforeSamplingContext(sessionSampleRate: 20, custom: nil))
+
+        XCTAssertTrue(didRaise, "the block really did raise — without this the test could pass having never exercised the guard")
+        XCTAssertNil(override, "a block that raises is read exactly as one that returned nil, so the incoming rate applies")
+    }
+
+    func testBeforeSamplingClearedAgain() {
+        objc.beforeSampling = { _ in NSNumber(value: 100) }
+        objc.beforeSampling = nil
+
+        XCTAssertNil(objc.beforeSampling)
+        XCTAssertNil(swift.beforeSampling, "clearing it on the bridge clears it underneath")
     }
 
     func testUIKitViewsPredicate() {

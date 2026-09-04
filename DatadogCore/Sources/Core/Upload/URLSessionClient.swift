@@ -44,6 +44,21 @@ internal class URLSessionClient: HTTPClient {
         }
         task.resume()
     }
+
+    func fetch(request: URLRequest, completion: @escaping (Result<(response: HTTPURLResponse, body: Data), Error>) -> Void) {
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(URLSessionTransportInconsistencyException()))
+                return
+            }
+            completion(.success((response: httpResponse, body: data ?? Data())))
+        }
+        task.resume()
+    }
 }
 
 /// An error returned if `URLSession` response state is inconsistent (like no data, no response and no error).

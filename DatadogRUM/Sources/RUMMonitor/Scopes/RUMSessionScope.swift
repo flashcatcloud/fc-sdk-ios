@@ -37,7 +37,9 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
                     sessionUUID: state.sessionUUID,
                     isInitialSession: state.isInitialSession,
                     hasTrackedAnyView: true,
-                    didStartWithReplay: state.didStartWithReplay
+                    didStartWithReplay: state.didStartWithReplay,
+                    drawnSessionSampleRate: state.drawnSessionSampleRate,
+                    drawnConfigurationVersion: state.drawnConfigurationVersion
                 )
             }
         }
@@ -82,6 +84,13 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     let startPrecondition: RUMSessionPrecondition?
     /// If events from this session should be sampled (send to Datadog).
     let isSampled: Bool
+    /// If the host application forced this session to be collected through
+    /// `RUMMonitorProtocol.setForcedSession()`. Session Replay reads it so a forced session comes
+    /// out with replay rather than being dropped by replay's own draw.
+    let isForced: Bool
+    /// The configuration this session was drawn with; `nil` when no remote configuration is in
+    /// effect. Drawn once here and fixed for the session's life — sessions never flip.
+    let drawnConfiguration: RUMDrawnConfiguration?
     /// If the session is currently active. Set to `false` upon reaching the `EndReason`.
     var isActive: Bool { endReason == nil }
     /// If this is the very first session created in the current app process (`false` for session created upon expiration of a previous one).
@@ -108,12 +117,46 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         context: DatadogContext,
         dependencies: RUMScopeDependencies,
         applicationState: RUMApplicationState,
+        isForced: Bool = false,
         resumingViewScope: RUMViewScope? = nil
     ) {
         self.parent = parent
         self.dependencies = dependencies
         self.applicationState = applicationState
-        self.isSampled = dependencies.sessionSampler.sample()
+        self.isForced = isForced
+        // The session draw, in the order the three sources are allowed to speak: the console's
+        // rate when it published one, the init value otherwise, and finally the app's own hook.
+        // The hook is the last word precisely so an allow-list can keep collecting a visitor the
+        // console's rate would drop.
+        //
+        // The rates are read synchronously rather than from `context`: the context carries them to
+        // other features, but it is written on its own queue, so a value published there is not
+        // visible to THIS draw — which is the draw the stored snapshot exists for.
+        let remoteRates = dependencies.remoteSamplingRates()
+            ?? context.additionalContext(ofType: RemoteSamplingRates.self)
+        let drawnRate = Self.resolveSampleRate(
+            remoteRates: remoteRates,
+            dependencies: dependencies
+        )
+        // A forced session skips the draw entirely: the app has said this visitor must be
+        // collected, and a coin flip could still say no.
+        self.isSampled = isForced || Sampler(samplingRate: drawnRate).sample()
+        // What the events report. A forced session reports 100, because 100 is what decided it:
+        // being collected was certain. Reporting the rate the draw WOULD have used says the
+        // opposite of the truth twice over — weighted extrapolation multiplies the session back
+        // up by 1/rate, so one session kept on purpose is counted as the whole cohort it was
+        // taken from; and because that number equals the rate the console published, the session
+        // reads afterwards as one the draw happened to keep, with nothing left to say it was
+        // forced. This is the reporting the other SDKs use.
+        let reportedRate: SampleRate = isForced ? 100 : drawnRate
+        self.drawnConfiguration = RUMDrawnConfiguration(
+            // A forced session reports no configuration version, because none of them decided it:
+            // an audit asking which sessions version 5 produced must not be handed sessions that
+            // were kept whatever version 5 said.
+            configurationVersion: isForced ? nil : remoteRates?.version,
+            drawnSessionSampleRate: reportedRate,
+            initialSessionSampleRate: dependencies.sessionSampler.samplingRate
+        )
         self.startPrecondition = startPrecondition
         self.sessionUUID = isSampled ? dependencies.rumUUIDGenerator.generateUnique() : .nullUUID
         self.isInitialSession = isInitialSession
@@ -125,7 +168,9 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             sessionUUID: sessionUUID.rawValue,
             isInitialSession: isInitialSession,
             hasTrackedAnyView: false,
-            didStartWithReplay: context.hasReplay
+            didStartWithReplay: context.hasReplay,
+            drawnSessionSampleRate: drawnConfiguration.map { Double($0.sessionSampleRate) },
+            drawnConfigurationVersion: drawnConfiguration?.version
         )
         self.interactionToNextViewMetric = dependencies.interactionToNextViewMetricFactory()
 
@@ -152,6 +197,15 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
         // Update fatal error context with recent RUM session state:
         dependencies.fatalErrorContext.sessionState = state
+
+        // Every session creation is one opportunity to ask the console for the sampling
+        // configuration. Publishing the source is the whole signal: the core deduplicates a
+        // fetch in flight and applies its retry policy, and with the option off nothing is
+        // ever published, so nothing is ever requested.
+        if dependencies.remoteConfigurationEnabled,
+           let url = remoteSamplingConfigurationURL(customEndpoint: dependencies.customEndpoint, context: context) {
+            dependencies.featureScope.set(context: { RemoteSamplingSource(configurationURL: url) })
+        }
     }
 
     /// Creates a new Session upon expiration of the previous one.
@@ -161,7 +215,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         startPrecondition: RUMSessionPrecondition?,
         context: DatadogContext,
         transferActiveView: Bool,
-        applicationState: RUMApplicationState
+        applicationState: RUMApplicationState,
+        isForced: Bool = false
     ) {
         self.init(
             // If the expired session was marked as "initial" but didn’t track any views, mark this new session as the new "initial".
@@ -171,7 +226,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             startPrecondition: startPrecondition,
             context: context,
             dependencies: expiredSession.dependencies,
-            applicationState: applicationState
+            applicationState: applicationState,
+            isForced: isForced
         )
 
         // Transfer active View to new `RUMViewScope`:
@@ -199,6 +255,32 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
     }
 
+    /// The rate this session is drawn at: the console's where it published one, the init value
+    /// otherwise, with the host application's hook having the final say.
+    private static func resolveSampleRate(
+        remoteRates: RemoteSamplingRates?,
+        dependencies: RUMScopeDependencies
+    ) -> SampleRate {
+        let base = remoteRates?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate
+        guard let hook = dependencies.beforeSampling else {
+            return base
+        }
+        let custom = remoteRates?.custom
+            .flatMap { $0.data(using: .utf8) }
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) }
+            .flatMap { $0 as? [String: Any] }
+        guard let override = hook(BeforeSamplingContext(sessionSampleRate: base, custom: custom)) else {
+            return base
+        }
+        // A rate we cannot trust is not a rate to sample a customer's traffic with, and a mistake
+        // in the host application must never take their collection down with it.
+        guard override >= 0, override <= 100 else {
+            dependencies.telemetry.error("beforeSampling returned \(override), which is not a rate; drawing at \(base) instead")
+            return base
+        }
+        return override
+    }
+
     // MARK: - RUMContextProvider
 
     var context: RUMContext {
@@ -206,6 +288,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         context.sessionID = sessionUUID
         context.isSessionActive = isActive
         context.sessionPrecondition = startPrecondition
+        context.drawnConfiguration = drawnConfiguration
+        context.sessionForced = isForced
         return context
     }
 

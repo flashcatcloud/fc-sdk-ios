@@ -5032,6 +5032,13 @@ public struct RUMViewEvent: RUMDataModel {
             /// The percentage of sessions profiled
             public let profilingSampleRate: Double?
 
+            // FLASHCAT FORK: `rc_version` is a FlashCat addition on top of the shared schema; our
+            // intake reads it, others ignore it. It is patched in by hand because the fork does
+            // not fork the rum-events-format repo — reapplying `make rum-models-generate` will
+            // drop it and this patch must be restored.
+            /// The version of the console's remote configuration the session was drawn with
+            public let rcVersion: Int64?
+
             /// The percentage of sessions with RUM & Session Replay pricing tracked
             public let sessionReplaySampleRate: Double?
 
@@ -5046,6 +5053,8 @@ public struct RUMViewEvent: RUMDataModel {
 
             public enum CodingKeys: String, CodingKey {
                 case profilingSampleRate = "profiling_sample_rate"
+                // FLASHCAT FORK: see `rcVersion` above.
+                case rcVersion = "rc_version"
                 case sessionReplaySampleRate = "session_replay_sample_rate"
                 case sessionSampleRate = "session_sample_rate"
                 case startSessionReplayRecordingManually = "start_session_replay_recording_manually"
@@ -5056,18 +5065,21 @@ public struct RUMViewEvent: RUMDataModel {
             ///
             /// - Parameters:
             ///   - profilingSampleRate: The percentage of sessions profiled
+            ///   - rcVersion: The version of the console's remote configuration the session was drawn with
             ///   - sessionReplaySampleRate: The percentage of sessions with RUM & Session Replay pricing tracked
             ///   - sessionSampleRate: The percentage of sessions tracked
             ///   - startSessionReplayRecordingManually: Whether session replay recording configured to start manually
             ///   - traceSampleRate: The percentage of sessions with traced resources
             public init(
                 profilingSampleRate: Double? = nil,
+                rcVersion: Int64? = nil,
                 sessionReplaySampleRate: Double? = nil,
                 sessionSampleRate: Double,
                 startSessionReplayRecordingManually: Bool? = nil,
                 traceSampleRate: Double? = nil
             ) {
                 self.profilingSampleRate = profilingSampleRate
+                self.rcVersion = rcVersion
                 self.sessionReplaySampleRate = sessionReplaySampleRate
                 self.sessionSampleRate = sessionSampleRate
                 self.startSessionReplayRecordingManually = startSessionReplayRecordingManually

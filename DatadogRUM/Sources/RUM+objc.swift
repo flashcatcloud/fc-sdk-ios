@@ -353,11 +353,35 @@ public class objc_URLSessionTracking: NSObject {
     }
 }
 
+/// FLASHCAT FORK - what the SDK is about to draw a new session with, handed to
+/// `DDRUMConfiguration.beforeSampling`.
+@objc(DDRUMBeforeSamplingContext)
+@objcMembers
+@_spi(objc)
+public class objc_RUMBeforeSamplingContext: NSObject {
+    /// The rate, between 0 and 100, that would decide this session.
+    public let sessionSampleRate: Float
+    /// The console's custom values, or nil when remote configuration is off or nothing is
+    /// published. The same content as `-[DDRUMMonitor getRemoteConfig]`.
+    public let custom: [String: Any]?
+
+    internal init(_ swift: BeforeSamplingContext) {
+        self.sessionSampleRate = swift.sessionSampleRate
+        self.custom = swift.custom
+    }
+}
+
 @objc(DDRUMConfiguration)
 @objcMembers
 @_spi(objc)
 public class objc_RUMConfiguration: NSObject {
     internal var swiftConfig: DatadogRUM.RUM.Configuration
+
+    /// FLASHCAT FORK - the block as the application handed it over.
+    ///
+    /// Kept because the Swift closure it is wrapped into cannot be unwrapped back into it, and a
+    /// property whose getter returned something the caller never set would be worse than useless.
+    @nonobjc private var objcBeforeSampling: ((objc_RUMBeforeSamplingContext) -> NSNumber?)?
 
     public init(applicationID: String) {
         swiftConfig = .init(applicationID: applicationID)
@@ -485,6 +509,49 @@ public class objc_RUMConfiguration: NSObject {
         set { swiftConfig.trackMemoryWarnings = newValue }
         get { swiftConfig.trackMemoryWarnings }
     }
+
+    /// FLASHCAT FORK - enables the remote configuration of sampling rates from the console.
+    ///
+    /// Default: `NO` — no extra requests are made and behaviour is unchanged.
+    public var remoteConfigurationEnabled: Bool {
+        set { swiftConfig.remoteConfigurationEnabled = newValue }
+        get { swiftConfig.remoteConfigurationEnabled }
+    }
+
+    /// FLASHCAT FORK - has the last word on session sampling.
+    ///
+    /// Called synchronously each time a new session is about to be drawn, with the rate that would
+    /// apply and the console's custom values. Return a rate to override it, or `nil` to leave it
+    /// alone. It is the last step of the draw, after the console's rate, precisely so an allow-list
+    /// can keep collecting a visitor the console's rate would drop.
+    ///
+    /// `nil` is how "do not interfere" is said, which is why the block returns `NSNumber *` rather
+    /// than a `float` — zero is a rate someone may well mean.
+    ///
+    /// It runs inside session creation, so it must be fast and must not block. A rate outside
+    /// 0...100 is ignored and the incoming rate applies: a mistake here must never take a
+    /// customer's collection down with it. A session already under way is never re-decided.
+    public var beforeSampling: ((objc_RUMBeforeSamplingContext) -> NSNumber?)? {
+        set {
+            objcBeforeSampling = newValue
+            swiftConfig.beforeSampling = newValue.map { block in
+                { (context: BeforeSamplingContext) -> SampleRate? in
+                    // The one place the SDK runs the application's own code inside session
+                    // creation, and the one place an `NSException` raised by it would come down
+                    // through the SDK's stack and take the process with it. An application that
+                    // reaches into a dictionary the console did not send it is not making a
+                    // sampling decision — it is making a mistake, and a mistake about which
+                    // sessions to keep must never be fatal. A block that raises is read exactly as
+                    // one that returned nil: no opinion, so the incoming rate applies.
+                    guard let rate = try? objc_rethrow({ block(objc_RUMBeforeSamplingContext(context)) }) else {
+                        return nil
+                    }
+                    return SampleRate(rate.floatValue)
+                }
+            }
+        }
+        get { objcBeforeSampling }
+    }
 }
 
 @objc(DDRUM)
@@ -520,6 +587,26 @@ public class objc_RUMMonitor: NSObject {
 
     public func stopSession() {
         swiftRUMMonitor.stopSession()
+    }
+
+    /// FLASHCAT FORK - forces sessions to be collected regardless of the configured sample rates.
+    ///
+    /// A session that was not being collected ends and a collected one starts in its place; a
+    /// session already being collected keeps running, because RUM cannot retro-collect what a
+    /// running session already dropped. Session Replay follows the same rule: every session drawn
+    /// after this call is recorded, one already under way is not re-decided. The forced state lasts
+    /// for the process lifetime, so decide on each app start whether to call again.
+    public func setForcedSession() {
+        swiftRUMMonitor.setForcedSession()
+    }
+
+    /// FLASHCAT FORK - the custom values delivered with the console's remote configuration.
+    ///
+    /// Delivery is the SDK's job; the meaning of the values belongs to the application. Returns
+    /// `nil` when remote configuration is not enabled, when the console set no custom values, or
+    /// after the console's kill switch.
+    public func getRemoteConfig() -> [String: Any]? {
+        swiftRUMMonitor.getRemoteConfig()
     }
 
     public func reportAppFullyDisplayed() {

@@ -129,6 +129,7 @@ extension CrashReportReceiver: AnyMockable {
         applicationID: String = .mockAny(),
         dateProvider: DateProvider = SystemDateProvider(),
         sessionSampler: Sampler = .mockKeepAll(),
+        remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
         trackBackgroundEvents: Bool = true,
         uuidGenerator: RUMUUIDGenerator = DefaultRUMUUIDGenerator(),
         ciTest: RUMCITest? = nil,
@@ -140,6 +141,7 @@ extension CrashReportReceiver: AnyMockable {
             applicationID: applicationID,
             dateProvider: dateProvider,
             sessionSampler: sessionSampler,
+            remoteSamplingRates: remoteSamplingRates,
             trackBackgroundEvents: trackBackgroundEvents,
             uuidGenerator: uuidGenerator,
             ciTest: ciTest,
@@ -1071,7 +1073,11 @@ extension RUMScopeDependencies {
         interactionToNextViewMetricFactory: @escaping () -> INVMetricTracking = {
             INVMetric(predicate: TimeBasedINVActionPredicate())
         },
-        sessionType: RUMSessionType? = nil
+        sessionType: RUMSessionType? = nil,
+        remoteConfigurationEnabled: Bool = false,
+        customEndpoint: URL? = nil,
+        remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
+        beforeSampling: BeforeSamplingCallback? = nil
     ) -> RUMScopeDependencies {
         return RUMScopeDependencies(
             featureScope: featureScope,
@@ -1100,7 +1106,11 @@ extension RUMScopeDependencies {
             watchdogTermination: watchdogTermination,
             networkSettledMetricFactory: networkSettledMetricFactory,
             interactionToNextViewMetricFactory: interactionToNextViewMetricFactory,
-            sessionType: sessionType
+            sessionType: sessionType,
+            remoteConfigurationEnabled: remoteConfigurationEnabled,
+            customEndpoint: customEndpoint,
+            remoteSamplingRates: remoteSamplingRates,
+            beforeSampling: beforeSampling
         )
     }
 
@@ -1185,7 +1195,8 @@ extension RUMSessionScope {
         context: DatadogContext = .mockAny(),
         dependencies: RUMScopeDependencies = .mockAny(),
         applicationState: RUMApplicationState = .mockAny(),
-        hasReplay: Bool? = .mockAny()
+        hasReplay: Bool? = .mockAny(),
+        isForced: Bool = false
     ) -> RUMSessionScope {
         return RUMSessionScope(
             isInitialSession: isInitialSession,
@@ -1194,7 +1205,8 @@ extension RUMSessionScope {
             startPrecondition: startPrecondition,
             context: context,
             dependencies: dependencies,
-            applicationState: applicationState
+            applicationState: applicationState,
+            isForced: isForced
         )
     }
     // swiftlint:enable function_default_parameter_at_end
