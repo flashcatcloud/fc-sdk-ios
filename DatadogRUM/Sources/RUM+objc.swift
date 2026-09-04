@@ -535,8 +535,18 @@ public class objc_RUMConfiguration: NSObject {
         set {
             objcBeforeSampling = newValue
             swiftConfig.beforeSampling = newValue.map { block in
-                { context in
-                    block(objc_RUMBeforeSamplingContext(context)).map { SampleRate($0.floatValue) }
+                { (context: BeforeSamplingContext) -> SampleRate? in
+                    // The one place the SDK runs the application's own code inside session
+                    // creation, and the one place an `NSException` raised by it would come down
+                    // through the SDK's stack and take the process with it. An application that
+                    // reaches into a dictionary the console did not send it is not making a
+                    // sampling decision — it is making a mistake, and a mistake about which
+                    // sessions to keep must never be fatal. A block that raises is read exactly as
+                    // one that returned nil: no opinion, so the incoming rate applies.
+                    guard let rate = try? objc_rethrow({ block(objc_RUMBeforeSamplingContext(context)) }) else {
+                        return nil
+                    }
+                    return SampleRate(rate.floatValue)
                 }
             }
         }
@@ -579,13 +589,13 @@ public class objc_RUMMonitor: NSObject {
         swiftRUMMonitor.stopSession()
     }
 
-    /// FLASHCAT FORK - forces the session to be collected regardless of the configured sample
-    /// rates.
+    /// FLASHCAT FORK - forces sessions to be collected regardless of the configured sample rates.
     ///
     /// A session that was not being collected ends and a collected one starts in its place; a
     /// session already being collected keeps running, because RUM cannot retro-collect what a
-    /// running session already dropped. The forced state lasts for the process lifetime, so decide
-    /// on each app start whether to call again.
+    /// running session already dropped. Session Replay follows the same rule: every session drawn
+    /// after this call is recorded, one already under way is not re-decided. The forced state lasts
+    /// for the process lifetime, so decide on each app start whether to call again.
     public func setForcedSession() {
         swiftRUMMonitor.setForcedSession()
     }
