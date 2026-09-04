@@ -232,6 +232,14 @@ internal final class RemoteSamplingController {
         // and with nothing left to ask again.
         isFetching = false
 
+        // A request outstanding when the core was torn down is not cancelled, so its answer still
+        // arrives here. Reading it would persist a snapshot, publish rates and wake RUM over a bus
+        // whose Features are already gone — all of it after the application was told this instance
+        // was finished. Nothing is left to apply it to, so nothing is applied.
+        guard !isStopped else {
+            return
+        }
+
         switch result {
         case .success((let response, let body)) where response.statusCode == 200:
             do {
