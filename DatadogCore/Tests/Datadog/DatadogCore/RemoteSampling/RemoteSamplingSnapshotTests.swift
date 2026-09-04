@@ -169,6 +169,152 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         XCTAssertEqual(rates.custom, #"{"a":1}"#)
     }
 
+    // MARK: - Fuzzing the envelope
+
+    /// Deterministic, so a body that breaks this can be reproduced from the seed alone.
+    private struct SeededGenerator: RandomNumberGenerator {
+        private var state: UInt64
+
+        init(seed: UInt64) {
+            self.state = seed == 0 ? 0x9E37_79B9_7F4A_7C15 : seed // xorshift is stuck at zero
+        }
+
+        mutating func next() -> UInt64 {
+            state ^= state >> 12
+            state ^= state << 25
+            state ^= state >> 27
+            return state &* 2_685_821_657_736_338_717
+        }
+    }
+
+    /// JSON values worth substituting into a response: every shape a server, a proxy or an
+    /// intermediary might put where the contract expects something else.
+    private static let junkValues: [Any] = [
+        NSNull(),
+        "1", "true", "", "20",
+        0, 1, 2, -1, 1.5, 100.5, 9_999_999_999_999_999_999.0,
+        true, false,
+        [Any](), ["a"], [1, 2],
+        [String: Any](), ["sessionSampleRate": 20], ["nested": ["deep": 1]]
+    ]
+
+    private func aValidBody() -> [String: Any] {
+        [
+            "schema_version": 1,
+            "version": 42,
+            "ttl": 600,
+            "enabled": true,
+            "activation": "next_session",
+            "refresh_on_foreground": false,
+            "rum": ["sessionSampleRate": 20],
+            "custom": ["viplist": ["u-1"]]
+        ]
+    }
+
+    /// `JSONSerialization` bridges JSON booleans to `NSNumber`, so `is Bool` is true of any number.
+    /// The reader under test tells them apart this way and so must anything checking its work.
+    private func isJSONBoolean(_ value: Any?) -> Bool {
+        guard let value = value else {
+            return false
+        }
+        return CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID()
+    }
+
+    private func mutatedBodies(count: Int, seed: UInt64) -> [Data] {
+        var generator = SeededGenerator(seed: seed)
+        var bodies: [Data] = []
+
+        while bodies.count < count {
+            switch Int.random(in: 0..<6, using: &generator) {
+            case 0: // pure noise
+                let length = Int.random(in: 0..<64, using: &generator)
+                bodies.append(Data((0..<length).map { _ in UInt8.random(in: 0...255, using: &generator) }))
+            case 1: // a key removed
+                var body = aValidBody()
+                if let key = body.keys.sorted().randomElement(using: &generator) {
+                    body.removeValue(forKey: key)
+                }
+                bodies.append(contentsOf: serialize(body))
+            case 2: // a key given something else
+                var body = aValidBody()
+                if let key = body.keys.sorted().randomElement(using: &generator),
+                   let junk = Self.junkValues.randomElement(using: &generator) {
+                    body[key] = junk
+                }
+                bodies.append(contentsOf: serialize(body))
+            case 3: // a knob given something else
+                var body = aValidBody()
+                if let junk = Self.junkValues.randomElement(using: &generator) {
+                    body["rum"] = ["sessionSampleRate": junk]
+                }
+                bodies.append(contentsOf: serialize(body))
+            case 4: // truncated
+                let full = serialize(aValidBody()).first ?? Data()
+                let cut = Int.random(in: 0..<max(full.count, 1), using: &generator)
+                bodies.append(full.prefix(cut))
+            default: // one byte flipped
+                var full = serialize(aValidBody()).first ?? Data()
+                if !full.isEmpty {
+                    let index = Int.random(in: 0..<full.count, using: &generator)
+                    full[index] = UInt8.random(in: 0...255, using: &generator)
+                }
+                bodies.append(full)
+            }
+        }
+        return bodies
+    }
+
+    /// Empty rather than throwing, so a body this test cannot even build simply does not get tried.
+    private func serialize(_ body: [String: Any]) -> [Data] {
+        guard JSONSerialization.isValidJSONObject(body),
+              let data = try? JSONSerialization.data(withJSONObject: body) else {
+            return []
+        }
+        return [data]
+    }
+
+    func testNothingReachesTheVersionFloorWithoutCarryingTheEnvelope() {
+        // The version a body gets accepted with becomes a floor that only ever moves forward, so
+        // the question worth asking of an arbitrary body is not whether it is read correctly but
+        // whether it can get that far at all. Mutations of a real response and pure noise are both
+        // thrown at the reader; of anything it accepts, the body must genuinely have carried the
+        // envelope, and the version reported must be the one the body actually named.
+        //
+        // Reaching the end of the loop at all is the other half of what this measures: the reader
+        // takes arbitrary bytes from the network, and it must never be the thing that crashes.
+        var accepted = 0
+        var refused = 0
+
+        for body in mutatedBodies(count: 3_000, seed: 0x5EED) {
+            guard let response = try? RemoteSamplingResponse.parse(body: body, etag: nil) else {
+                refused += 1
+                continue
+            }
+            accepted += 1
+
+            let root = ((try? JSONSerialization.jsonObject(with: body)) as? [String: Any]) ?? [:]
+            XCTAssertEqual(
+                (root["schema_version"] as? NSNumber).map { $0.intValue },
+                1,
+                "accepted a body whose schema stamp was not 1"
+            )
+            XCTAssertFalse(isJSONBoolean(root["schema_version"]), "a boolean is not a schema stamp")
+            XCTAssertTrue(isJSONBoolean(root["enabled"]), "accepted a body whose kill switch was not a boolean")
+            if let rum = root["rum"] {
+                XCTAssertTrue(rum is [String: Any], "accepted a body whose rum was not an object")
+            }
+
+            let named = try? XCTUnwrap(root["version"] as? NSNumber)
+            XCTAssertEqual(response.snapshot.version, named?.int64Value, "reported a version the body did not name")
+            XCTAssertEqual(Double(response.snapshot.version), named?.doubleValue, "accepted a version that was not whole")
+        }
+
+        // The fuzzer's own negative control. All-refused would satisfy every assertion above while
+        // measuring nothing, and all-accepted would mean the mutations never reached the envelope.
+        XCTAssertGreaterThan(accepted, 100, "hardly any body was accepted — the assertions above barely ran")
+        XCTAssertGreaterThan(refused, 100, "hardly any body was refused — the mutations are not reaching the envelope")
+    }
+
     // MARK: - Schema
 
     func testRefusesASchemaItDoesNotRead() {
