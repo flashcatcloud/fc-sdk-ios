@@ -399,6 +399,73 @@ class RUMApplicationScopeTests: XCTestCase {
         XCTAssertNil(scope.activeSession, "the next session is drawn under the rate the operator just set")
     }
 
+    func testWhenTheSDKEndsASessionToRedrawIt_theApplicationIsNotTakenToHaveStoppedCollecting() throws {
+        // The two flags this asserts on are read by `RUMOffViewEventsHandlingRule` to decide
+        // whether events arriving with no active view are still handled. They exist for the
+        // application saying "stop collecting" — and a session the SDK ended itself, so the next
+        // one is drawn under rates the console just changed, is not that. Carried over, the very
+        // change that raises a rate off zero while the app sits in the background would be the
+        // thing that suppresses the background events it was raised to collect.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 0, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 50, version: 2),
+            at: currentTime
+        )
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertNil(scope.activeSession, "the session did end")
+        XCTAssertFalse(scope.applicationState.wasAnySessionStopped)
+        XCTAssertFalse(scope.applicationState.wasPreviousSessionStopped)
+    }
+
+    func testWhenForcingEndsAnUncollectedSession_theApplicationIsNotTakenToHaveStoppedCollecting() throws {
+        // Same reasoning: forcing ends a session in order to start a collected one in its place.
+        // Reading that as an explicit stop would leave the forced session that follows refusing
+        // exactly the off-view events somebody turned forcing on to see.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(
+            dependencies: .mockWith(sessionSampler: Sampler(samplingRate: 0))
+        )
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, false)
+
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertFalse(scope.applicationState.wasAnySessionStopped)
+        XCTAssertFalse(scope.applicationState.wasPreviousSessionStopped)
+    }
+
+    func testWhenTheApplicationStopsTheSessionItself_thatIsStillAnExplicitStop() throws {
+        // The negative control for the two above: the distinction only means something if an
+        // application-requested stop still sets these.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: Sampler(samplingRate: 100)))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        _ = scope.process(
+            command: RUMStopSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertTrue(scope.applicationState.wasAnySessionStopped)
+        XCTAssertTrue(scope.applicationState.wasPreviousSessionStopped)
+    }
+
     func testGivenSessionDrawnAtARealRate_whenTheRateRises_theRunningSessionIsLeftAlone() throws {
         // The negative control, and the reason the rule reads the rate the session was DRAWN at
         // rather than whether it is being collected. Re-drawing only the sessions that lost, while

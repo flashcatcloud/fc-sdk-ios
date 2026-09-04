@@ -9,7 +9,11 @@ import Foundation
 
 internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     /// Tracks the overall application state since `RUM.enable()` was called.
-    private let applicationState = RUMApplicationState()
+    ///
+    /// FLASHCAT FORK - readable rather than `private`, so a test can pin what an SDK-initiated
+    /// session end does NOT record here. Its flags switch off the handling of events that arrive
+    /// with no active view, and they belong to the application asking to stop collecting.
+    let applicationState = RUMApplicationState()
 
     // MARK: - Child Scopes
 
@@ -119,7 +123,11 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             // The stop below re-enters `_process`, which does the `lastActiveView` bookkeeping on
             // the way through, so returning early here costs the next session nothing.
             if shouldEndRunningSession(on: rateChange) {
-                _process(command: RUMStopSessionCommand(time: rateChange.time), context: context, writer: writer)
+                _process(
+                    command: RUMStopSessionCommand(time: rateChange.time, isRequestedByApplication: false),
+                    context: context,
+                    writer: writer
+                )
             }
             return
         }
@@ -184,12 +192,20 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             // was NOT collected ends now, so a collected one starts in its place. A session
             // started by this very command is already forced, so there is nothing to replace.
             if let activeSession = activeSession, !activeSession.isSampled {
-                _process(command: RUMStopSessionCommand(time: forced.time), context: context, writer: writer)
+                _process(
+                    command: RUMStopSessionCommand(time: forced.time, isRequestedByApplication: false),
+                    context: context,
+                    writer: writer
+                )
             }
             return
         }
 
-        if command is RUMStopSessionCommand {
+        // Only a stop the host application asked for. A session the SDK ended itself, to draw the
+        // next one under rates the console changed, is not the application saying "stop
+        // collecting" — and this flag is read to decide whether to keep handling events that
+        // arrive with no active view.
+        if let stop = command as? RUMStopSessionCommand, stop.isRequestedByApplication {
             applicationState.wasAnySessionStopped = true
         }
 
@@ -229,7 +245,11 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
                 }
             case .stopAPI:
                 // Remove this session scope (a new on will be started upon receiving user interaction):
-                applicationState.wasPreviousSessionStopped = true
+                // Same distinction as above: a session the SDK ended to re-draw must not leave the
+                // next one refusing off-view events. Defaults to the conservative answer if the end
+                // reason ever arrives without the command that caused it.
+                applicationState.wasPreviousSessionStopped =
+                    (command as? RUMStopSessionCommand)?.isRequestedByApplication ?? true
                 return nil
             }
         })

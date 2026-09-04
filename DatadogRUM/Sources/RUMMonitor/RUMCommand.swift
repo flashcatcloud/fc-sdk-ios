@@ -111,8 +111,24 @@ internal struct RUMStopSessionCommand: RUMCommand {
     let isUserInteraction = false
     let missedEventType: SessionEndedMetric.MissedEventType? = nil
 
-    init(time: Date) {
+    /// FLASHCAT FORK - whether the host application is the one asking for this stop.
+    ///
+    /// `false` when the SDK ends a session of its own accord, so the next one is drawn afresh: the
+    /// console changed the rates, or the application turned forcing on for a session that was not
+    /// being collected. Both end a session and expect another to follow; neither is anyone saying
+    /// "stop collecting".
+    ///
+    /// The difference is not bookkeeping. An application-requested stop also switches off the
+    /// handling of events that arrive with no active view — see `RUMOffViewEventsHandlingRule`,
+    /// which reads `wasAnySessionStopped` and `wasPreviousSessionStopped`. Carried into an
+    /// SDK-initiated re-draw, that turns the console raising a rate off zero while the app sits in
+    /// the background into the thing that suppresses the very background events the raise was
+    /// meant to start collecting.
+    let isRequestedByApplication: Bool
+
+    init(time: Date, isRequestedByApplication: Bool = true) {
         self.time = time
+        self.isRequestedByApplication = isRequestedByApplication
     }
 }
 
