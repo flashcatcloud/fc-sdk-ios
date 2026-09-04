@@ -3,20 +3,24 @@
 use_modular_headers!
 #
 
+# The podspecs in this fork are named `Flashcat*`; each keeps `module_name = Datadog*`, so the
+# scenarios still `import DatadogCore` and friends. Asking for the old pod names here left
+# `pod install` reporting "No podspec found", which took the whole UI test suite with it.
+
 target 'Runner iOS' do
     platform :ios, '12.0'
 
-    pod 'DatadogCore', :path => '..'
-    pod 'DatadogLogs', :path => '..'
-    pod 'DatadogTrace', :path => '..'
-    pod 'DatadogRUM', :path => '..'
-    pod 'DatadogCrashReporting', :path => '..'
-    pod 'DatadogSessionReplay', :path => '..'
-    pod 'DatadogWebViewTracking', :path => '..'
+    pod 'FlashcatCore', :path => '..'
+    pod 'FlashcatLogs', :path => '..'
+    pod 'FlashcatTrace', :path => '..'
+    pod 'FlashcatRUM', :path => '..'
+    pod 'FlashcatCrashReporting', :path => '..'
+    pod 'FlashcatSessionReplay', :path => '..'
+    pod 'FlashcatWebViewTracking', :path => '..'
 
     target 'IntegrationScenarios' do
-        pod 'DatadogInternal', :path => '..'
-        pod 'TestUtilities', :path => '..'
+        pod 'FlashcatInternal', :path => '..'
+        pod 'FlashcatTestUtilities', :path => '..'
     end
 end
 

@@ -25,11 +25,16 @@ Pod::Spec.new do |s|
     "TestUtilities/Sources/**/*.swift"
   ]
 
+  # Every module TestUtilities reaches into. It uses `@testable import` throughout, and a pod
+  # target can only import what it declares — a module missing from this list does not degrade,
+  # it fails the build of anything that pulls TestUtilities in through CocoaPods.
   s.dependency 'FlashcatCore'
   s.dependency 'FlashcatInternal'
   s.dependency 'FlashcatRUM'
   s.dependency 'FlashcatTrace'
   s.dependency 'FlashcatCrashReporting'
   s.dependency 'FlashcatWebViewTracking'
+  s.dependency 'FlashcatLogs'
+  s.dependency 'FlashcatSessionReplay'
 
 end
