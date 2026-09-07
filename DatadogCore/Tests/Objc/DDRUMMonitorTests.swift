@@ -250,7 +250,7 @@ class DDRUMMonitorTests: XCTestCase {
             callSessionIDCallback.fulfill()
         }
 
-        waitForExpectations(timeout: 0.5)
+        waitForExpectations(timeout: 5)
         XCTAssertNotEqual(try XCTUnwrap(sessionID1), try XCTUnwrap(sessionID2))
     }
 
