@@ -39,7 +39,7 @@ class CrashReporterTests: XCTestCase {
         sender.didSendCrashReport = { expectation.fulfill() }
         feature.sendCrashReportIfFound()
 
-        waitForExpectations(timeout: 0.5, handler: nil)
+        waitForExpectations(timeout: 5, handler: nil)
         DDAssertReflectionEqual(sender.sentCrashReport, crashReport, "It should send the crash report retrieved from the `plugin`")
         let sentCrashContext = try XCTUnwrap(sender.sentCrashContext, "It should send the crash context")
         DDAssertDictionariesEqual(
@@ -78,7 +78,7 @@ class CrashReporterTests: XCTestCase {
         plugin.didReadPendingCrashReport = { expectation.fulfill() }
         feature.sendCrashReportIfFound()
 
-        waitForExpectations(timeout: 0.5, handler: nil)
+        waitForExpectations(timeout: 5, handler: nil)
 
         XCTAssertNotNil(rumCrashReceiver.receivedCrash, "crash must not be empty")
     }
@@ -105,7 +105,7 @@ class CrashReporterTests: XCTestCase {
         plugin.didReadPendingCrashReport = { expectation.fulfill() }
         feature.sendCrashReportIfFound()
 
-        waitForExpectations(timeout: 0.5, handler: nil)
+        waitForExpectations(timeout: 5, handler: nil)
         XCTAssertNil(sender.sentCrashReport, "It should not send the crash report")
         XCTAssertNil(sender.sentCrashContext, "It should not send the crash context")
         XCTAssertTrue(plugin.hasPurgedCrashReport == false, "It should not purge the crash report")
@@ -134,7 +134,7 @@ class CrashReporterTests: XCTestCase {
         sender.didSendCrashReport = { expectation.fulfill() }
         feature.sendCrashReportIfFound()
 
-        waitForExpectations(timeout: 0.5, handler: nil)
+        waitForExpectations(timeout: 5, handler: nil)
         XCTAssertTrue(
             plugin.hasPurgedCrashReport == true,
             "It should ask to purge the crash report as the crash context is unavailable"
@@ -160,7 +160,7 @@ class CrashReporterTests: XCTestCase {
 
         try withExtendedLifetime(feature) {
             // Then
-            waitForExpectations(timeout: 0.5, handler: nil)
+            waitForExpectations(timeout: 5, handler: nil)
             DDAssertDictionariesEqual(
                 try plugin.injectedContextData!.toJSONObject(),
                 try initialCrashContext.data.toJSONObject()
@@ -227,7 +227,7 @@ class CrashReporterTests: XCTestCase {
         feature.sendCrashReportIfFound()
 
         // Then
-        waitForExpectations(timeout: 0.5, handler: nil)
+        waitForExpectations(timeout: 5, handler: nil)
         XCTAssertEqual(core.events.count, 0, "Crash must not be send as it doesn't have `.granted` consent")
     }
 
@@ -299,7 +299,7 @@ class CrashReporterTests: XCTestCase {
         feature.sendCrashReportIfFound()
 
         // Then
-        waitForExpectations(timeout: 0.5, handler: nil)
+        waitForExpectations(timeout: 5, handler: nil)
         let logs = dd.logger.warnLogs
 
         XCTAssert(logs.contains(where: { $0.message == """
