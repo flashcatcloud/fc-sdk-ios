@@ -9,7 +9,11 @@ import Foundation
 
 internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     /// Tracks the overall application state since `RUM.enable()` was called.
-    private let applicationState = RUMApplicationState()
+    ///
+    /// FLASHCAT FORK - readable rather than `private`, so a test can pin what an SDK-initiated
+    /// session end does NOT record here. Its flags switch off the handling of events that arrive
+    /// with no active view, and they belong to the application asking to stop collecting.
+    let applicationState = RUMApplicationState()
 
     // MARK: - Child Scopes
 
@@ -20,6 +24,11 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     /// Session scope. It gets created with the first event.
     /// Might be re-created later according to session duration constraints.
     private(set) var sessionScopes: [RUMSessionScope] = []
+
+    /// FLASHCAT FORK - set through `RUMMonitorProtocol.setForcedSession()`, read at every draw from
+    /// then on. Process-lifetime, like the debugging decision it represents: the host application
+    /// decides again on each launch.
+    private(set) var isForcedSession = false
 
     /// The last active foreground view from the previous session.
     /// Used to restore the view when a new session starts after `sessionStop()`.
@@ -95,6 +104,34 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     }
 
     private func _process(command: RUMCommand, context: DatadogContext, writer: Writer) {
+        if command is RUMSetForcedSessionCommand {
+            // Set before any other handling, because this command can be the one that starts a
+            // session: the flow below creates one whenever none is active, and a session drawn a
+            // moment before the flag is set would be an ordinary session that has to be thrown
+            // away and replaced, leaving a stopped session behind for no reason.
+            isForcedSession = true
+        }
+
+        if let rateChange = command as? RUMRemoteSamplingChangedCommand {
+            // Answered here, ahead of everything else, because this is a signal from the console
+            // rather than something the visitor did: the flow below starts a session for any
+            // command that finds none running, and a rate change must never be the reason a
+            // session exists. Letting it start one would put a session on the record for every
+            // idle app in the fleet each time somebody moves a slider — and would then end it
+            // again, having drawn it under the very rates it was about to be re-drawn for.
+            //
+            // The stop below re-enters `_process`, which does the `lastActiveView` bookkeeping on
+            // the way through, so returning early here costs the next session nothing.
+            if shouldEndRunningSession(on: rateChange) {
+                _process(
+                    command: RUMStopSessionCommand(time: rateChange.time, isRequestedByApplication: false),
+                    context: context,
+                    writer: writer
+                )
+            }
+            return
+        }
+
         // `RUMSDKInitCommand` forces the creation of the initial session
         // Added in https://github.com/DataDog/dd-sdk-ios/pull/1278 to ensure that logs and traces
         // can be correlated with valid RUM session id (even if occurring before any user interaction).
@@ -149,7 +186,26 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         let lastActiveForegroundView = activeSession?.viewScopes.first(where: { $0.isActiveView && $0.viewPath != RUMOffViewEventsHandlingRule.Constants.backgroundViewURL })
         lastActiveView = lastActiveForegroundView ?? lastActiveView
 
-        if command is RUMStopSessionCommand {
+        if let forced = command as? RUMSetForcedSessionCommand {
+            // A session already being collected keeps running: RUM cannot retro-collect what a
+            // running session already dropped, and cutting it in two would gain nothing. One that
+            // was NOT collected ends now, so a collected one starts in its place. A session
+            // started by this very command is already forced, so there is nothing to replace.
+            if let activeSession = activeSession, !activeSession.isSampled {
+                _process(
+                    command: RUMStopSessionCommand(time: forced.time, isRequestedByApplication: false),
+                    context: context,
+                    writer: writer
+                )
+            }
+            return
+        }
+
+        // Only a stop the host application asked for. A session the SDK ended itself, to draw the
+        // next one under rates the console changed, is not the application saying "stop
+        // collecting" — and this flag is read to decide whether to keep handling events that
+        // arrive with no active view.
+        if let stop = command as? RUMStopSessionCommand, stop.isRequestedByApplication {
             applicationState.wasAnySessionStopped = true
         }
 
@@ -189,7 +245,11 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
                 }
             case .stopAPI:
                 // Remove this session scope (a new on will be started upon receiving user interaction):
-                applicationState.wasPreviousSessionStopped = true
+                // Same distinction as above: a session the SDK ended to re-draw must not leave the
+                // next one refusing off-view events. Defaults to the conservative answer if the end
+                // reason ever arrives without the command that caused it.
+                applicationState.wasPreviousSessionStopped =
+                    (command as? RUMStopSessionCommand)?.isRequestedByApplication ?? true
                 return nil
             }
         })
@@ -202,6 +262,67 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
     }
 
     // MARK: - Private
+
+    /// FLASHCAT FORK - whether a change in the rates ends the session that is running.
+    ///
+    /// Two reasons, and they are not the same question.
+    ///
+    /// `immediate` is the console saying "apply this now". It carries no claim about what the new
+    /// rates decide — only that the operator does not want to wait — so the session ends and the
+    /// next one is drawn afresh, whatever the rates turn out to be.
+    ///
+    /// A rate of zero needs no such instruction, because it is the one value that answers the
+    /// question on its own — in both directions. Moving TO zero says nothing is to be collected;
+    /// moving AWAY from a session that was drawn at zero says this visitor was never in the draw
+    /// at all and now could be. A session that is collecting right now
+    /// would otherwise go on collecting until it happens to rotate, which can be hours away — and
+    /// "stop collecting" is the one request where waiting hours is the wrong answer. Every other
+    /// rate is silent on this session's fate: whether it "should" still be kept can only be
+    /// answered by drawing again, and drawing twice is not the same as drawing once.
+    ///
+    /// The rate that counts is the one that would decide a session drawn now — the console's where
+    /// it published one, the value the app was initialised with where it did not. The console can
+    /// clear a knob as well as set it, and clearing it hands the decision back to the init value,
+    /// which the core never sees. That is why this is answered here and not there.
+    ///
+    /// A forced session answers no to both. It is collected whatever the rates say, so ending it
+    /// would only buy an identical forced session — the same session, cut in two, with the
+    /// visitor's current view lost from the recording somebody turned forcing on to watch.
+    private func shouldEndRunningSession(on command: RUMRemoteSamplingChangedCommand) -> Bool {
+        guard let activeSession = activeSession, !isForcedSession else {
+            return false
+        }
+        if command.activation == .immediate {
+            return true
+        }
+        let rateNowInForce = dependencies.remoteSamplingRates()?.sessionSampleRate
+            ?? dependencies.sessionSampler.samplingRate
+
+        if rateNowInForce == 0 {
+            // A session that is not being collected has nothing to stop, and ending it would only
+            // put a stopped session on the record and leave its replacement reporting an explicit
+            // stop.
+            return activeSession.isSampled
+        }
+
+        // The other direction, and the reason it is written against the rate the session was DRAWN
+        // at rather than against whether it is being collected.
+        //
+        // Re-drawing only the sessions that were not collected, while leaving the collected ones
+        // alone, spares the winners and re-rolls the losers — a fleet drawn at 20 and moved to 50
+        // would come out at 60, because the 20 that were already kept stay kept. A rate of 0 is the
+        // one value with no winners to spare: nothing was collected, no coin was flipped, and
+        // re-drawing everyone at the new rate lands exactly on it.
+        //
+        // What it buys is the case where the console is the only thing that ever turns collection
+        // on. An application built at 0 shows the operator nothing at all until its sessions
+        // happen to rotate, and nothing at all is indistinguishable from broken. What it costs is
+        // nothing: a session drawn at 0 has no id, no events and no history — it does not exist in
+        // the data, so there is no seam for ending it to leave.
+        let rateItWasDrawnAt = activeSession.drawnConfiguration?.sessionSampleRate
+            ?? dependencies.sessionSampler.samplingRate
+        return rateItWasDrawnAt == 0
+    }
 
     /// Sanity count to make sure initial session is created only once.
     private var didCreateInitialSessionCount = 0
@@ -234,7 +355,8 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             startPrecondition: startPrecondition,
             context: context,
             dependencies: dependencies,
-            applicationState: applicationState
+            applicationState: applicationState,
+            isForced: isForcedSession
         )
 
         lastSessionEndReason = nil
@@ -266,7 +388,8 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             startPrecondition: startPrecondition,
             context: context,
             transferActiveView: transferActiveView,
-            applicationState: applicationState
+            applicationState: applicationState,
+            isForced: isForcedSession
         )
         sessionScopeDidUpdate(refreshedSession)
         lastActiveView = nil
@@ -310,6 +433,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             context: context,
             dependencies: dependencies,
             applicationState: applicationState,
+            isForced: isForcedSession,
             resumingViewScope: resumeViewScope ? lastActiveView : nil
         )
         lastActiveView = nil

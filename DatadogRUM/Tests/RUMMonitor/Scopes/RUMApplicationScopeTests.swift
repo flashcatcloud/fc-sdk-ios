@@ -211,6 +211,431 @@ class RUMApplicationScopeTests: XCTestCase {
         XCTAssertNil(scope.activeSession)
     }
 
+    // MARK: - Forced session
+
+    func testGivenUncollectedSession_whenForced_itEndsItSoACollectedOneReplacesIt() throws {
+        // Given: a session the draw threw away
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockRejectAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, false)
+
+        // When
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        // Then: the uncollected session is gone, and the next interaction starts a forced one
+        XCTAssertTrue(scope.isForcedSession)
+        XCTAssertNil(scope.activeSession)
+
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(3), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, true, "the replacement session is collected despite a 0% draw")
+        XCTAssertEqual(scope.activeSession?.isForced, true)
+    }
+
+    func testGivenCollectedSession_whenForced_itKeepsRunning() throws {
+        // RUM cannot retro-collect what a running session already dropped, so cutting a session
+        // that is already being collected in two would gain nothing.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockKeepAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        let sessionBefore = try XCTUnwrap(scope.activeSession?.sessionUUID)
+
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertTrue(scope.isForcedSession)
+        XCTAssertEqual(scope.activeSession?.sessionUUID, sessionBefore, "the running session is untouched")
+    }
+
+    func testForcedStateOutlivesTheSessionThatSetIt() throws {
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockRejectAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(3), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        // A later stop must not hand the visitor back to the 0% draw: the forced state is
+        // process-lifetime, decided again only on the next launch.
+        _ = scope.process(
+            command: RUMStopSessionCommand.mockWith(time: currentTime.addingTimeInterval(4)),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(5), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertEqual(scope.activeSession?.isSampled, true)
+    }
+
+    func testGivenNoSession_whenForced_itStartsOneForcedRatherThanBuildingAndDiscardingOne() throws {
+        // The flag has to be set before the flow that starts a session for any command reaches it.
+        // Otherwise this command draws an ordinary session and then immediately throws it away —
+        // one stopped session on the record, and the session that replaces it reporting itself as
+        // following an explicit stop.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockRejectAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMStopSessionCommand.mockWith(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertNil(scope.activeSession, "the ground state for this test: nothing running")
+
+        // When: forcing is turned on with no session to act on
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(3)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertTrue(scope.isForcedSession)
+        let session = try XCTUnwrap(scope.activeSession, "the command started a session rather than leaving none")
+        XCTAssertTrue(session.isForced, "the session this command started is itself forced")
+        XCTAssertTrue(session.isSampled, "so it is not drawn away by a 0% rate and replaced")
+    }
+
+    // MARK: - Remote sampling changed
+
+    func testGivenOrdinarySession_whenRatesChangeImmediately_itEndsSoTheNextOneIsDrawnAnew() throws {
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockKeepAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertNotNil(scope.activeSession)
+
+        _ = scope.process(
+            command: RUMRemoteSamplingChangedCommand(activation: .immediate, time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertNil(scope.activeSession, "the session ends so the next one is drawn under the new rates")
+    }
+
+    func testGivenNoSession_whenRatesChangeImmediately_itStartsNothingToStop() throws {
+        // The rates reach the core before this signal does, so anything started from here on is
+        // already drawn under them. Ending a session this command itself started would leave a
+        // stopped session on the record and hand the visitor a second one for no reason.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockKeepAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMStopSessionCommand.mockWith(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertNil(scope.activeSession, "the ground state for this test: nothing running")
+
+        _ = scope.process(
+            command: RUMRemoteSamplingChangedCommand(activation: .immediate, time: currentTime.addingTimeInterval(3)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertNil(scope.activeSession, "nothing was running, so nothing was started and nothing was ended")
+    }
+
+    func testGivenSessionDrawnAtZero_whenTheRateRises_itEndsSoTheVisitorCanBeCollected() throws {
+        // The case where the console is the only thing that ever turns collection on: an
+        // application built at 0 shows the operator nothing until its sessions happen to rotate,
+        // and nothing is indistinguishable from broken. Ending this one costs nothing — drawn at 0
+        // it has no id, no events and no history, so it does not exist in the data at all.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 0, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 50, version: 2),
+            at: currentTime
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, false, "the ground state: drawn at 0, collecting nothing")
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertNil(scope.activeSession, "the next session is drawn under the rate the operator just set")
+    }
+
+    func testWhenTheSDKEndsASessionToRedrawIt_theApplicationIsNotTakenToHaveStoppedCollecting() throws {
+        // The two flags this asserts on are read by `RUMOffViewEventsHandlingRule` to decide
+        // whether events arriving with no active view are still handled. They exist for the
+        // application saying "stop collecting" — and a session the SDK ended itself, so the next
+        // one is drawn under rates the console just changed, is not that. Carried over, the very
+        // change that raises a rate off zero while the app sits in the background would be the
+        // thing that suppresses the background events it was raised to collect.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 0, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 50, version: 2),
+            at: currentTime
+        )
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertNil(scope.activeSession, "the session did end")
+        XCTAssertFalse(scope.applicationState.wasAnySessionStopped)
+        XCTAssertFalse(scope.applicationState.wasPreviousSessionStopped)
+    }
+
+    func testWhenForcingEndsAnUncollectedSession_theApplicationIsNotTakenToHaveStoppedCollecting() throws {
+        // Same reasoning: forcing ends a session in order to start a collected one in its place.
+        // Reading that as an explicit stop would leave the forced session that follows refusing
+        // exactly the off-view events somebody turned forcing on to see.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(
+            dependencies: .mockWith(sessionSampler: Sampler(samplingRate: 0))
+        )
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, false)
+
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertFalse(scope.applicationState.wasAnySessionStopped)
+        XCTAssertFalse(scope.applicationState.wasPreviousSessionStopped)
+    }
+
+    func testWhenTheApplicationStopsTheSessionItself_thatIsStillAnExplicitStop() throws {
+        // The negative control for the two above: the distinction only means something if an
+        // application-requested stop still sets these.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: Sampler(samplingRate: 100)))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        _ = scope.process(
+            command: RUMStopSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertTrue(scope.applicationState.wasAnySessionStopped)
+        XCTAssertTrue(scope.applicationState.wasPreviousSessionStopped)
+    }
+
+    func testGivenSessionDrawnAtARealRate_whenTheRateRises_theRunningSessionIsLeftAlone() throws {
+        // The negative control, and the reason the rule reads the rate the session was DRAWN at
+        // rather than whether it is being collected. Re-drawing only the sessions that lost, while
+        // leaving the ones that won alone, spares the winners and re-rolls the losers: a fleet
+        // drawn at 20 and moved to 50 would come out at 60. Zero is the only rate with no winners
+        // to spare, which is why it is the only one acted on.
+        //
+        // The assertion holds whichever way this session's own draw at 20 fell, so nothing here
+        // rides on a coin flip.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 20, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 50, version: 2),
+            at: currentTime
+        )
+        let sessionBefore = try XCTUnwrap(scope.activeSession?.sessionUUID)
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertEqual(scope.activeSession?.sessionUUID, sessionBefore)
+    }
+
+    func testGivenForcingTurnedOn_whenRatesChangeImmediately_theRunningSessionIsKept() throws {
+        // A forced session is collected whatever the rates say, so ending it would only buy
+        // another forced session that behaves identically — at the cost of cutting the recording
+        // somebody turned forcing on in order to watch.
+        let currentTime = Date()
+        let scope = createRUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockKeepAll()))
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        _ = scope.process(
+            command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+            context: .mockAny(),
+            writer: writer
+        )
+        let sessionBefore = try XCTUnwrap(scope.activeSession?.sessionUUID)
+
+        _ = scope.process(
+            command: RUMRemoteSamplingChangedCommand(activation: .immediate, time: currentTime.addingTimeInterval(3)),
+            context: .mockAny(),
+            writer: writer
+        )
+
+        XCTAssertEqual(scope.activeSession?.sessionUUID, sessionBefore, "the forced session is untouched")
+    }
+
+    // MARK: - Remote sampling changed: a rate of zero
+
+    /// A session drawn under `first`, then told the rates are now `second`.
+    private func scopeWithSessionDrawn(
+        under first: RemoteSamplingRates?,
+        thenRatesBecome second: RemoteSamplingRates?,
+        at currentTime: Date,
+        initialSampleRate: SampleRate = 100,
+        forced: Bool = false
+    ) -> RUMApplicationScope {
+        var rates = first
+        let scope = createRUMApplicationScope(
+            dependencies: .mockWith(
+                sessionSampler: Sampler(samplingRate: initialSampleRate),
+                remoteSamplingRates: { rates }
+            )
+        )
+        _ = scope.process(
+            command: RUMCommandMock(time: currentTime.addingTimeInterval(1), isUserInteraction: true),
+            context: .mockAny(),
+            writer: writer
+        )
+        if forced {
+            _ = scope.process(
+                command: RUMSetForcedSessionCommand(time: currentTime.addingTimeInterval(2)),
+                context: .mockAny(),
+                writer: writer
+            )
+        }
+        rates = second
+        return scope
+    }
+
+    private func announceRatesChanged(to scope: RUMApplicationScope, at currentTime: Date) {
+        _ = scope.process(
+            command: RUMRemoteSamplingChangedCommand(activation: .nextSession, time: currentTime.addingTimeInterval(3)),
+            context: .mockAny(),
+            writer: writer
+        )
+    }
+
+    func testGivenCollectedSession_whenTheRateBecomesZero_itEndsWithoutTheConsoleAskingItTo() throws {
+        // Zero is the one rate that answers "should this session still be kept" on its own, so it
+        // needs no `immediate` instruction. Waiting for the session to rotate could take hours, and
+        // "stop collecting" is the one request where hours is the wrong answer.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 100, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 0, version: 2),
+            at: currentTime
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, true, "the session under test has to be one that is collecting")
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertNil(scope.activeSession, "a session that was collecting stops collecting now")
+    }
+
+    func testGivenUncollectedSession_whenTheRateBecomesZero_nothingIsStopped() throws {
+        // Ending it would gain nothing and cost something: a stopped session on the record, and a
+        // replacement that reports itself as following an explicit stop.
+        let currentTime = Date()
+        let zero = RemoteSamplingRates(sessionSampleRate: 0, version: 1)
+        let scope = scopeWithSessionDrawn(under: zero, thenRatesBecome: zero, at: currentTime)
+        let sessionBefore = try XCTUnwrap(scope.activeSession)
+        XCTAssertFalse(sessionBefore.isSampled, "the session under test has to be one that is not collecting")
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertEqual(scope.activeSession?.sessionUUID, sessionBefore.sessionUUID)
+    }
+
+    func testWhenTheRateChangesToAnythingButZero_theRunningSessionIsLeftAlone() throws {
+        // Any other rate is silent about this session: whether it should still be kept can only be
+        // answered by drawing again, and drawing twice is not the same as drawing once.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 100, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 30, version: 2),
+            at: currentTime
+        )
+        let sessionBefore = try XCTUnwrap(scope.activeSession?.sessionUUID)
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertEqual(scope.activeSession?.sessionUUID, sessionBefore)
+    }
+
+    func testGivenForcingTurnedOn_whenTheRateBecomesZero_theRunningSessionIsKept() throws {
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 100, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: 0, version: 2),
+            at: currentTime,
+            forced: true
+        )
+        let sessionBefore = try XCTUnwrap(scope.activeSession?.sessionUUID)
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertEqual(scope.activeSession?.sessionUUID, sessionBefore, "forcing outranks the rates")
+    }
+
+    func testWhenTheConsoleClearsTheRate_theValueTheAppWasInitialisedWithDecides() throws {
+        // The console can clear a knob as well as set it, and clearing it hands the decision back
+        // to the init value — which the core never sees. This is why the question is answered here
+        // and not where the response is parsed.
+        let currentTime = Date()
+        let scope = scopeWithSessionDrawn(
+            under: RemoteSamplingRates(sessionSampleRate: 100, version: 1),
+            thenRatesBecome: RemoteSamplingRates(sessionSampleRate: nil, version: 2),
+            at: currentTime,
+            initialSampleRate: 0
+        )
+        XCTAssertEqual(scope.activeSession?.isSampled, true)
+
+        announceRatesChanged(to: scope, at: currentTime)
+
+        XCTAssertNil(scope.activeSession, "with the knob cleared the init value applies, and it is zero")
+    }
+
     func testGivenStoppedSession_whenUserActionEvent_itStartsANewSession() throws {
         // Given
         let currentTime = Date()

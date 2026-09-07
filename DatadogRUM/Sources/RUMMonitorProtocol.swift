@@ -83,6 +83,36 @@ public protocol RUMMonitorProtocol: RUMMonitorViewProtocol, AnyObject {
     /// If the session is started because of a call to `addAction`, the last known view is restarted in the new session.
     func stopSession()
 
+    /// Forces sessions to be collected regardless of the configured sample rates.
+    ///
+    /// Call it when your own code decides a user needs debugging (an allow-list, a support flow).
+    /// A session that was not being collected ends here and a collected one is drawn in its place
+    /// at the visitor's next activity — nothing is lost by the wait, because a session nobody is
+    /// using has nothing to collect. A session already being collected keeps running, because RUM
+    /// cannot retro-collect what a running session already dropped. Calling again while the forced
+    /// session runs does nothing.
+    ///
+    /// The forced state lasts for the process lifetime, so decide on each app start whether to
+    /// call again.
+    ///
+    /// Session Replay follows the same rule, and for the same reason. Every session DRAWN after
+    /// this call is recorded whatever the replay rate says; a session already under way is not
+    /// re-decided, so one that was being collected without replay keeps running without it. Ending
+    /// it to gain a recording would cost the visitor's current view — the part somebody turned
+    /// forcing on to watch.
+    func setForcedSession()
+
+    /// The custom values delivered with the console's remote configuration.
+    ///
+    /// Delivery is the SDK's job; the meaning of the values belongs to the application. They are
+    /// returned as decoded JSON (strings, numbers, booleans, arrays and dictionaries), exactly as
+    /// the console sent them.
+    ///
+    /// Returns `nil` when remote configuration is not enabled
+    /// (`RUM.Configuration.remoteConfigurationEnabled`), when the console set no custom values,
+    /// or after the console's kill switch.
+    func getRemoteConfig() -> [String: Any]?
+
     /// Records the time to full display (TTFD) of the current app launch.
     /// The duration of the TTFD is calculated as the number of nanoseconds elapsed between the start of the app and the time of this call.
     func reportAppFullyDisplayed()
@@ -459,6 +489,8 @@ internal class NOPMonitor: RUMMonitorProtocol {
     func removeAttribute(forKey key: AttributeKey) { warn() }
     func removeAttributes(forKeys keys: [AttributeKey]) {warn() }
     func stopSession() { warn() }
+    func setForcedSession() { warn() }
+    func getRemoteConfig() -> [String: Any]? { warn(); return nil }
     func reportAppFullyDisplayed() { warn() }
     func addError(message: String, type: String?, stack: String?, source: RUMErrorSource, attributes: [AttributeKey: AttributeValue], file: StaticString?, line: UInt?) { warn() }
     func addError(error: Error, source: RUMErrorSource, attributes: [AttributeKey: AttributeValue]) { warn() }

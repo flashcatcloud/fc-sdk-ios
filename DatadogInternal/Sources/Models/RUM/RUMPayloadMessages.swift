@@ -23,6 +23,15 @@ public struct RUMSessionState: Codable, Equatable {
     public let hasTrackedAnyView: Bool
     /// If there was a Session Replay recording pending at the moment of starting this session (`nil` if SR Feature was not configured).
     public let didStartWithReplay: Bool?
+    /// FLASHCAT FORK - the rate that decided this session, and the console configuration it was
+    /// drawn under. Both `nil` when nothing moved the draw away from the value the app was built
+    /// with, which is also how state written by an earlier version decodes.
+    ///
+    /// They are here because this is what survives the process: after a crash there may be no view
+    /// event to rebuild from, and the events synthesised in its place would otherwise report the
+    /// init value — the one number we know did not decide the session.
+    public let drawnSessionSampleRate: Double?
+    public let drawnConfigurationVersion: Int64?
 
     /// Creates a RUM Session State
     /// - Parameters:
@@ -34,12 +43,16 @@ public struct RUMSessionState: Codable, Equatable {
         sessionUUID: UUID,
         isInitialSession: Bool,
         hasTrackedAnyView: Bool,
-        didStartWithReplay: Bool?
+        didStartWithReplay: Bool?,
+        drawnSessionSampleRate: Double? = nil,
+        drawnConfigurationVersion: Int64? = nil
     ) {
         self.sessionUUID = sessionUUID
         self.isInitialSession = isInitialSession
         self.hasTrackedAnyView = hasTrackedAnyView
         self.didStartWithReplay = didStartWithReplay
+        self.drawnSessionSampleRate = drawnSessionSampleRate
+        self.drawnConfigurationVersion = drawnConfigurationVersion
     }
 }
 

@@ -99,7 +99,10 @@ internal class RecordingCoordinator {
 
     private func onRUMContextChanged(rumContext: RUMCoreContext?) {
         if currentRUMContext?.sessionID != rumContext?.sessionID || currentRUMContext == nil {
-            isSampled = sampler.sample()
+            // FLASHCAT FORK - a session the host application forced skips replay's own draw:
+            // forcing exists to debug one visitor, and a replay-less recording of them is not the
+            // thing that was asked for.
+            isSampled = rumContext?.sessionForced == true || sampler.sample()
         }
 
         currentRUMContext = rumContext

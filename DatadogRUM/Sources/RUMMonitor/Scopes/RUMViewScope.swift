@@ -564,13 +564,21 @@ extension RUMViewScope {
         // Retrieve Session Replay config if any
         let sessionReplayConfig = context.additionalContext(ofType: SessionReplayCoreContext.Configuration.self)
 
+        // The configuration this view's session was drawn with. The drawn session rate wins over
+        // the init value so extrapolation and audits line up with the draw that kept the session,
+        // and `rc_version` lets an auditor recover the exact console settings from its version
+        // history. With no remote configuration in effect the init values are reported, exactly
+        // as before remote configuration existed.
+        let drawnConfiguration = self.context.drawnConfiguration
+
         let viewEvent = RUMViewEvent(
             dd: .init(
                 browserSdkVersion: nil,
                 cls: nil,
                 configuration: .init(
+                    rcVersion: drawnConfiguration.flatMap { $0.version > 0 ? $0.version : nil },
                     sessionReplaySampleRate: sessionReplayConfig.map { Double($0.sampleRate) },
-                    sessionSampleRate: Double(dependencies.sessionSampler.samplingRate),
+                    sessionSampleRate: self.context.reportedSessionSampleRate(initialisedWith: dependencies.sessionSampler),
                     startSessionReplayRecordingManually: sessionReplayConfig?.startRecordingManually,
                     traceSampleRate: context.additionalContext(ofType: TraceCoreContext.Configuration.self)
                         .map { Double($0.sampleRate) }
@@ -731,7 +739,7 @@ extension RUMViewScope {
         let errorEvent = RUMErrorEvent(
             dd: .init(
                 browserSdkVersion: nil,
-                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: Double(dependencies.sessionSampler.samplingRate)),
+                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: self.context.reportedSessionSampleRate(initialisedWith: dependencies.sessionSampler)),
                 session: .init(
                     plan: .plan1,
                     sessionPrecondition: self.context.sessionPrecondition
@@ -822,7 +830,7 @@ extension RUMViewScope {
         let longTaskEvent = RUMLongTaskEvent(
             dd: .init(
                 browserSdkVersion: nil,
-                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: Double(dependencies.sessionSampler.samplingRate)),
+                configuration: .init(sessionReplaySampleRate: nil, sessionSampleRate: self.context.reportedSessionSampleRate(initialisedWith: dependencies.sessionSampler)),
                 discarded: nil,
                 session: .init(
                     plan: .plan1,

@@ -20,6 +20,11 @@ public struct RUMCoreContext: AdditionalContext, Equatable {
     public let userActionID: String?
     /// Current view related server time offset
     public let viewServerTimeOffset: TimeInterval?
+    /// FLASHCAT FORK - whether the host application forced this session to be collected. Session
+    /// Replay skips its own draw when it is set, because a forced session must come out with
+    /// replay: forcing exists to debug one visitor, and a replay-less recording of them is not the
+    /// thing that was asked for.
+    public let sessionForced: Bool
 
     /// Creates a RUM context.
     ///
@@ -29,17 +34,20 @@ public struct RUMCoreContext: AdditionalContext, Equatable {
     ///   - viewID: Current RUM view ID - standard UUID string, lowercased. It can be empty when view is being loaded.
     ///   - userActionID: The ID of current RUM action (standard UUID `String`, lowercased).
     ///   - viewServerTimeOffset: Current view related server time offset
+    ///   - sessionForced: Whether the host application forced this session to be collected.
     public init(
         applicationID: String,
         sessionID: String,
         viewID: String? = nil,
         userActionID: String? = nil,
-        viewServerTimeOffset: TimeInterval? = nil
+        viewServerTimeOffset: TimeInterval? = nil,
+        sessionForced: Bool = false
     ) {
         self.applicationID = applicationID
         self.sessionID = sessionID
         self.viewID = viewID
         self.userActionID = userActionID
         self.viewServerTimeOffset = viewServerTimeOffset
+        self.sessionForced = sessionForced
     }
 }

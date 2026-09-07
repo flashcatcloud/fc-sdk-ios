@@ -25,13 +25,17 @@ extension RUMSessionState: AnyMockable, RandomMockable {
         sessionUUID: UUID = .mockAny(),
         isInitialSession: Bool = .mockAny(),
         hasTrackedAnyView: Bool = .mockAny(),
-        didStartWithReplay: Bool? = .mockAny()
+        didStartWithReplay: Bool? = .mockAny(),
+        drawnSessionSampleRate: Double? = nil,
+        drawnConfigurationVersion: Int64? = nil
     ) -> RUMSessionState {
         return RUMSessionState(
             sessionUUID: sessionUUID,
             isInitialSession: isInitialSession,
             hasTrackedAnyView: hasTrackedAnyView,
-            didStartWithReplay: didStartWithReplay
+            didStartWithReplay: didStartWithReplay,
+            drawnSessionSampleRate: drawnSessionSampleRate,
+            drawnConfigurationVersion: drawnConfigurationVersion
         )
     }
 }

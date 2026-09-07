@@ -55,6 +55,47 @@ internal final class DatadogCore {
     /// The message-bus instance.
     let bus = MessageBus()
 
+    /// Keeps the remote sampling configuration in step with the console.
+    ///
+    /// Built on demand because it captures `self` and because an app that never asked for remote
+    /// configuration must not pay for the store's directory. `lazy` cannot do that job here: it is
+    /// reached both from the context queue (a published source) and from the thread that enables
+    /// RUM (the priming read), and Swift's lazy initialisation is not atomic.
+    ///
+    /// Guarded by a plain lock rather than `@ReadWriteLock` for one reason: the whole get-or-create
+    /// has to happen inside a single critical section, and that wrapper's `mutate` cannot hand a
+    /// value back out. Every way of working around that ends in unwrapping something the compiler
+    /// cannot see is already there — and an SDK is the wrong place to answer that with a trap.
+    private let remoteSamplingControllerLock = NSLock()
+    private var cachedRemoteSamplingController: RemoteSamplingController?
+
+    var remoteSamplingController: RemoteSamplingController {
+        remoteSamplingControllerLock.lock()
+        defer { remoteSamplingControllerLock.unlock() }
+
+        if let existing = cachedRemoteSamplingController {
+            return existing
+        }
+        // Created and returned without leaving the lock. Two threads that each found it empty would
+        // otherwise each build a controller and one would be dropped — along with the snapshot it
+        // had already loaded and the fetch it had in flight — while the caller that built it went
+        // on using the copy nobody else can see.
+        let created = RemoteSamplingController(
+            httpClient: httpClient,
+            contextProvider: contextProvider,
+            store: try? RemoteSamplingSnapshotStore(coreDirectory: directory),
+            telemetry: telemetry,
+            publishRates: { [weak self] rates in
+                self?.contextProvider.write { $0.set(additionalContext: rates) }
+            },
+            notifyRatesChanged: { [weak self] activation in
+                self?.send(message: .payload(RemoteSamplingChangedMessage(activation: activation)), else: {})
+            }
+        )
+        cachedRemoteSamplingController = created
+        return created
+    }
+
     /// Registry for Features.
     @ReadWriteLock
     private(set) var stores: [String: (storage: FeatureStorage, upload: FeatureUpload)] = [:]
@@ -306,6 +347,19 @@ internal final class DatadogCore {
     /// Stops all processes for this instance of the Datadog core by
     /// deallocating all Features and their storage & upload units.
     func stop() {
+        // Told to stop asking before the Features go, so a retry already on its timer cannot put a
+        // configuration request on the wire after `flushAndTearDown` has promised the caller that
+        // this instance is done.
+        //
+        // Taken out from under the lock and told outside it: `stop()` waits on the controller's own
+        // queue, and holding this lock across that wait would put a lock and a queue hop in the
+        // same order that the context queue — which takes this lock to reach the controller —
+        // could one day meet head on.
+        remoteSamplingControllerLock.lock()
+        let remoteSampling = cachedRemoteSamplingController
+        remoteSamplingControllerLock.unlock()
+        remoteSampling?.stop()
+
         stores = [:]
         features = [:]
     }
@@ -389,7 +443,19 @@ extension DatadogCore: DatadogCoreProtocol {
     }
 
     func set<Context>(context: @escaping () -> Context?) where Context: AdditionalContext {
-        contextProvider.write { $0.set(additionalContext: context()) }
+        contextProvider.write { [weak self] coreContext in
+            // Evaluated on the context queue, never on the caller's thread. The closures features
+            // pass in here read their own scopes, and those scopes are mutated from this queue —
+            // so calling it anywhere else turns an ordinary read into a data race.
+            let value = context()
+            coreContext.set(additionalContext: value)
+            // RUM publishes its configuration source at SDK init and at every session creation;
+            // each publication is one opportunity for the controller to ask the console. No other
+            // context type is a trigger, so rates the controller itself publishes cannot loop.
+            if let source = value as? RemoteSamplingSource {
+                self?.remoteSamplingController.onSourcePublished(source)
+            }
+        }
     }
 
     func send(message: FeatureMessage, else fallback: @escaping () -> Void) {
@@ -634,3 +700,26 @@ internal let registerObjcExceptionHandlerOnce: () -> Void = {
     ObjcException.rethrow = __dd_private_ObjcExceptionHandler.rethrow
     return {}
 }()
+
+extension DatadogCore: RemoteSamplingReader {
+    /// Reads the stored configuration into effect before RUM can draw its first session under it.
+    ///
+    /// The address depends on RUM's own endpoint configuration, which the core does not otherwise
+    /// know, so the caller builds it from the context handed to the closure.
+    @discardableResult
+    func primeRemoteSampling(source: (DatadogContext) -> RemoteSamplingSource?) -> RemoteSamplingRates? {
+        let context = contextProvider.read()
+        guard let source = source(context) else {
+            return nil
+        }
+        return remoteSamplingController.prime(source: source, context: context)
+    }
+
+    var remoteSamplingRates: RemoteSamplingRates? {
+        remoteSamplingControllerLock.lock()
+        defer { remoteSamplingControllerLock.unlock() }
+        // Only the controller that was actually built can have rates; asking for one here would
+        // create it for an app that never opted in.
+        return cachedRemoteSamplingController?.currentRates
+    }
+}

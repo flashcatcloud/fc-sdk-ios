@@ -57,6 +57,19 @@ internal struct RUMScopeDependencies {
     let appStateManager: AppStateManaging
     let watchdogTermination: WatchdogTerminationMonitor?
 
+    /// Whether the console may set sampling rates remotely. When `false` (the default) no
+    /// configuration is ever requested and every session draws with the init values.
+    let remoteConfigurationEnabled: Bool
+    /// The custom RUM intake the configuration endpoint sits next to, when the app set one.
+    let customEndpoint: URL?
+    /// The console's rates as they stand right now, read synchronously.
+    ///
+    /// A closure rather than a value: the draw has to see what is in effect at the draw, and the
+    /// core updates it whenever the console answers. Always nil when the app did not opt in.
+    let remoteSamplingRates: () -> RemoteSamplingRates?
+    /// The host application's last word on the draw, consulted after the console's rate.
+    let beforeSampling: BeforeSamplingCallback?
+
     /// A factory function that creates `ViewEndedMetricController` for each new view started.
     let viewEndedMetricFactory: () -> ViewEndedController
 
@@ -96,7 +109,11 @@ internal struct RUMScopeDependencies {
         watchdogTermination: WatchdogTerminationMonitor?,
         networkSettledMetricFactory: @escaping (Date, String) -> TNSMetricTracking,
         interactionToNextViewMetricFactory: @escaping () -> INVMetricTracking?,
-        sessionType: RUMSessionType?
+        sessionType: RUMSessionType?,
+        remoteConfigurationEnabled: Bool = false,
+        customEndpoint: URL? = nil,
+        remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
+        beforeSampling: BeforeSamplingCallback? = nil
     ) {
         self.featureScope = featureScope
         self.rumApplicationID = rumApplicationID
@@ -123,6 +140,10 @@ internal struct RUMScopeDependencies {
         self.viewEndedMetricFactory = viewEndedMetricFactory
         self.appStateManager = appStateManager
         self.watchdogTermination = watchdogTermination
+        self.remoteConfigurationEnabled = remoteConfigurationEnabled
+        self.customEndpoint = customEndpoint
+        self.remoteSamplingRates = remoteSamplingRates
+        self.beforeSampling = beforeSampling
         self.networkSettledMetricFactory = networkSettledMetricFactory
         self.interactionToNextViewMetricFactory = interactionToNextViewMetricFactory
 

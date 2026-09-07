@@ -14,6 +14,17 @@ internal protocol HTTPClient {
     ///   - delegate: The task-specific delegate.
     ///   - completion: A closure that receives a Result containing either an HTTPURLResponse or an Error.
     func send(request: URLRequest, delegate: URLSessionTaskDelegate?, completion: @escaping (Result<HTTPURLResponse, Error>) -> Void)
+
+    /// Sends the provided request and hands back the response together with its body.
+    ///
+    /// Uploading only needs to know how the backend replied, so `send(request:)` discards the body.
+    /// Asking the backend for something — the sampling configuration the console sets — needs what
+    /// came back, and must go through the same client so it honours the proxy the customer
+    /// configured rather than quietly bypassing it.
+    /// - Parameters:
+    ///   - request: The request to be sent.
+    ///   - completion: A closure that receives a Result containing either the response and its body, or an Error.
+    func fetch(request: URLRequest, completion: @escaping (Result<(response: HTTPURLResponse, body: Data), Error>) -> Void)
 }
 
 extension HTTPClient {

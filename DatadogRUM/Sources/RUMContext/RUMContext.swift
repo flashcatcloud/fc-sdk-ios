@@ -25,4 +25,20 @@ internal struct RUMContext {
     var activeViewName: String?
     /// The ID of active user action.
     var activeUserActionID: RUMUUID?
+
+    /// The configuration the current session was drawn with; `nil` when nothing moved the draw
+    /// away from the value the app was initialised with. Fixed for the session's life — it never
+    /// changes mid-session.
+    var drawnConfiguration: RUMDrawnConfiguration?
+
+    /// The rate this session was actually drawn with, which is what every event it produces
+    /// reports. Falls back to the value the app was initialised with, because that is then the
+    /// rate that decided it.
+    func reportedSessionSampleRate(initialisedWith sampler: Sampler) -> Double {
+        Double(drawnConfiguration?.sessionSampleRate ?? sampler.samplingRate)
+    }
+
+    /// Whether the host application forced this session to be collected. Session Replay reads it
+    /// through the core context so a forced session comes out with replay.
+    var sessionForced: Bool = false
 }

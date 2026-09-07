@@ -42,6 +42,20 @@ internal final class RUMFeature: DatadogRemoteFeature {
         )
 
         let featureScope = core.scope(for: RUMFeature.self)
+
+        // FLASHCAT FORK - read what a previous launch stored BEFORE the first session can be
+        // drawn. The context is how these rates reach other features, but it is written on its own
+        // queue, so a value published there is not yet visible to the draw that needs it — and the
+        // first session of a launch is drawn immediately after `RUM.enable()`. Without this, every
+        // cold start would draw its first session at the values the app was built with and only
+        // take the console's setting from the second session on.
+        let remoteSamplingReader: RemoteSamplingReader? = configuration.remoteConfigurationEnabled
+            ? core as? RemoteSamplingReader
+            : nil
+        let primedRemoteSampling = remoteSamplingReader?.primeRemoteSampling { context in
+            remoteSamplingConfigurationURL(customEndpoint: configuration.customEndpoint, context: context)
+                .map { RemoteSamplingSource(configurationURL: $0) }
+        }
         let sessionEndedMetric = SessionEndedMetricController(
             telemetry: core.telemetry,
             sampleRate: configuration.debugSDK ? 100 : configuration.sessionEndedSampleRate,
@@ -174,13 +188,25 @@ internal final class RUMFeature: DatadogRemoteFeature {
                     predicate: nextViewActionPredicate
                 )
             },
-            sessionType: configuration.sessionTypeOverride.flatMap { RUMSessionType(rawValue: $0) }
+            sessionType: configuration.sessionTypeOverride.flatMap { RUMSessionType(rawValue: $0) },
+            remoteConfigurationEnabled: configuration.remoteConfigurationEnabled,
+            customEndpoint: configuration.customEndpoint,
+            remoteSamplingRates: { [weak remoteSamplingReader] in remoteSamplingReader?.remoteSamplingRates },
+            beforeSampling: configuration.beforeSampling
         )
 
         self.monitor = Monitor(
             dependencies: dependencies,
             dateProvider: configuration.dateProvider
         )
+
+        // FLASHCAT FORK - seed the custom values from the same synchronous read that primed the
+        // rates. They reach the monitor again on the next context broadcast, but that arrives on
+        // another queue, so an app calling `getRemoteConfig()` straight after `RUM.enable()` would
+        // be told nothing was published while the very same stored configuration was already
+        // deciding how its first session was drawn. Reading them to choose whether to force a
+        // session is exactly what the API is documented for, and that call happens at start-up.
+        self.monitor.remoteConfigCustom = primedRemoteSampling?.custom
 
         if let refreshRateVital = dependencies.vitalsReaders?.refreshRate as? RenderLoopReader {
             dependencies.renderLoopObserver?.register(refreshRateVital)
@@ -234,6 +260,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
                 featureScope: featureScope,
                 monitor: monitor
             ),
+            RemoteSamplingReceiver(monitor: monitor),
             FlagEvaluationReceiver(monitor: monitor),
             WebViewEventReceiver(
                 featureScope: featureScope,
@@ -246,6 +273,10 @@ internal final class RUMFeature: DatadogRemoteFeature {
                 applicationID: configuration.applicationID,
                 dateProvider: configuration.dateProvider,
                 sessionSampler: Sampler(samplingRate: configuration.debugSDK ? 100 : configuration.sessionSampleRate),
+                // FLASHCAT FORK - so a crash that arrives with no session of its own is drawn and
+                // reported at the rate the console set, exactly as an ordinary session would be.
+                // Without it an operator who set the rate to zero would still be sent crashes.
+                remoteSamplingRates: { [weak remoteSamplingReader] in remoteSamplingReader?.remoteSamplingRates },
                 trackBackgroundEvents: configuration.trackBackgroundEvents,
                 uuidGenerator: configuration.uuidGenerator,
                 ciTest: configuration.ciTestExecutionID.map { RUMCITest(testExecutionId: $0) },
