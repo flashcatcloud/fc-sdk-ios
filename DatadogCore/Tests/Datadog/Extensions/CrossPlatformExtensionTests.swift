@@ -50,8 +50,12 @@ class CrossPlatformExtensionTests: XCTestCase {
 
         CrossPlatformExtension.subscribe { context in
             if context?.userId != nil && context?.accountId != nil {
-                expectation.fulfill()
+                // Recorded BEFORE the expectation is fulfilled. `waitForExpectations` returns the
+                // moment `fulfill()` runs, and the assertion below reads `lastContext` right after
+                // — on the test thread, while this closure is still on the subscriber's. Fulfilling
+                // first left the read racing the write; it won on a fast machine and lost on CI.
                 lastContext = context
+                expectation.fulfill()
             }
         }
 
