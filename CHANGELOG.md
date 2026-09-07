@@ -9,6 +9,12 @@
 
 ## [Unreleased]
 
+---
+
+## [0.6.0] - 2026-09-06
+
+**Based on Datadog iOS SDK 3.6.0** (same upstream as 0.5.0, no upstream sync)
+
 ### Added
 
 - **Remote sampling configuration for RUM**: `RUM.Configuration.remoteConfigurationEnabled` (default `false`). When enabled, the SDK asks the RUM intake for the session sample rate at SDK initialisation and again whenever a session is created, so the rate can be changed from the console without shipping a release. When it is off, no extra request is made and behaviour is unchanged.
