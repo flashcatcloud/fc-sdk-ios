@@ -18,9 +18,14 @@ class ContextSharingTransformerTests: XCTestCase {
         core = DatadogCoreProxy()
     }
 
-    override func tearDown() {
+    override func tearDownWithError() throws {
+        // `core = nil` alone is not enough: the proxy is only released once its core has been
+        // flushed and torn down, and `DatadogTestsObserver` checks after every test that no
+        // `DatadogCoreProxy` is still alive. Whether the release happens to win that race is
+        // timing — it does on a fast machine and reliably does not on CI.
+        try core.flushAndTearDown()
         core = nil
-        super.tearDown()
+        try super.tearDownWithError()
     }
 
     func testReceiveContextMessage_transformsToSharedContext() throws {
