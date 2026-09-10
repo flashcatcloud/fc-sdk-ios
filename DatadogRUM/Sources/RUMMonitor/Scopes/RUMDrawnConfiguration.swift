@@ -52,12 +52,18 @@ internal struct RUMDrawnConfiguration: Equatable {
 /// A custom endpoint means the app was pointed at the customer's own host for the RUM intake, and
 /// the configuration lives beside it there — which is exactly the layout the private-deployment
 /// nginx template serves.
+///
+/// `sdk` carries `context.source`, not the literal `"ios"`: a cross-platform wrapper sets that
+/// field to its own name (`react-native`, `flutter`, …) and only falls back to `"ios"` for a
+/// native app, so a rule targeting the wrapper matches the runtime the app actually is. It also
+/// keeps the pair honest — `sdk_version` already reports the wrapper's version, so a literal here
+/// would describe one request as two different SDKs.
 internal func remoteSamplingConfigurationURL(customEndpoint: URL?, context: DatadogContext) -> URL? {
     let intake = customEndpoint ?? context.site.endpoint.appendingPathComponent("api/v2/rum")
     var components = URLComponents(url: intake.appendingPathComponent("config"), resolvingAgainstBaseURL: false)
     components?.queryItems = [
         URLQueryItem(name: "client_token", value: context.clientToken),
-        URLQueryItem(name: "sdk", value: "ios"),
+        URLQueryItem(name: "sdk", value: context.source),
         URLQueryItem(name: "sdk_version", value: context.sdkVersion),
         URLQueryItem(name: "env", value: context.env),
         URLQueryItem(name: "app_version", value: context.version)
