@@ -36,7 +36,9 @@ class CrashReporterTests: XCTestCase {
         )
 
         // Then
-        sender.didSendCrashReport = { expectation.fulfill() }
+        // Wait for the read to return, not for the send: the send happens inside the completion,
+        // and the purge decision is only recorded once that completion has returned.
+        plugin.didReadPendingCrashReport = { expectation.fulfill() }
         feature.sendCrashReportIfFound()
 
         waitForExpectations(timeout: 5, handler: nil)

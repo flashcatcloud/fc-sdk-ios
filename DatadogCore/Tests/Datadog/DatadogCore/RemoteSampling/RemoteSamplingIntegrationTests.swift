@@ -41,7 +41,9 @@ final class RemoteSamplingIntegrationTests: XCTestCase {
             performance: .mockAny(),
             httpClient: httpClient,
             encryption: nil,
-            contextProvider: DatadogContextProvider(context: .mockWith(env: "prod", version: "1.0.0")),
+            // A wrapper's name rather than "ios", so the request below proves `sdk` comes from the
+            // context the core carries and not from a literal.
+            contextProvider: DatadogContextProvider(context: .mockWith(env: "prod", version: "1.0.0", source: "react-native")),
             applicationVersion: "1.0.0",
             maxBatchesPerUpload: 1,
             backgroundTasksEnabled: false
@@ -193,7 +195,7 @@ final class RemoteSamplingIntegrationTests: XCTestCase {
 
         let request = try XCTUnwrap(configRequests.first)
         let query = URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?.queryItems
-        XCTAssertEqual(query?.first(where: { $0.name == "sdk" })?.value, "ios")
+        XCTAssertEqual(query?.first(where: { $0.name == "sdk" })?.value, "react-native")
         XCTAssertEqual(query?.first(where: { $0.name == "env" })?.value, "prod")
 
         // And the answer reaches the rest of the SDK, which is the other half of the wiring.
