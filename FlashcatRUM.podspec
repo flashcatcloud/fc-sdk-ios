@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatRUM"
   s.module_name  = "DatadogRUM"
-  s.version      = "0.6.1"
+  s.version      = "0.6.2"
   s.summary      = "Flashcat iOS SDK - Real User Monitoring (RUM) module."
 
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"

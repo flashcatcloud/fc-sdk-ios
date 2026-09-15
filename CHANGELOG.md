@@ -11,7 +11,19 @@
 
 ---
 
-## [0.6.1] - 2026-09-14
+## [0.6.2] - 2026-09-14
+
+**Based on Datadog iOS SDK 3.6.0** (same upstream as 0.6.0, no upstream sync)
+
+0.6.1 was tagged, but its release job stopped at the unit tests before publishing, so it was never published to CocoaPods and should not be used from Swift Package Manager either. 0.6.2 carries the same fix.
+
+### Fixed
+
+- The remote sampling configuration request sends the running SDK's name in `sdk` instead of the literal `ios` (the change described under 0.6.1).
+
+---
+
+## [0.6.1] - 2026-09-14 (not published)
 
 **Based on Datadog iOS SDK 3.6.0** (same upstream as 0.6.0, no upstream sync)
 
