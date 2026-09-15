@@ -29,6 +29,7 @@ class RUMDrawnConfigurationTests: XCTestCase {
             clientToken: "token-1",
             env: "prod",
             version: "1.2.3",
+            source: "ios",
             sdkVersion: "2.3.4"
         )
 
@@ -42,6 +43,29 @@ class RUMDrawnConfigurationTests: XCTestCase {
         XCTAssertEqual(query["sdk_version"], "2.3.4")
         XCTAssertEqual(query["env"], "prod")
         XCTAssertEqual(query["app_version"], "1.2.3")
+    }
+
+    func testConfigurationURLReportsTheWrapperRatherThanTheNativeSDK() throws {
+        // A cross-platform wrapper sets `source` to its own name, and the native SDK carries it
+        // on every event it sends. The configuration request has to agree, or a rule targeting
+        // the wrapper never matches the app that is actually running it.
+        let context: DatadogContext = .mockWith(
+            clientToken: "token-1",
+            env: "prod",
+            version: "1.2.3",
+            source: "react-native",
+            sdkVersion: "9.9.9"
+        )
+
+        let url = try XCTUnwrap(remoteSamplingConfigurationURL(customEndpoint: nil, context: context))
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value) })
+
+        XCTAssertEqual(query["sdk"], "react-native")
+        XCTAssertEqual(
+            query["sdk_version"], "9.9.9",
+            "the version already describes the wrapper, so the name has to describe it too"
+        )
     }
 
     func testConfigurationURLBuildsNextToCustomEndpoint() throws {

@@ -9,6 +9,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The remote sampling configuration request now sends the running SDK's name in `sdk` instead of the literal `ios`. A cross-platform wrapper sets `context.source` to its own name (`react-native`, `flutter`, ...) and the native SDK already stamps that value on every event it sends; the configuration request was the one place that disagreed, so a configuration rule targeting the wrapper never matched the app running it. The same request already reported the wrapper's `sdk_version`, which made a single request describe itself as two different SDKs. A native app is unaffected — `source` falls back to `ios` when no wrapper sets it.
+  - **Rollout note:** an app embedding a wrapper now sends the wrapper's name, so a rule written against `sdk=ios` to reach such an app stops matching and has to be retargeted.
+
 ---
 
 ## [0.6.0] - 2026-09-06
