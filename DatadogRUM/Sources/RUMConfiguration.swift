@@ -73,6 +73,11 @@ extension RUM {
         /// `sessionOnError` takes precedence. A `beforeSampling` that returns 0 turns it off for
         /// that session: 0 means the session is never collected.
         ///
+        /// Such a session has a session id from its start, and other features see it as they see
+        /// any collected session's: logs and traces carry it, and `currentSessionID` returns it.
+        /// The backend only learns of the session if it reports an error, so for a session that
+        /// never does, that id leads nowhere. `onSessionStart` reports such a session as discarded.
+        ///
         /// Default: `false`.
         public var sessionOnError: Bool
 
@@ -474,7 +479,6 @@ extension RUM.Configuration {
     /// - Parameters:
     ///   - applicationID: The RUM application identifier.
     ///   - sessionSampleRate: The sampling rate for RUM sessions. Must be a value between `0` and `100`. Default: `100`.
-    ///   - sessionOnError: Keeps the sessions `sessionSampleRate` does not collect in case they report an error. Default: `false`.
     ///   - uiKitViewsPredicate: The predicate for automatically tracking `UIViewControllers` in `UIKit` as RUM views. Default: `nil`.
     ///   - uiKitActionsPredicate: The UIKit predicate for automatically tracking `UITouch` events as RUM actions. Default: `nil`.
     ///   - swiftUIViewsPredicate: The predicate for automatically tracking `UIViewControllers` in `SwiftUI` as RUM views. Default: `nil`.
@@ -504,11 +508,11 @@ extension RUM.Configuration {
     ///   - collectAccessibility: Determines whether accessibility data should be collected and included in RUM view events. Default: `false`.
     ///   - remoteConfigurationEnabled: Enables remote configuration of sampling rates from the console. Default: `false`.
     ///   - beforeSampling: Has the last word on session sampling. Default: `nil`.
+    ///   - sessionOnError: Keeps the sessions `sessionSampleRate` does not collect in case they report an error. Default: `false`.
     ///   - featureFlags: Experimental feature flags.
     public init(
         applicationID: String,
         sessionSampleRate: SampleRate = .maxSampleRate,
-        sessionOnError: Bool = false,
         uiKitViewsPredicate: UIKitRUMViewsPredicate? = nil,
         uiKitActionsPredicate: UIKitRUMActionsPredicate? = nil,
         swiftUIViewsPredicate: SwiftUIRUMViewsPredicate? = nil,
@@ -536,6 +540,7 @@ extension RUM.Configuration {
         collectAccessibility: Bool = false,
         remoteConfigurationEnabled: Bool = false,
         beforeSampling: BeforeSamplingCallback? = nil,
+        sessionOnError: Bool = false,
         featureFlags: FeatureFlags = .defaults
     ) {
         self.applicationID = applicationID

@@ -37,6 +37,11 @@ extension SessionReplay {
         /// of the replay is collected normally. When RUM's remote configuration is enabled, the
         /// console's `sessionReplayOnError` takes precedence.
         ///
+        /// The console's switch can only act on a Session Replay that is running: with
+        /// `replaySampleRate` at 0 and this value `false`, Session Replay is not enabled at all, and
+        /// the console turning the switch on changes nothing. Set a non-zero rate or this value to
+        /// let the console decide.
+        ///
         /// Default: `false`.
         public var sessionReplayOnError: Bool
 
@@ -79,21 +84,21 @@ extension SessionReplay {
         /// Creates Session Replay configuration
         /// - Parameters:
         ///   - replaySampleRate: The sampling rate for Session Replay. It is applied in addition to the RUM session sample rate.
-        ///   - sessionReplayOnError: Records the replays `replaySampleRate` does not collect in case their session reports an error. Default: `false`.
         ///   - textAndInputPrivacyLevel: The way texts and inputs (e.g. label, textfield, checkbox) should be masked. Default: `.maskAll`.
         ///   - imagePrivacyLevel: The way images should be masked. Default: `.maskAll`.
         ///   - touchPrivacyLevel: The way user touches (e.g. tap) should be masked. Default: `.hide`.
         ///   - startRecordingImmediately: If the recording should start automatically. When `true`, the recording starts automatically; when `false` it doesn't, and the recording will need to be started manually. Default: `true`.
         ///   - customEndpoint: Custom server url for sending replay data. Default: `nil`.
+        ///   - sessionReplayOnError: Records the replays `replaySampleRate` does not collect in case their session reports an error. Default: `false`.
         ///   - featureFlags: Experimental feature flags.
         public init(
             replaySampleRate: SampleRate = .maxSampleRate,
-            sessionReplayOnError: Bool = false,
             textAndInputPrivacyLevel: TextAndInputPrivacyLevel = .maskAll,
             imagePrivacyLevel: ImagePrivacyLevel = .maskAll,
             touchPrivacyLevel: TouchPrivacyLevel = .hide,
             startRecordingImmediately: Bool = true,
             customEndpoint: URL? = nil,
+            sessionReplayOnError: Bool = false,
             featureFlags: FeatureFlags = .defaults
         ) {
             self.replaySampleRate = replaySampleRate

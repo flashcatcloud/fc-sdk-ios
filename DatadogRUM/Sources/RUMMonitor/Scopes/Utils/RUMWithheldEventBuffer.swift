@@ -87,34 +87,25 @@ internal final class RUMWithheldEventBuffer {
     /// - Returns: `false` when the event was not held because it is an error larger than the whole
     ///   budget; the caller writes it straight away instead, so it neither evicts itself nor the
     ///   history preceding it.
-    func hold<T: Encodable, M: Encodable>(
-        value: T,
+    func hold<E: RUMWithheldEvent, M: Encodable>(
+        event: E,
         metadata: M?,
         completion: @escaping CompletionHandler,
         now: Date
     ) -> Bool {
-        guard let event = value as? RUMWithheldEvent else {
-            // Not an event of this session's own making; nothing assembles one today.
-            completion()
-            return true
-        }
         let write: (Writer, Bool) -> Void = { writer, claimingReplay in
-            if claimingReplay {
-                writer.write(value: event.claimingReplay(), metadata: metadata, completion: completion)
-            } else {
-                writer.write(value: value, metadata: metadata, completion: completion)
-            }
+            writer.write(value: claimingReplay ? event.claimingReplay() : event, metadata: metadata, completion: completion)
         }
 
-        if let view = value as? RUMViewEvent {
+        if let view = event as? RUMViewEvent {
             holdView(id: view.view.id, date: view.date, write: write, discard: completion)
             prune(now: now)
             return true
         }
 
-        let eventBytes = (try? JSONEncoder().encode(value).count) ?? 0
+        let eventBytes = (try? JSONEncoder().encode(event).count) ?? 0
         guard eventBytes <= Constants.bytesLimit else {
-            if value is RUMErrorEvent {
+            if event is RUMErrorEvent {
                 return false
             }
             // A single event larger than the whole budget can never be part of a release, and
@@ -156,26 +147,27 @@ internal final class RUMWithheldEventBuffer {
     /// a release often happens right before the app goes away, and the error must not ride in the
     /// last of what still gets out.
     ///
+    /// Views only order the release. A detail whose view is not held - one assembled before any
+    /// view event, or whose view was evicted - is released all the same: the error that releases
+    /// the session must never be the thing that stays behind.
+    ///
     /// - Parameter recordsCountByViewID: the replay records each view still holds. The events
     ///   were assembled while the replay was withheld and could not claim one then; an event whose
     ///   view kept records claims it now, because those records are released alongside it.
     func release(to writer: Writer, now: Date, recordsCountByViewID: [String: Int64] = [:]) -> ReleaseSummary {
         prune(now: now)
 
-        // A detail whose view is gone has no container to hang from, so it would be unreachable.
-        let releasable = details.filter { views[$0.viewID] != nil }
         let orderedViews = viewOrder.compactMap { id in views[id].map { (id, $0) } }.sorted { $0.1.date < $1.1.date }
         let keptReplay = { (viewID: String) in (recordsCountByViewID[viewID] ?? 0) > 0 }
 
         orderedViews.forEach { id, view in view.write(writer, keptReplay(id)) }
-        releasable.filter { $0.tier == .lastResort }.forEach { $0.write(writer, keptReplay($0.viewID)) }
-        releasable.filter { $0.tier != .lastResort }.forEach { $0.write(writer, keptReplay($0.viewID)) }
-        details.filter { views[$0.viewID] == nil }.forEach { $0.discard() }
+        details.filter { $0.tier == .lastResort }.forEach { $0.write(writer, keptReplay($0.viewID)) }
+        details.filter { $0.tier != .lastResort }.forEach { $0.write(writer, keptReplay($0.viewID)) }
 
         let summary = ReleaseSummary(
             viewsCount: orderedViews.count,
-            eventsCount: releasable.count,
-            droppedCount: droppedCount + details.count - releasable.count,
+            eventsCount: details.count,
+            droppedCount: droppedCount,
             bytes: bytes
         )
         clear()

@@ -128,9 +128,11 @@ internal class RecordingCoordinator {
         }
 
         var released = false
-        if replayWithheld, let rumContext = rumContext, rumContext.hasReportedError || rumContext.sessionForced {
-            // The session reported its error, or was forced: what was withheld goes out with the
-            // next record, and from then on the replay is collected like any other.
+        if replayWithheld, let rumContext = rumContext, !rumContext.eventsWithheld,
+           rumContext.hasReportedError || rumContext.sessionForced {
+            // The session reported its error, or was forced, and its events are out: what was
+            // withheld goes out with the next record, and from then on the replay is collected like
+            // any other. Never ahead of the events - until they arrive the session does not exist.
             replayWithheld = false
             released = true
         }

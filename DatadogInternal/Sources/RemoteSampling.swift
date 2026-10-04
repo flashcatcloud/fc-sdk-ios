@@ -62,10 +62,10 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
 
     public init(
         sessionSampleRate: SampleRate?,
-        sessionOnError: Bool? = nil,
-        sessionReplayOnError: Bool? = nil,
         version: Int64 = 0,
-        custom: String? = nil
+        custom: String? = nil,
+        sessionOnError: Bool? = nil,
+        sessionReplayOnError: Bool? = nil
     ) {
         self.sessionSampleRate = sessionSampleRate
         self.sessionOnError = sessionOnError

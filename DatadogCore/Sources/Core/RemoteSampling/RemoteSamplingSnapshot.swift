@@ -51,10 +51,10 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
         }
         return RemoteSamplingRates(
             sessionSampleRate: sessionSampleRate,
-            sessionOnError: sessionOnError,
-            sessionReplayOnError: sessionReplayOnError,
             version: version,
-            custom: custom
+            custom: custom,
+            sessionOnError: sessionOnError,
+            sessionReplayOnError: sessionReplayOnError
         )
     }
 }

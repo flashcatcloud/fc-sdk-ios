@@ -182,7 +182,8 @@ class RUMSessionOnErrorTests: XCTestCase {
         addError(at: 3, on: scope)
 
         XCTAssertTrue(written.isEmpty, "the release waits for its jitter")
-        XCTAssertFalse(session.context.eventsWithheld, "everything else learns of the error at once")
+        XCTAssertTrue(session.context.eventsWithheld, "nothing else of the session may go out ahead of its views")
+        XCTAssertTrue(session.context.sessionHasReportedError)
         let release = try XCTUnwrap(scheduledReleases.first)
         XCTAssertEqual(release.delay, RUMWithheldEventBuffer.releaseDelay(sessionID: session.sessionUUID.toRUMDataFormat))
 
@@ -204,6 +205,23 @@ class RUMSessionOnErrorTests: XCTestCase {
         addAction(at: 5, on: scope)
         XCTAssertEqual(written.count, countBefore + 2) // the action and its view update
         XCTAssertTrue(scheduledReleases.isEmpty)
+    }
+
+    func testAJitteredRelease_tellsTheOtherFeaturesTheEventsAreOut() throws {
+        // Released outside of any command, so the context the replay and the web views wait on
+        // has to be published by the release itself.
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        addError(at: 2, on: scope)
+        scope.publishCoreContext()
+        XCTAssertEqual(featureScope.contextMock.additionalContext(ofType: RUMCoreContext.self)?.eventsWithheld, true)
+
+        fireScheduledReleases()
+
+        let published = try XCTUnwrap(featureScope.contextMock.additionalContext(ofType: RUMCoreContext.self))
+        XCTAssertFalse(published.eventsWithheld)
+        XCTAssertTrue(published.hasReportedError)
+        XCTAssertFalse(written(RUMViewEvent.self).isEmpty, "the events were written before the context said so")
     }
 
     func testTheReleaseIsReportedToTelemetry() {
@@ -362,6 +380,19 @@ class RUMSessionOnErrorTests: XCTestCase {
         XCTAssertTrue(written(RUMActionEvent.self).allSatisfy { $0.session.hasReplay == true })
     }
 
+    func testControl_anOrdinarySessionWithReplay_reportsExactlyWhatItAlwaysDid() throws {
+        let scope = makeScope(sessionSampleRate: 100, sessionOnError: false)
+        replayContext = [SessionReplayCoreContext.HasReplay(value: true)]
+        startView("Home", at: 1, on: scope)
+        addError(at: 2, on: scope)
+
+        let views = written(RUMViewEvent.self).filter { $0.view.name == "Home" }
+        XCTAssertFalse(views.isEmpty)
+        XCTAssertTrue(views.allSatisfy { $0.session.hasReplay == true })
+        XCTAssertTrue(views.allSatisfy { $0.session.sampledForReplay == nil })
+        XCTAssertTrue(views.allSatisfy { $0.session.sampledForErrorReplay == nil && $0.session.sampledForError == nil })
+    }
+
     func testControl_aViewWhoseWithheldReplayWasThrownAway_claimsNoReplay() throws {
         let scope = makeScope()
         startView("Home", at: 1, on: scope)
@@ -407,7 +438,7 @@ class RUMSessionOnErrorTests: XCTestCase {
         let scope = makeScope(sessionOnError: true, remoteRates: { rates })
         let session = try XCTUnwrap(scope.activeSession)
 
-        rates = RemoteSamplingRates(sessionSampleRate: 0, sessionOnError: true, version: 1)
+        rates = RemoteSamplingRates(sessionSampleRate: 0, version: 1, sessionOnError: true)
         announceRatesChanged(at: 1, to: scope)
         announceRatesChanged(at: 2, to: scope, activation: .immediate)
 
@@ -419,7 +450,7 @@ class RUMSessionOnErrorTests: XCTestCase {
         let scope = makeScope(sessionOnError: true, remoteRates: { rates })
         startView("Home", at: 1, on: scope)
 
-        rates = RemoteSamplingRates(sessionSampleRate: 0, sessionOnError: false, version: 1)
+        rates = RemoteSamplingRates(sessionSampleRate: 0, version: 1, sessionOnError: false)
         announceRatesChanged(at: 2, to: scope)
 
         XCTAssertNil(scope.activeSession)
@@ -427,11 +458,11 @@ class RUMSessionOnErrorTests: XCTestCase {
     }
 
     func testASessionDrawnOutAtZero_isRedrawnWhenTheSwitchTurnsOn() throws {
-        var rates: RemoteSamplingRates? = RemoteSamplingRates(sessionSampleRate: 0, sessionOnError: false, version: 1)
+        var rates: RemoteSamplingRates? = RemoteSamplingRates(sessionSampleRate: 0, version: 1, sessionOnError: false)
         let scope = makeScope(sessionOnError: false, remoteRates: { rates })
         XCTAssertEqual(scope.activeSession?.isTracked, false)
 
-        rates = RemoteSamplingRates(sessionSampleRate: 0, sessionOnError: true, version: 2)
+        rates = RemoteSamplingRates(sessionSampleRate: 0, version: 2, sessionOnError: true)
         announceRatesChanged(at: 1, to: scope)
         XCTAssertNil(scope.activeSession, "nothing would ever be seen until the session rotated")
 
@@ -440,33 +471,33 @@ class RUMSessionOnErrorTests: XCTestCase {
     }
 
     func testControl_aSessionDrawnOutAtZero_isLeftAloneWhileTheSwitchStaysOff() throws {
-        var rates: RemoteSamplingRates? = RemoteSamplingRates(sessionSampleRate: 0, sessionOnError: false, version: 1)
+        var rates: RemoteSamplingRates? = RemoteSamplingRates(sessionSampleRate: 0, version: 1, sessionOnError: false)
         let scope = makeScope(sessionOnError: false, remoteRates: { rates })
         let session = try XCTUnwrap(scope.activeSession)
 
-        rates = RemoteSamplingRates(sessionSampleRate: 0, sessionOnError: false, version: 2)
+        rates = RemoteSamplingRates(sessionSampleRate: 0, version: 2, sessionOnError: false)
         announceRatesChanged(at: 1, to: scope)
 
         XCTAssertEqual(scope.activeSession?.sessionUUID, session.sessionUUID)
     }
 
     func testARisingRate_leavesASessionKeptOnErrorAlone() throws {
-        var rates: RemoteSamplingRates? = RemoteSamplingRates(sessionSampleRate: 0, sessionOnError: true, version: 1)
+        var rates: RemoteSamplingRates? = RemoteSamplingRates(sessionSampleRate: 0, version: 1, sessionOnError: true)
         let scope = makeScope(remoteRates: { rates })
         let session = try XCTUnwrap(scope.activeSession)
 
-        rates = RemoteSamplingRates(sessionSampleRate: 50, sessionOnError: true, version: 2)
+        rates = RemoteSamplingRates(sessionSampleRate: 50, version: 2, sessionOnError: true)
         announceRatesChanged(at: 1, to: scope)
 
         XCTAssertEqual(scope.activeSession?.sessionUUID, session.sessionUUID, "the draw is locked for the session")
     }
 
     func testASwitchTurnedOnMidSession_doesNotChangeASessionDrawnAtANonZeroRate() throws {
-        var rates: RemoteSamplingRates? = RemoteSamplingRates(sessionSampleRate: 20, sessionOnError: false, version: 1)
+        var rates: RemoteSamplingRates? = RemoteSamplingRates(sessionSampleRate: 20, version: 1, sessionOnError: false)
         let scope = makeScope(sessionSampleRate: 20, sessionOnError: false, remoteRates: { rates })
         let session = try XCTUnwrap(scope.activeSession)
 
-        rates = RemoteSamplingRates(sessionSampleRate: 20, sessionOnError: true, version: 2)
+        rates = RemoteSamplingRates(sessionSampleRate: 20, version: 2, sessionOnError: true)
         announceRatesChanged(at: 1, to: scope)
 
         XCTAssertEqual(scope.activeSession?.sessionUUID, session.sessionUUID)

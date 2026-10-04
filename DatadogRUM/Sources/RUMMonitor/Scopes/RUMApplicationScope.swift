@@ -195,7 +195,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             // there is nothing to replace.
             if let activeSession = activeSession, !activeSession.isSampled {
                 if activeSession.isSampledOnError {
-                    activeSession.forceRelease(writer: writer)
+                    activeSession.forceRelease(writer: writer, context: context)
                 } else {
                     _process(
                         command: RUMStopSessionCommand(time: forced.time, isRequestedByApplication: false),
@@ -230,7 +230,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
 
             // Nothing can be added to what the session withheld any more: release it if the
             // session reported its error, throw it away otherwise.
-            scope.settleWithheldEvents(writer: writer)
+            scope.settleWithheldEvents(writer: writer, context: context)
 
             // proccss(command:context:writer) returned false, but if the scope is still active
             // it means the session reached one of the end reasons
@@ -269,6 +269,39 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         if activeSessions.count > 1 {
             dependencies.telemetry.error("An application has \(activeSessions.count) active sessions")
         }
+    }
+
+    /// Publishes the RUM context other features read (`RUMCoreContext`) from the current scopes.
+    /// Called after every command, and by a session that released its withheld events outside
+    /// of one.
+    func publishCoreContext() {
+        dependencies.featureScope.set(
+            context: { [weak self] () -> RUMCoreContext? in
+                guard let self = self else {
+                    return nil
+                }
+
+                let context = self.activeSession?.viewScopes.last?.context ??
+                                self.activeSession?.context ??
+                                self.context
+
+                guard context.sessionID != .nullUUID else {
+                    // if Session was sampled or not yet started
+                    return nil
+                }
+
+                return RUMCoreContext(
+                    applicationID: context.rumApplicationID,
+                    sessionID: context.sessionID.rawValue.uuidString.lowercased(),
+                    viewID: context.activeViewID?.rawValue.uuidString.lowercased(),
+                    userActionID: context.activeUserActionID?.rawValue.uuidString.lowercased(),
+                    viewServerTimeOffset: self.activeSession?.viewScopes.last?.serverTimeOffset,
+                    sessionForced: context.sessionForced,
+                    eventsWithheld: context.eventsWithheld,
+                    hasReportedError: context.sessionHasReportedError
+                )
+            }
+        )
     }
 
     // MARK: - Private

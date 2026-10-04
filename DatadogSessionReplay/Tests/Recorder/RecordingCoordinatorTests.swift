@@ -358,6 +358,21 @@ class RecordingCoordinatorTests: XCTestCase {
         XCTAssertEqual(hasReplay, true)
     }
 
+    func test_aReplayWithheldWithTheSessionsEvents_waitsForThoseEventsToBeOut() {
+        // The error is reported before the events go out (they leave behind a jitter); until
+        // they arrive the session does not exist, and a replay sent first has nothing to attach to.
+        prepareRecordingCoordinator(sampler: .mockKeepAll())
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: true))
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: true, hasReportedError: true))
+        XCTAssertEqual(errorReplay?.withheld, true)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayWithheld, true)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: false, hasReportedError: true))
+        XCTAssertEqual(errorReplay?.withheld, false)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayWithheld, false)
+    }
+
     func test_forcingTheSession_releasesTheReplay() {
         prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))

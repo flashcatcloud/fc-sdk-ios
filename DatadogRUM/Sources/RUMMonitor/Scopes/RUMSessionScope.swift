@@ -103,13 +103,12 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     /// FLASHCAT FORK - the events of a session kept on error, until they are released or thrown
     /// away; `nil` for every other session and once released.
     private var withheldEvents: RUMWithheldEventBuffer?
-    /// FLASHCAT FORK - whether this session's events are withheld and still waiting for an error.
-    /// Turns `false` as soon as the error is reported, before the release itself goes out.
-    var eventsWithheld: Bool { withheldEvents != nil && !hasReportedError }
+    /// FLASHCAT FORK - whether this session's events are withheld. Stays `true` until they are
+    /// actually written out - after the error, behind the release jitter - so nothing else of the
+    /// session (its replay, web view events) can reach the backend ahead of its views.
+    var eventsWithheld: Bool { withheldEvents != nil }
     /// The time of the command being processed, which is what the withheld events are aged by.
     private var processingTime: Date
-    /// The replay records each view holds, as last seen; released events claim a replay by it.
-    private var replayRecordsCountByViewID: [String: Int64] = [:]
     /// The configuration this session was drawn with; `nil` when no remote configuration is in
     /// effect. Drawn once here and fixed for the session's life — sessions never flip.
     let drawnConfiguration: RUMDrawnConfiguration?
@@ -356,18 +355,17 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
 
         processingTime = command.time
-        replayRecordsCountByViewID = context.recordsCountByViewID
         if let appLifecycleCommand = command as? RUMHandleAppLifecycleEventCommand,
            appLifecycleCommand.event == .didEnterBackground,
            withheldEvents?.releaseScheduledAt != nil {
             // A release already scheduled goes now rather than after its jitter: the app may not
             // come back. One that has nothing scheduled is kept - backgrounding is usually brief,
             // and the minute it holds is what the next error would need.
-            releaseWithheldEvents(to: writer)
+            releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
         }
         // Every event this session's children assemble goes through the session, which is where
         // errors are noticed and where the events of a session kept on error are withheld.
-        let writer = SessionEventWriter(session: self, writer: writer)
+        let writer = SessionEventWriter(session: self, writer: writer, recordsCountByViewID: context.recordsCountByViewID)
 
         var deactivating = false
         if isActive {
@@ -623,7 +621,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         value: T,
         metadata: M?,
         completion: @escaping CompletionHandler,
-        to writer: Writer
+        to writer: Writer,
+        recordsCountByViewID: [String: Int64]
     ) {
         // Noticed here, after assembly, rather than on the raw error: an error the event mapper
         // dropped never reaches this point, and a session billed for an error nobody can find
@@ -635,11 +634,11 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             scheduleWithheldEventsRelease()
         }
 
-        guard let withheldEvents = withheldEvents else {
+        guard let withheldEvents = withheldEvents, let event = value as? RUMWithheldEvent else {
             writer.write(value: value, metadata: metadata, completion: completion)
             return
         }
-        guard withheldEvents.hold(value: value, metadata: metadata, completion: completion, now: processingTime) else {
+        guard withheldEvents.hold(event: event, metadata: metadata, completion: completion, now: processingTime) else {
             // An error larger than the whole budget. The session has earned its release, so it
             // goes out on its own, leaving the history it follows to the scheduled release.
             writer.write(value: value, metadata: metadata, completion: completion)
@@ -647,7 +646,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
         if error?.error.isCrash == true {
             // The process is about to go away, and the buffer with it: nothing waits for jitter.
-            releaseWithheldEvents(to: writer)
+            releaseWithheldEvents(to: writer, recordsCountByViewID: recordsCountByViewID)
         }
     }
 
@@ -659,21 +658,27 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
         withheldEvents.freezeWindow(at: processingTime)
         let featureScope = dependencies.featureScope
+        let application = parent as? RUMApplicationScope
         dependencies.scheduleWithheldEventsRelease(
             RUMWithheldEventBuffer.releaseDelay(sessionID: sessionUUID.toRUMDataFormat)
-        ) { [weak self] in
+        ) { [weak self, weak application] in
             // Back onto the queue every RUM command is processed on, so the release cannot
             // interleave with the session's own writes. A session that ended in the meantime has
             // already settled its buffer.
             featureScope.eventWriteContext { context, writer in
-                self?.replayRecordsCountByViewID = context.recordsCountByViewID
-                self?.releaseWithheldEvents(to: writer)
+                self?.releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
+                // Released outside of any command, so nothing else would tell the other features
+                // that the session's events are out - and its replay waits for exactly that.
+                application?.publishCoreContext()
             }
         }
     }
 
     /// Writes out everything withheld; from then on the session's events go straight through.
-    private func releaseWithheldEvents(to writer: Writer) {
+    ///
+    /// - Parameter recordsCountByViewID: the replay records each view holds, by which released
+    ///   events claim a replay.
+    private func releaseWithheldEvents(to writer: Writer, recordsCountByViewID: [String: Int64]) {
         guard let withheldEvents = withheldEvents else {
             return
         }
@@ -681,7 +686,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         let summary = withheldEvents.release(
             to: writer,
             now: processingTime,
-            recordsCountByViewID: replayRecordsCountByViewID
+            recordsCountByViewID: recordsCountByViewID
         )
         dependencies.telemetry.debug(
             "Error session event buffer released",
@@ -696,16 +701,16 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
     /// The host application forced this session to be collected: what it withheld goes now,
     /// without waiting for an error or for jitter.
-    func forceRelease(writer: Writer) {
+    func forceRelease(writer: Writer, context: DatadogContext) {
         isForced = true
-        releaseWithheldEvents(to: writer)
+        releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
     }
 
     /// Called once the session is over. What a session that reported its error withheld is
     /// released; what one that did not is thrown away, so the session never reaches the backend.
-    func settleWithheldEvents(writer: Writer) {
+    func settleWithheldEvents(writer: Writer, context: DatadogContext) {
         if hasReportedError {
-            releaseWithheldEvents(to: writer)
+            releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
         } else {
             withheldEvents?.discard()
             withheldEvents = nil
@@ -717,8 +722,9 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 private struct SessionEventWriter: Writer {
     let session: RUMSessionScope
     let writer: Writer
+    let recordsCountByViewID: [String: Int64]
 
     func write<T: Encodable, M: Encodable>(value: T, metadata: M?, completion: @escaping CompletionHandler) {
-        session.write(value: value, metadata: metadata, completion: completion, to: writer)
+        session.write(value: value, metadata: metadata, completion: completion, to: writer, recordsCountByViewID: recordsCountByViewID)
     }
 }

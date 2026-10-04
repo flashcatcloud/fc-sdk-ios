@@ -150,33 +150,7 @@ internal class Monitor: RUMCommandSubscriber {
         }
 
         // update the core context with rum context
-        featureScope.set(
-            context: { [weak self] () -> RUMCoreContext? in
-                guard let self = self else {
-                    return nil
-                }
-
-                let context = self.scopes.activeSession?.viewScopes.last?.context ??
-                                self.scopes.activeSession?.context ??
-                                self.scopes.context
-
-                guard context.sessionID != .nullUUID else {
-                    // if Session was sampled or not yet started
-                    return nil
-                }
-
-                return RUMCoreContext(
-                    applicationID: context.rumApplicationID,
-                    sessionID: context.sessionID.rawValue.uuidString.lowercased(),
-                    viewID: context.activeViewID?.rawValue.uuidString.lowercased(),
-                    userActionID: context.activeUserActionID?.rawValue.uuidString.lowercased(),
-                    viewServerTimeOffset: self.scopes.activeSession?.viewScopes.last?.serverTimeOffset,
-                    sessionForced: context.sessionForced,
-                    eventsWithheld: context.eventsWithheld,
-                    hasReportedError: context.sessionHasReportedError
-                )
-            }
-        )
+        scopes.publishCoreContext()
     }
 
     // TODO: RUMM-896

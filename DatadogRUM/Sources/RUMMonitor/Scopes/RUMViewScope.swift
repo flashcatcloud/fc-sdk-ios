@@ -625,13 +625,17 @@ extension RUMViewScope {
                 // Tells a replay collected only because the session errored apart from one
                 // collected unconditionally.
                 sampledForErrorReplay: errorReplay != nil ? true : nil,
-                // A replay withheld together with the session's events goes out with them, so if
-                // this event is ever uploaded, so is the replay. Reporting the state as it stands
-                // now would mark the whole released batch as a session without one. The same holds
-                // once the session has reported its error: the replay is on its way out.
-                sampledForReplay: hasReplay || errorReplay.map {
-                    !$0.withheld || self.context.eventsWithheld || self.context.sessionHasReportedError
-                } == true ? true : nil,
+                // Reported for a replay kept on error only; any other session reports exactly what
+                // it always did. A replay withheld together with the session's events goes out
+                // with them, so if this event is ever uploaded, so is the replay. Reporting the
+                // state as it stands now would mark the whole released batch as a session without
+                // one. The same holds once the session has reported its error: the replay is on
+                // its way out.
+                sampledForReplay: errorReplay.flatMap { errorReplay in
+                    let sampled = hasReplay || !errorReplay.withheld || self.context.eventsWithheld
+                        || self.context.sessionHasReportedError
+                    return sampled ? true : nil
+                },
                 type: dependencies.sessionType
             ),
             source: .init(rawValue: context.source) ?? .ios,

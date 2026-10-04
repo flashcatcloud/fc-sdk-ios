@@ -59,15 +59,22 @@ internal class SnapshotProcessor: SnapshotProcessing {
     private var recordsCountByViewID: [String: Int64] = [:]
 
     /// FLASHCAT FORK - the records of a replay withheld until its session reports an error: one
-    /// segment, the current view's, starting with a full snapshot. Nothing in it is written until
-    /// the session errors; it is thrown away when the view or the session changes, or once it
-    /// spans more than `withheldReplayDuration`, and recording restarts from a full snapshot.
+    /// segment, the current view's, starting with a full snapshot, with the resources (images)
+    /// its records reference. Nothing in it is written until the session errors; it is thrown
+    /// away when the view or the session changes, once it spans more than
+    /// `withheldReplayDuration`, or once it holds more than `withheldReplayRecordsLimit` records
+    /// or `withheldReplayResourcesLimit` resources, and recording restarts from a full snapshot.
     private var withheldRecords: [EnrichedRecord] = []
+    private var withheldRecordsCount = 0
+    private var withheldResources: [Resource] = []
     private var withheldSince: Date?
     /// How many withheld segments were thrown away before the one finally released.
     private var droppedWithheldSegments = 0
     /// The span a withheld replay may cover - the same minute the withheld events promise.
     static let withheldReplayDuration: TimeInterval = 60
+    /// Memory bounds of a withheld segment, whatever its span.
+    static let withheldReplayRecordsLimit = 2_000
+    static let withheldReplayResourcesLimit = 100
 
     init(
         queue: Queue,
@@ -154,6 +161,7 @@ internal class SnapshotProcessor: SnapshotProcessing {
                     withheldSince = viewTreeSnapshot.context.date
                 }
                 withheldRecords.append(enrichedRecord)
+                withheldRecordsCount += records.count
             } else {
                 recordWriter.write(nextRecord: enrichedRecord)
             }
@@ -163,10 +171,17 @@ internal class SnapshotProcessor: SnapshotProcessing {
         lastSnapshot = viewTreeSnapshot
         lastWireframes = wireframes
 
-        resourceProcessor.process(
-            resources: builder.resources,
-            context: .init(viewTreeSnapshot.context.applicationID)
-        )
+        if viewTreeSnapshot.context.replayWithheld {
+            // Uploading the images of a replay that may never be uploaded would cost the
+            // application the very upload it chose to avoid. They wait with the segment, and are
+            // not marked processed until they actually go.
+            withheldResources.append(contentsOf: builder.resources)
+        } else {
+            resourceProcessor.process(
+                resources: builder.resources,
+                context: .init(viewTreeSnapshot.context.applicationID)
+            )
+        }
     }
 
     private func trackRecord(key: String, value: Int64) {
@@ -188,10 +203,11 @@ internal class SnapshotProcessor: SnapshotProcessing {
         if sameSession && !context.replayWithheld {
             // The session reported its error (or was forced): the segment goes out as recorded.
             withheldRecords.forEach { recordWriter.write(nextRecord: $0) }
+            resourceProcessor.process(resources: withheldResources, context: .init(first.applicationID))
             telemetry.debug(
                 "Error session replay released",
                 attributes: [
-                    "segment.records_count": withheldRecords.reduce(0) { $0 + $1.records.count },
+                    "segment.records_count": withheldRecordsCount,
                     "segment.duration_ms": Int64(context.date.timeIntervalSince(since) * 1_000),
                     "segment.dropped_before": droppedWithheldSegments
                 ]
@@ -201,7 +217,10 @@ internal class SnapshotProcessor: SnapshotProcessing {
             return false
         }
         let sameView = sameSession && first.viewID == context.viewID
-        guard !sameView || context.date.timeIntervalSince(since) > Self.withheldReplayDuration else {
+        let outgrown = context.date.timeIntervalSince(since) > Self.withheldReplayDuration
+            || withheldRecordsCount > Self.withheldReplayRecordsLimit
+            || withheldResources.count > Self.withheldReplayResourcesLimit
+        guard !sameView || outgrown else {
             return false
         }
         // Thrown away: the view or the session changed, or the segment outgrew the window. What it
@@ -218,6 +237,8 @@ internal class SnapshotProcessor: SnapshotProcessing {
 
     private func clearWithheldRecords() {
         withheldRecords = []
+        withheldRecordsCount = 0
+        withheldResources = []
         withheldSince = nil
     }
 }

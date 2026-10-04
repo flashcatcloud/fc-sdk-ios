@@ -81,8 +81,8 @@ class RUMWithheldEventBufferTests: XCTestCase {
     }
 
     @discardableResult
-    private func hold<T: Encodable>(_ event: T, at time: Date, completion: @escaping CompletionHandler = {}) -> Bool {
-        buffer.hold(value: event, metadata: nil as Data?, completion: completion, now: time)
+    private func hold<E: RUMWithheldEvent>(_ event: E, at time: Date, completion: @escaping CompletionHandler = {}) -> Bool {
+        buffer.hold(event: event, metadata: nil as Data?, completion: completion, now: time)
     }
 
     private func release(at time: Date) -> RUMWithheldEventBuffer.ReleaseSummary {
@@ -267,10 +267,24 @@ class RUMWithheldEventBufferTests: XCTestCase {
         XCTAssertEqual(kinds, ["view:v1", "view:v2", "error", "action", "resource"])
     }
 
+    func testAnErrorWhoseViewIsNotHeld_isStillReleased() {
+        // An error assembled before any view event, or hanging from a view that was evicted, is
+        // what releases the session: it must never be the thing left behind.
+        hold(error(on: "never-seen"), at: start)
+        hold(action(on: "never-seen"), at: start)
+
+        let summary = release(at: start)
+
+        XCTAssertEqual(writer.events(ofType: RUMErrorEvent.self).count, 1)
+        XCTAssertEqual(writer.events(ofType: RUMActionEvent.self).count, 1)
+        XCTAssertEqual(summary.eventsCount, 2)
+        XCTAssertEqual(summary.viewsCount, 0)
+    }
+
     func testReleaseKeepsTheMetadataAndCompletionOfEachEvent() {
         var completions = 0
-        buffer.hold(value: view("v1", date: 1), metadata: "view-meta", completion: { completions += 1 }, now: start)
-        buffer.hold(value: action(on: "v1"), metadata: "action-meta", completion: { completions += 1 }, now: start)
+        buffer.hold(event: view("v1", date: 1), metadata: "view-meta", completion: { completions += 1 }, now: start)
+        buffer.hold(event: action(on: "v1"), metadata: "action-meta", completion: { completions += 1 }, now: start)
 
         _ = release(at: start)
 
