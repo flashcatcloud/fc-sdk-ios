@@ -35,6 +35,11 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
 
     public let sessionSampleRate: SampleRate?
 
+    /// Whether a session the rate does not collect is still kept, withheld in memory, in case it
+    /// reports an error (`rum.sessionOnError`). Absent when the console did not set it, and the
+    /// value the app was initialised with then applies.
+    public let sessionOnError: Bool?
+
     /// The version of the console configuration these values came from.
     ///
     /// It survives the kill switch: when the console disables remote configuration the values are
@@ -51,10 +56,12 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
 
     public init(
         sessionSampleRate: SampleRate?,
+        sessionOnError: Bool? = nil,
         version: Int64 = 0,
         custom: String? = nil
     ) {
         self.sessionSampleRate = sessionSampleRate
+        self.sessionOnError = sessionOnError
         self.version = version
         self.custom = custom
     }

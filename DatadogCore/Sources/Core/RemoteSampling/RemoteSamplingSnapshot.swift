@@ -22,6 +22,8 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
     /// was initialised with) but the version is kept, so the client still reports what it runs.
     var enabled: Bool
     var sessionSampleRate: SampleRate?
+    /// `rum.sessionOnError`; absent when the console did not set it.
+    var sessionOnError: Bool?
     /// The console's custom values, as the raw JSON object they were delivered in.
     var custom: String?
 
@@ -31,6 +33,7 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
         etag: nil,
         enabled: false,
         sessionSampleRate: nil,
+        sessionOnError: nil,
         custom: nil
     )
 
@@ -45,6 +48,7 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
         }
         return RemoteSamplingRates(
             sessionSampleRate: sessionSampleRate,
+            sessionOnError: sessionOnError,
             version: version,
             custom: custom
         )
@@ -115,6 +119,7 @@ extension RemoteSamplingResponse {
                     etag: etag,
                     enabled: false,
                     sessionSampleRate: nil,
+                    sessionOnError: nil,
                     custom: nil
                 ),
                 activation: activation
@@ -127,6 +132,7 @@ extension RemoteSamplingResponse {
                 etag: etag,
                 enabled: true,
                 sessionSampleRate: readRate(rum, key: Contract.sessionSampleRate),
+                sessionOnError: readSwitch(rum, key: Contract.sessionOnError),
                 custom: readCustom(root)
             ),
             activation: activation
@@ -174,6 +180,7 @@ extension RemoteSamplingResponse {
         static let rum = "rum"
         static let custom = "custom"
         static let sessionSampleRate = "sessionSampleRate"
+        static let sessionOnError = "sessionOnError"
     }
 
     /// The console's publish counter, so anything that is not a whole, non-negative number cannot
@@ -258,6 +265,16 @@ extension RemoteSamplingResponse {
             return nil
         }
         return SampleRate(rate)
+    }
+
+    /// A switch the response did not send stays absent, so the value passed to init keeps applying.
+    /// So does one that is not a JSON boolean: like a rate, the single field is dropped and the
+    /// rest of the response still applies.
+    private static func readSwitch(_ rum: [String: Any], key: String) -> Bool? {
+        guard let raw = rum[key], let number = raw as? NSNumber, isBoolean(raw) else {
+            return nil
+        }
+        return number.boolValue
     }
 
     /// Custom values are delivered to the host application as the raw JSON object they arrived in.
