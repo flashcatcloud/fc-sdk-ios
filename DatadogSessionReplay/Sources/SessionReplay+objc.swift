@@ -86,6 +86,15 @@ public final class objc_SessionReplayConfiguration: NSObject {
         get { .init(_swift.touchPrivacyLevel) }
     }
 
+    /// FLASHCAT FORK - records the replays `replaySampleRate` does not collect in case their session
+    /// reports an error. See `SessionReplay.Configuration.sessionReplayOnError`.
+    ///
+    /// Default: `NO`.
+    @objc public var sessionReplayOnError: Bool {
+        set { _swift.sessionReplayOnError = newValue }
+        get { _swift.sessionReplayOnError }
+    }
+
     /// Defines it the recording should start automatically. When `true`, the recording starts automatically; when `false` it doesn't, and the recording will need to be started manually.
     ///
     /// Default: `true`.

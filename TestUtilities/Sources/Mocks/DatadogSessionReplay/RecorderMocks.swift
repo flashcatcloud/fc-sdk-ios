@@ -534,7 +534,8 @@ extension Recorder.Context: AnyMockable, RandomMockable {
         touchPrivacy: TouchPrivacyLevel,
         rumContext: RUMCoreContext,
         date: Date = Date(),
-        telemetry: Telemetry = NOPTelemetry()
+        telemetry: Telemetry = NOPTelemetry(),
+        replayWithheld: Bool = false
     ) {
         self.init(
             textAndInputPrivacy: textAndInputPrivacy,
@@ -545,7 +546,8 @@ extension Recorder.Context: AnyMockable, RandomMockable {
             viewID: rumContext.viewID ?? "",
             viewServerTimeOffset: rumContext.viewServerTimeOffset,
             date: date,
-            telemetry: telemetry
+            telemetry: telemetry,
+            replayWithheld: replayWithheld
         )
     }
 }

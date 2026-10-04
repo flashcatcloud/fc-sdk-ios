@@ -24,6 +24,8 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
     var sessionSampleRate: SampleRate?
     /// `rum.sessionOnError`; absent when the console did not set it.
     var sessionOnError: Bool?
+    /// `rum.sessionReplayOnError`; absent when the console did not set it.
+    var sessionReplayOnError: Bool?
     /// The console's custom values, as the raw JSON object they were delivered in.
     var custom: String?
 
@@ -34,6 +36,7 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
         enabled: false,
         sessionSampleRate: nil,
         sessionOnError: nil,
+        sessionReplayOnError: nil,
         custom: nil
     )
 
@@ -49,6 +52,7 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
         return RemoteSamplingRates(
             sessionSampleRate: sessionSampleRate,
             sessionOnError: sessionOnError,
+            sessionReplayOnError: sessionReplayOnError,
             version: version,
             custom: custom
         )
@@ -120,6 +124,7 @@ extension RemoteSamplingResponse {
                     enabled: false,
                     sessionSampleRate: nil,
                     sessionOnError: nil,
+                    sessionReplayOnError: nil,
                     custom: nil
                 ),
                 activation: activation
@@ -133,6 +138,7 @@ extension RemoteSamplingResponse {
                 enabled: true,
                 sessionSampleRate: readRate(rum, key: Contract.sessionSampleRate),
                 sessionOnError: readSwitch(rum, key: Contract.sessionOnError),
+                sessionReplayOnError: readSwitch(rum, key: Contract.sessionReplayOnError),
                 custom: readCustom(root)
             ),
             activation: activation
@@ -181,6 +187,7 @@ extension RemoteSamplingResponse {
         static let custom = "custom"
         static let sessionSampleRate = "sessionSampleRate"
         static let sessionOnError = "sessionOnError"
+        static let sessionReplayOnError = "sessionReplayOnError"
     }
 
     /// The console's publish counter, so anything that is not a whole, non-negative number cannot

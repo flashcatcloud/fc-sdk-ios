@@ -301,6 +301,27 @@ class RUMWithheldEventBufferTests: XCTestCase {
         XCTAssertEqual(completions, 2)
     }
 
+    func testEveryKindOfEventCanClaimTheReplay() {
+        XCTAssertEqual(view("v1", date: 1).claimingReplay().session.hasReplay, true)
+        XCTAssertEqual(error(on: "v1").claimingReplay().session.hasReplay, true)
+        XCTAssertEqual(resource(on: "v1", statusCode: 200).claimingReplay().session.hasReplay, true)
+        XCTAssertEqual(longTask(on: "v1").claimingReplay().session.hasReplay, true)
+        XCTAssertEqual(RUMActionEvent.mockAny().claimingReplay().session.hasReplay, true)
+    }
+
+    func testReleasedEventsClaimTheReplayOnlyWhereTheirViewKeptRecords() {
+        hold(view("v1", date: 1), at: start)
+        hold(action(on: "v1"), at: start)
+        hold(view("v2", date: 2), at: start)
+        hold(error(on: "v2"), at: start)
+
+        _ = buffer.release(to: writer, now: start, recordsCountByViewID: ["v1": 3, "v2": 0])
+
+        XCTAssertEqual(writer.events(ofType: RUMViewEvent.self).map { $0.session.hasReplay == true }, [true, false])
+        XCTAssertEqual(writer.events(ofType: RUMActionEvent.self).first?.session.hasReplay, true)
+        XCTAssertNotEqual(writer.events(ofType: RUMErrorEvent.self).first?.session.hasReplay, true)
+    }
+
     // MARK: - Jitter
 
     func testReleaseDelayIsDeterministicAndWithinTheWindow() {

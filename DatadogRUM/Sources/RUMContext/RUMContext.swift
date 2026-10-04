@@ -56,4 +56,8 @@ internal struct RUMContext {
     /// FLASHCAT FORK - whether the current session's events are withheld, still waiting for an
     /// error. Anything written for the session outside RUM's own scopes must not go out then.
     var eventsWithheld: Bool = false
+
+    /// FLASHCAT FORK - whether the current session has reported an error, which is what releases
+    /// a replay kept on error.
+    var sessionHasReportedError: Bool = false
 }

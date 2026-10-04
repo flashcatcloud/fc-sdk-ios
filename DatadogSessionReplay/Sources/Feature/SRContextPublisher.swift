@@ -21,6 +21,12 @@ internal class SRContextPublisher {
         core?.set(context: SessionReplayCoreContext.HasReplay(value: value))
     }
 
+    /// FLASHCAT FORK - notifies other Features about the replay of a session kept only in case it
+    /// reports an error; `nil` when the current replay is not one.
+    func setErrorReplay(_ value: SessionReplayCoreContext.ErrorReplay?) {
+        core?.set(context: value)
+    }
+
     /// Notifies other Features on the state of Session Replay records count.
     func setRecordsCountByViewID(_ value: [String: Int64]) {
         core?.set(context: SessionReplayCoreContext.RecordsCount(value: value))

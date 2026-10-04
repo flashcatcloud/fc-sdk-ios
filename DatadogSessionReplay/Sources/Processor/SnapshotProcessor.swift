@@ -58,6 +58,17 @@ internal class SnapshotProcessor: SnapshotProcessing {
 
     private var recordsCountByViewID: [String: Int64] = [:]
 
+    /// FLASHCAT FORK - the records of a replay withheld until its session reports an error: one
+    /// segment, the current view's, starting with a full snapshot. Nothing in it is written until
+    /// the session errors; it is thrown away when the view or the session changes, or once it
+    /// spans more than `withheldReplayDuration`, and recording restarts from a full snapshot.
+    private var withheldRecords: [EnrichedRecord] = []
+    private var withheldSince: Date?
+    /// How many withheld segments were thrown away before the one finally released.
+    private var droppedWithheldSegments = 0
+    /// The span a withheld replay may cover - the same minute the withheld events promise.
+    static let withheldReplayDuration: TimeInterval = 60
+
     init(
         queue: Queue,
         recordWriter: RecordWriting,
@@ -80,6 +91,7 @@ internal class SnapshotProcessor: SnapshotProcessing {
     }
 
     private func processSync(viewTreeSnapshot: ViewTreeSnapshot, touchSnapshot: TouchSnapshot?) {
+        let mustRestartSegment = settleWithheldRecords(for: viewTreeSnapshot.context)
         let builder = WireframesBuilder(webViewSlotIDs: viewTreeSnapshot.webViewSlotIDs)
         let nodes = nodesFlattener.flattenNodes(in: viewTreeSnapshot)
 
@@ -95,7 +107,8 @@ internal class SnapshotProcessor: SnapshotProcessing {
 
         var records: [SRRecord] = []
         // Create records for describing UI:
-        if viewTreeSnapshot.context.applicationID != lastSnapshot?.context.applicationID ||
+        if mustRestartSegment ||
+            viewTreeSnapshot.context.applicationID != lastSnapshot?.context.applicationID ||
             viewTreeSnapshot.context.sessionID != lastSnapshot?.context.sessionID ||
             viewTreeSnapshot.context.viewID != lastSnapshot?.context.viewID {
             // If RUM context ids have changed, new segment should be started.
@@ -136,7 +149,14 @@ internal class SnapshotProcessor: SnapshotProcessing {
             let enrichedRecord = EnrichedRecord(context: viewTreeSnapshot.context, records: records)
             trackRecord(key: enrichedRecord.viewID, value: Int64(records.count))
 
-            recordWriter.write(nextRecord: enrichedRecord)
+            if viewTreeSnapshot.context.replayWithheld {
+                if withheldRecords.isEmpty {
+                    withheldSince = viewTreeSnapshot.context.date
+                }
+                withheldRecords.append(enrichedRecord)
+            } else {
+                recordWriter.write(nextRecord: enrichedRecord)
+            }
         }
 
         // Track state:
@@ -152,6 +172,53 @@ internal class SnapshotProcessor: SnapshotProcessing {
     private func trackRecord(key: String, value: Int64) {
         recordsCountByViewID[key, default: 0] += value
         srContextPublisher.setRecordsCountByViewID(recordsCountByViewID)
+    }
+
+    // MARK: - Withheld replay (FLASHCAT FORK)
+
+    /// Releases or throws away what is withheld, before the given snapshot is processed.
+    ///
+    /// - Returns: `true` when the withheld segment of this very view was thrown away, so the
+    ///   snapshot must start a new segment: incremental records cannot follow a dropped history.
+    private func settleWithheldRecords(for context: Recorder.Context) -> Bool {
+        guard let first = withheldRecords.first, let since = withheldSince else {
+            return false
+        }
+        let sameSession = first.applicationID == context.applicationID && first.sessionID == context.sessionID
+        if sameSession && !context.replayWithheld {
+            // The session reported its error (or was forced): the segment goes out as recorded.
+            withheldRecords.forEach { recordWriter.write(nextRecord: $0) }
+            telemetry.debug(
+                "Error session replay released",
+                attributes: [
+                    "segment.records_count": withheldRecords.reduce(0) { $0 + $1.records.count },
+                    "segment.duration_ms": Int64(context.date.timeIntervalSince(since) * 1_000),
+                    "segment.dropped_before": droppedWithheldSegments
+                ]
+            )
+            clearWithheldRecords()
+            droppedWithheldSegments = 0
+            return false
+        }
+        let sameView = sameSession && first.viewID == context.viewID
+        guard !sameView || context.date.timeIntervalSince(since) > Self.withheldReplayDuration else {
+            return false
+        }
+        // Thrown away: the view or the session changed, or the segment outgrew the window. What it
+        // counted is given back, so no view claims a replay that was never uploaded.
+        for record in withheldRecords {
+            let remaining = (recordsCountByViewID[record.viewID] ?? 0) - Int64(record.records.count)
+            recordsCountByViewID[record.viewID] = remaining > 0 ? remaining : nil
+        }
+        srContextPublisher.setRecordsCountByViewID(recordsCountByViewID)
+        droppedWithheldSegments = sameSession ? droppedWithheldSegments + 1 : 0
+        clearWithheldRecords()
+        return sameView
+    }
+
+    private func clearWithheldRecords() {
+        withheldRecords = []
+        withheldSince = nil
     }
 }
 #endif

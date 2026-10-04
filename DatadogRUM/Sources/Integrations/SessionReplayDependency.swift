@@ -19,4 +19,11 @@ extension DatadogContext {
     var recordsCountByViewID: [String: Int64] {
         additionalContext(ofType: SessionReplayCoreContext.RecordsCount.self)?.value ?? [:]
     }
+
+    /// FLASHCAT FORK - the replay of the given session when it is kept only in case the session
+    /// reports an error; `nil` for any other replay, and for one published for another session.
+    func errorReplay(of sessionID: RUMUUID) -> SessionReplayCoreContext.ErrorReplay? {
+        additionalContext(ofType: SessionReplayCoreContext.ErrorReplay.self)
+            .flatMap { $0.sessionID == sessionID.toRUMDataFormat ? $0 : nil }
+    }
 }

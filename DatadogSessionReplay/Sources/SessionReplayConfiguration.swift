@@ -28,6 +28,18 @@ extension SessionReplay {
         /// and within those sessions, only 20% will have replays.
         public var replaySampleRate: Float
 
+        /// Records the replays `replaySampleRate` does not collect in case their session reports an
+        /// error.
+        ///
+        /// Such a replay is recorded but nothing is uploaded until the session reports an error: the
+        /// replay of the current view is kept, at most the last minute of it, and thrown away when
+        /// the session ends without one. When the error comes, what is kept is uploaded and the rest
+        /// of the replay is collected normally. When RUM's remote configuration is enabled, the
+        /// console's `sessionReplayOnError` takes precedence.
+        ///
+        /// Default: `false`.
+        public var sessionReplayOnError: Bool
+
         /// Defines the way text and input (e.g. textfields, checkboxes) should be masked.
         ///
         /// Default: `.maskAll`.
@@ -67,6 +79,7 @@ extension SessionReplay {
         /// Creates Session Replay configuration
         /// - Parameters:
         ///   - replaySampleRate: The sampling rate for Session Replay. It is applied in addition to the RUM session sample rate.
+        ///   - sessionReplayOnError: Records the replays `replaySampleRate` does not collect in case their session reports an error. Default: `false`.
         ///   - textAndInputPrivacyLevel: The way texts and inputs (e.g. label, textfield, checkbox) should be masked. Default: `.maskAll`.
         ///   - imagePrivacyLevel: The way images should be masked. Default: `.maskAll`.
         ///   - touchPrivacyLevel: The way user touches (e.g. tap) should be masked. Default: `.hide`.
@@ -75,6 +88,7 @@ extension SessionReplay {
         ///   - featureFlags: Experimental feature flags.
         public init(
             replaySampleRate: SampleRate = .maxSampleRate,
+            sessionReplayOnError: Bool = false,
             textAndInputPrivacyLevel: TextAndInputPrivacyLevel = .maskAll,
             imagePrivacyLevel: ImagePrivacyLevel = .maskAll,
             touchPrivacyLevel: TouchPrivacyLevel = .hide,
@@ -83,6 +97,7 @@ extension SessionReplay {
             featureFlags: FeatureFlags = .defaults
         ) {
             self.replaySampleRate = replaySampleRate
+            self.sessionReplayOnError = sessionReplayOnError
             self.textAndInputPrivacyLevel = textAndInputPrivacyLevel
             self.imagePrivacyLevel = imagePrivacyLevel
             self.touchPrivacyLevel = touchPrivacyLevel

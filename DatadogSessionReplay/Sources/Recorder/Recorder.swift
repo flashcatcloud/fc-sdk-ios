@@ -40,6 +40,9 @@ public class Recorder: Recording {
         let date: Date
         /// The telemetry instance to report to.
         let telemetry: Telemetry
+        /// FLASHCAT FORK - whether the records of this replay are withheld until its session
+        /// reports an error.
+        let replayWithheld: Bool
 
         internal init(
             textAndInputPrivacy: TextAndInputPrivacyLevel,
@@ -50,7 +53,8 @@ public class Recorder: Recording {
             viewID: String,
             viewServerTimeOffset: TimeInterval?,
             date: Date,
-            telemetry: Telemetry
+            telemetry: Telemetry,
+            replayWithheld: Bool = false
         ) {
             self.textAndInputPrivacy = textAndInputPrivacy
             self.imagePrivacy = imagePrivacy
@@ -61,6 +65,7 @@ public class Recorder: Recording {
             self.viewServerTimeOffset = viewServerTimeOffset
             self.date = date
             self.telemetry = telemetry
+            self.replayWithheld = replayWithheld
         }
     }
 

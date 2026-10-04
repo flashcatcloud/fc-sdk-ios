@@ -44,8 +44,13 @@ class RUMSessionOnErrorTests: XCTestCase {
         return scope
     }
 
+    /// What Session Replay publishes, as RUM reads it from the core context.
+    private var replayContext: [AdditionalContext] = []
+
     private func process(_ command: RUMCommand, on scope: RUMApplicationScope) {
-        _ = scope.process(command: command, context: .mockWith(sdkInitDate: start), writer: writer)
+        var context: DatadogContext = .mockWith(sdkInitDate: start)
+        replayContext.forEach { context.set(additionalContext: $0) }
+        _ = scope.process(command: command, context: context, writer: writer)
     }
 
     private func at(_ seconds: TimeInterval) -> Date {
@@ -323,6 +328,70 @@ class RUMSessionOnErrorTests: XCTestCase {
         XCTAssertTrue(views.allSatisfy { $0.session.sampledForError == nil })
         XCTAssertTrue(views.allSatisfy { $0.dd.configuration?.sessionSampleRate == 100 })
         XCTAssertTrue(scheduledReleases.isEmpty)
+    }
+
+    // MARK: - Replay kept on error
+
+    private func replayKeptOnError(by scope: RUMApplicationScope, withheld: Bool, records: Int64) throws {
+        let session = try XCTUnwrap(scope.activeSession)
+        let viewID = try XCTUnwrap(session.viewScopes.last?.viewUUID.toRUMDataFormat)
+        replayContext = [
+            SessionReplayCoreContext.ErrorReplay(sessionID: session.sessionUUID.toRUMDataFormat, withheld: withheld),
+            SessionReplayCoreContext.RecordsCount(value: [viewID: records]),
+            SessionReplayCoreContext.HasReplay(value: !withheld)
+        ]
+        replayContext.forEach { featureScope.contextMock.set(additionalContext: $0) } // what the jittered release reads
+    }
+
+    func testAReplayWithheldWithTheEvents_isReportedAsSampled_andReleasedEventsClaimIt() throws {
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        try replayKeptOnError(by: scope, withheld: true, records: 5)
+        addAction(at: 2, on: scope)
+
+        addError(at: 3, on: scope)
+        fireScheduledReleases()
+
+        // The view the replay recorded; the launch view before it was assembled before any replay.
+        let views = written(RUMViewEvent.self).filter { $0.view.name == "Home" }
+        XCTAssertFalse(views.isEmpty)
+        XCTAssertTrue(views.allSatisfy { $0.session.sampledForErrorReplay == true })
+        XCTAssertTrue(views.allSatisfy { $0.session.sampledForReplay == true }, "the replay goes out with these events")
+        XCTAssertTrue(views.allSatisfy { $0.session.hasReplay == true }, "their view kept records, released alongside")
+        XCTAssertEqual(written(RUMErrorEvent.self).first?.session.hasReplay, true)
+        XCTAssertTrue(written(RUMActionEvent.self).allSatisfy { $0.session.hasReplay == true })
+    }
+
+    func testControl_aViewWhoseWithheldReplayWasThrownAway_claimsNoReplay() throws {
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        try replayKeptOnError(by: scope, withheld: true, records: 0)
+        addAction(at: 2, on: scope)
+
+        addError(at: 3, on: scope)
+        fireScheduledReleases()
+
+        XCTAssertFalse(written(RUMViewEvent.self).isEmpty)
+        XCTAssertTrue(written(RUMViewEvent.self).allSatisfy { $0.session.hasReplay != true })
+        XCTAssertNotEqual(written(RUMErrorEvent.self).first?.session.hasReplay, true)
+    }
+
+    func testInACollectedSession_theErrorReleasingAWithheldReplay_claimsIt() throws {
+        let scope = makeScope(sessionSampleRate: 100)
+        startView("Home", at: 1, on: scope)
+        try replayKeptOnError(by: scope, withheld: true, records: 5)
+        addAction(at: 1.5, on: scope)
+        let viewBeforeTheError = try XCTUnwrap(written(RUMViewEvent.self).last)
+        XCTAssertNil(viewBeforeTheError.session.sampledForReplay, "withheld while the events are not: it may never be uploaded")
+        XCTAssertNil(viewBeforeTheError.dd.replayStats?.recordsCount, "withheld records may yet be thrown away")
+
+        addError(at: 2, on: scope)
+
+        XCTAssertEqual(written(RUMErrorEvent.self).first?.session.hasReplay, true)
+        let lastView = try XCTUnwrap(written(RUMViewEvent.self).last)
+        XCTAssertEqual(lastView.session.sampledForErrorReplay, true)
+        XCTAssertEqual(lastView.session.sampledForReplay, true, "the error releases it")
+        XCTAssertNil(lastView.session.sampledForError)
     }
 
     // MARK: - Remote configuration

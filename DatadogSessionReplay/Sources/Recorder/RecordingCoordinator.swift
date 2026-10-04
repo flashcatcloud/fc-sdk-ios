@@ -23,6 +23,15 @@ internal class RecordingCoordinator {
 
     private var currentRUMContext: RUMCoreContext? = nil
     private var isSampled = false
+    /// FLASHCAT FORK - whether the current replay is recorded only in case its session reports an
+    /// error, and whether its records are still withheld waiting for it.
+    private var isSampledOnError = false
+    private var replayWithheld = false
+    private var publishedErrorReplay: SessionReplayCoreContext.ErrorReplay?
+    /// FLASHCAT FORK - whether a replay the draw leaves out is recorded in case its session reports
+    /// an error: the console's `sessionReplayOnError` where it published one, the init value
+    /// otherwise. Read at each draw.
+    private let sessionReplayOnError: () -> Bool
 
     /// `recordingEnabled` is used to track when the user 
     /// has enabled or disabled the recording for Session Replay.
@@ -44,6 +53,7 @@ internal class RecordingCoordinator {
         sampler: Sampler,
         telemetry: Telemetry,
         startRecordingImmediately: Bool,
+        sessionReplayOnError: @escaping () -> Bool = { false },
         methodCallTelemetrySamplingRate: Float = 0.1
     ) {
         self.recorder = recorder
@@ -55,6 +65,7 @@ internal class RecordingCoordinator {
         self.srContextPublisher = srContextPublisher
         self.telemetry = telemetry
         self.methodCallTelemetrySamplingRate = methodCallTelemetrySamplingRate
+        self.sessionReplayOnError = sessionReplayOnError
 
         srContextPublisher.setHasReplay(false)
 
@@ -102,19 +113,49 @@ internal class RecordingCoordinator {
             // FLASHCAT FORK - a session the host application forced skips replay's own draw:
             // forcing exists to debug one visitor, and a replay-less recording of them is not the
             // thing that was asked for.
-            isSampled = rumContext?.sessionForced == true || sampler.sample()
+            let drawn = rumContext?.sessionForced == true || sampler.sample()
+            // FLASHCAT FORK - a replay the draw leaves out is still recorded, withheld, when it is
+            // kept in case the session errors. And a session RUM itself keeps on error withholds
+            // whatever replay it draws: until its events are released the backend has no such
+            // session, and a replay uploaded before them would have nothing to attach to.
+            let keptOnError = rumContext != nil && !drawn && sessionReplayOnError()
+            isSampled = drawn || keptOnError
+            isSampledOnError = keptOnError || (isSampled && rumContext?.eventsWithheld == true)
+            replayWithheld = isSampledOnError
+        } else if rumContext?.sessionForced == true && currentRUMContext?.sessionForced != true {
+            // Forced while it runs: the host application wants this visitor recorded from now on.
+            isSampled = true
+        }
+
+        var released = false
+        if replayWithheld, let rumContext = rumContext, rumContext.hasReportedError || rumContext.sessionForced {
+            // The session reported its error, or was forced: what was withheld goes out with the
+            // next record, and from then on the replay is collected like any other.
+            replayWithheld = false
+            released = true
         }
 
         currentRUMContext = rumContext
 
+        let errorReplay = rumContext.flatMap { isSampledOnError ? SessionReplayCoreContext.ErrorReplay(sessionID: $0.sessionID, withheld: replayWithheld) : nil }
+        if errorReplay != publishedErrorReplay {
+            srContextPublisher.setErrorReplay(errorReplay)
+            publishedErrorReplay = errorReplay
+        }
         evaluateRecordingConditions()
+        if released && recordingEnabled {
+            // Take that next record now, rather than whenever the screen next changes: the app may
+            // be about to go away.
+            captureNextRecord()
+        }
     }
 
     /// Updates the `has_replay` flag to indicate if recording is active.
     private func updateHasReplay() {
         /// `has_replay` is set to `true` only when the session is sampled
-        /// and  the user has enabled the recording.
-        let hasReplay = isSampled == true && recordingEnabled == true
+        /// and  the user has enabled the recording. FLASHCAT FORK - and not while the replay is
+        /// withheld: it may never be uploaded.
+        let hasReplay = isSampled == true && recordingEnabled == true && !replayWithheld
         srContextPublisher.setHasReplay(hasReplay)
     }
 
@@ -135,7 +176,8 @@ internal class RecordingCoordinator {
             viewID: viewID,
             viewServerTimeOffset: rumContext.viewServerTimeOffset,
             date: Date(),
-            telemetry: telemetry
+            telemetry: telemetry,
+            replayWithheld: replayWithheld
         )
 
         let methodCalledTrace = telemetry.startMethodCalled(

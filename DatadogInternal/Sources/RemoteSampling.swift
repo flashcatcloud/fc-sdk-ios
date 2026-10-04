@@ -24,9 +24,10 @@ public struct RemoteSamplingSource: AdditionalContext, Equatable {
 
 /// The configuration values the console last provided.
 ///
-/// The core is the only writer and RUM the only reader: it draws each new session against these
-/// values. Session Replay is not a reader — it samples with the rate the app configured and follows
-/// RUM's decision about the session — so a replay rate is not delivered on this fork. A knob is
+/// The core is the only writer and RUM the main reader: it draws each new session against these
+/// values. Session Replay samples with the rate the app configured and follows RUM's decision about
+/// the session — so a replay rate is not delivered on this fork — and reads only
+/// `sessionReplayOnError`, when it draws the replay of a new session. A knob is
 /// absent — never zero — when the console did not set it, and the feature then keeps the value the
 /// app was initialised with. Reporting a zero we invented would silently stop collection nobody
 /// asked to stop.
@@ -39,6 +40,11 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
     /// reports an error (`rum.sessionOnError`). Absent when the console did not set it, and the
     /// value the app was initialised with then applies.
     public let sessionOnError: Bool?
+
+    /// Whether a replay the replay rate does not collect is still recorded, withheld in memory, in
+    /// case its session reports an error (`rum.sessionReplayOnError`). Absent when the console did
+    /// not set it, and the value Session Replay was initialised with then applies.
+    public let sessionReplayOnError: Bool?
 
     /// The version of the console configuration these values came from.
     ///
@@ -57,11 +63,13 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
     public init(
         sessionSampleRate: SampleRate?,
         sessionOnError: Bool? = nil,
+        sessionReplayOnError: Bool? = nil,
         version: Int64 = 0,
         custom: String? = nil
     ) {
         self.sessionSampleRate = sessionSampleRate
         self.sessionOnError = sessionOnError
+        self.sessionReplayOnError = sessionReplayOnError
         self.version = version
         self.custom = custom
     }

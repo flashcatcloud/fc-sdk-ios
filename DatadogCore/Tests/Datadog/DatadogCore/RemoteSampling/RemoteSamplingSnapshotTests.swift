@@ -144,6 +144,14 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         }
     }
 
+    func testReadsTheReplayOnErrorSwitch() throws {
+        let body = #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionReplayOnError": true } }"#
+        let response = try RemoteSamplingResponse.parse(body: body.data(using: .utf8)!, etag: .mockAny())
+
+        XCTAssertEqual(response.snapshot.rates.sessionReplayOnError, true)
+        XCTAssertNil(response.snapshot.rates.sessionOnError, "the two switches are read apart")
+    }
+
     func testTheKillSwitchClearsTheOnErrorSwitchToo() throws {
         let body = #"{ "schema_version": 1, "version": 4, "enabled": false, "rum": { "sessionOnError": true } }"#
         let response = try RemoteSamplingResponse.parse(body: body.data(using: .utf8)!, etag: .mockAny())

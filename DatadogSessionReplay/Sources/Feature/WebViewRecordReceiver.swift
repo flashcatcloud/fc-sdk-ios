@@ -32,6 +32,13 @@ internal struct WebViewRecordReceiver: FeatureMessageReceiver {
             guard let rumContext = context.additionalContext(ofType: RUMCoreContext.self) else {
                 return
             }
+            // FLASHCAT FORK - a replay withheld until its session errors cannot hold web records
+            // (they hang from web views its segment does not carry), so they are not written.
+            let errorReplay = context.additionalContext(ofType: SessionReplayCoreContext.ErrorReplay.self)
+            guard !rumContext.eventsWithheld,
+                  !(errorReplay?.sessionID == rumContext.sessionID && errorReplay?.withheld == true) else {
+                return
+            }
 
             var event = event
 

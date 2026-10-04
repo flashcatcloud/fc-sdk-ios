@@ -38,6 +38,23 @@ public enum SessionReplayCoreContext {
         }
     }
 
+    /// FLASHCAT FORK - the replay of a session that is kept only in case the session reports an
+    /// error (`sessionReplayOnError`, or a session kept on error by RUM). Absent for any other
+    /// replay.
+    public struct ErrorReplay: AdditionalContext, Equatable {
+        public static let key = "sr_error_replay"
+
+        /// The RUM session the replay belongs to.
+        public let sessionID: String
+        /// Whether its records are still withheld, waiting for the session's error.
+        public let withheld: Bool
+
+        public init(sessionID: String, withheld: Bool) {
+            self.sessionID = sessionID
+            self.withheld = withheld
+        }
+    }
+
     /// The Session Replay configuration.
     public struct Configuration: AdditionalContext {
         public static let key = "sr_configuration"

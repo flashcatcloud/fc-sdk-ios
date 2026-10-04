@@ -570,6 +570,8 @@ extension RUMViewScope {
         // history. With no remote configuration in effect the init values are reported, exactly
         // as before remote configuration existed.
         let drawnConfiguration = self.context.drawnConfiguration
+        // FLASHCAT FORK - a replay kept only in case the session errors.
+        let errorReplay = context.errorReplay(of: self.context.sessionID)
 
         let viewEvent = RUMViewEvent(
             dd: .init(
@@ -586,7 +588,9 @@ extension RUMViewScope {
                 documentVersion: version.toInt64,
                 pageStates: nil,
                 replayStats: .init(
-                    recordsCount: context.recordsCountByViewID[viewUUID.toRUMDataFormat],
+                    // FLASHCAT FORK - records still withheld may yet be thrown away, so they are
+                    // not reported until the replay is released.
+                    recordsCount: errorReplay?.withheld == true ? nil : context.recordsCountByViewID[viewUUID.toRUMDataFormat],
                     segmentsCount: nil,
                     segmentsTotalRawSize: nil
                 ),
@@ -618,7 +622,16 @@ extension RUMViewScope {
                 // FLASHCAT FORK - tells the backend this session's detail only starts where the
                 // withheld buffer reached, so the gap before it reads as "not collected".
                 sampledForError: self.context.sessionSampledOnError ? true : nil,
-                sampledForReplay: nil,
+                // Tells a replay collected only because the session errored apart from one
+                // collected unconditionally.
+                sampledForErrorReplay: errorReplay != nil ? true : nil,
+                // A replay withheld together with the session's events goes out with them, so if
+                // this event is ever uploaded, so is the replay. Reporting the state as it stands
+                // now would mark the whole released batch as a session without one. The same holds
+                // once the session has reported its error: the replay is on its way out.
+                sampledForReplay: hasReplay || errorReplay.map {
+                    !$0.withheld || self.context.eventsWithheld || self.context.sessionHasReportedError
+                } == true ? true : nil,
                 type: dependencies.sessionType
             ),
             source: .init(rawValue: context.source) ?? .ios,
@@ -791,7 +804,7 @@ extension RUMViewScope {
             os: context.os,
             service: context.service,
             session: .init(
-                hasReplay: context.hasReplay,
+                hasReplay: claimsWithheldReplay(context: context) ? true : context.hasReplay,
                 id: self.context.sessionID.toRUMDataFormat,
                 type: dependencies.sessionType
             ),
@@ -818,6 +831,15 @@ extension RUMViewScope {
             // view update is written.
             command.completionHandler()
         }
+    }
+
+    /// FLASHCAT FORK - whether an error claims a replay that is still withheld. The error is what
+    /// releases it, so the records its view still holds are uploaded alongside it; it is the event
+    /// the console opens the replay from. Judged by what the view holds, not by the recorder
+    /// running: a view whose withheld records were all thrown away has nothing to offer.
+    private func claimsWithheldReplay(context: DatadogContext) -> Bool {
+        context.errorReplay(of: self.context.sessionID)?.withheld == true
+            && (context.recordsCountByViewID[viewUUID.toRUMDataFormat] ?? 0) > 0
     }
 
     private func sendLongTaskEvent(on command: RUMAddLongTaskCommand, context: DatadogContext, writer: Writer) {

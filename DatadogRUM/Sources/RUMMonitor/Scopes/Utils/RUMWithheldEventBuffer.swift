@@ -49,14 +49,14 @@ internal final class RUMWithheldEventBuffer {
         let time: Date
         let bytes: Int
         let tier: EvictionTier
-        let write: (Writer) -> Void
+        let write: (Writer, _ claimingReplay: Bool) -> Void
         let discard: () -> Void
     }
 
     private struct HeldView {
         /// The view's start date, as the event reports it.
         let date: Int64
-        let write: (Writer) -> Void
+        let write: (Writer, _ claimingReplay: Bool) -> Void
         let discard: () -> Void
     }
 
@@ -98,7 +98,13 @@ internal final class RUMWithheldEventBuffer {
             completion()
             return true
         }
-        let write: (Writer) -> Void = { $0.write(value: value, metadata: metadata, completion: completion) }
+        let write: (Writer, Bool) -> Void = { writer, claimingReplay in
+            if claimingReplay {
+                writer.write(value: event.claimingReplay(), metadata: metadata, completion: completion)
+            } else {
+                writer.write(value: value, metadata: metadata, completion: completion)
+            }
+        }
 
         if let view = value as? RUMViewEvent {
             holdView(id: view.view.id, date: view.date, write: write, discard: completion)
@@ -149,16 +155,21 @@ internal final class RUMWithheldEventBuffer {
     /// the session out of whichever view arrives first), then errors, then the rest oldest first:
     /// a release often happens right before the app goes away, and the error must not ride in the
     /// last of what still gets out.
-    func release(to writer: Writer, now: Date) -> ReleaseSummary {
+    ///
+    /// - Parameter recordsCountByViewID: the replay records each view still holds. The events
+    ///   were assembled while the replay was withheld and could not claim one then; an event whose
+    ///   view kept records claims it now, because those records are released alongside it.
+    func release(to writer: Writer, now: Date, recordsCountByViewID: [String: Int64] = [:]) -> ReleaseSummary {
         prune(now: now)
 
         // A detail whose view is gone has no container to hang from, so it would be unreachable.
         let releasable = details.filter { views[$0.viewID] != nil }
-        let orderedViews = viewOrder.compactMap { views[$0] }.sorted { $0.date < $1.date }
+        let orderedViews = viewOrder.compactMap { id in views[id].map { (id, $0) } }.sorted { $0.1.date < $1.1.date }
+        let keptReplay = { (viewID: String) in (recordsCountByViewID[viewID] ?? 0) > 0 }
 
-        orderedViews.forEach { $0.write(writer) }
-        releasable.filter { $0.tier == .lastResort }.forEach { $0.write(writer) }
-        releasable.filter { $0.tier != .lastResort }.forEach { $0.write(writer) }
+        orderedViews.forEach { id, view in view.write(writer, keptReplay(id)) }
+        releasable.filter { $0.tier == .lastResort }.forEach { $0.write(writer, keptReplay($0.viewID)) }
+        releasable.filter { $0.tier != .lastResort }.forEach { $0.write(writer, keptReplay($0.viewID)) }
         details.filter { views[$0.viewID] == nil }.forEach { $0.discard() }
 
         let summary = ReleaseSummary(
@@ -180,7 +191,7 @@ internal final class RUMWithheldEventBuffer {
 
     // MARK: - Private
 
-    private func holdView(id: String, date: Int64, write: @escaping (Writer) -> Void, discard: @escaping () -> Void) {
+    private func holdView(id: String, date: Int64, write: @escaping (Writer, Bool) -> Void, discard: @escaping () -> Void) {
         // Upsert: a view event is cumulative, so the latest one supersedes the ones before it.
         views[id]?.discard()
         viewOrder.removeAll { $0 == id }
@@ -273,13 +284,28 @@ internal final class RUMWithheldEventBuffer {
 }
 
 /// An event the buffer can hold: one that says which view it hangs from.
-internal protocol RUMWithheldEvent {
+internal protocol RUMWithheldEvent: Codable {
     var viewID: String { get }
     var evictionTier: RUMWithheldEventBuffer.EvictionTier { get }
 }
 
 extension RUMWithheldEvent {
     var evictionTier: RUMWithheldEventBuffer.EvictionTier { .last }
+
+    /// The same event, claiming the session's replay (`session.has_replay`). The generated models
+    /// keep the field immutable, so it is set through their JSON form; an event that does not
+    /// round-trip is written as it was.
+    func claimingReplay() -> Self {
+        guard let data = try? JSONEncoder().encode(self),
+              var json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              var session = json["session"] as? [String: Any] else {
+            return self
+        }
+        session["has_replay"] = true
+        json["session"] = session
+        return (try? JSONSerialization.data(withJSONObject: json))
+            .flatMap { try? JSONDecoder().decode(Self.self, from: $0) } ?? self
+    }
 }
 
 extension RUMViewEvent: RUMWithheldEvent {

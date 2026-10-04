@@ -108,6 +108,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     var eventsWithheld: Bool { withheldEvents != nil && !hasReportedError }
     /// The time of the command being processed, which is what the withheld events are aged by.
     private var processingTime: Date
+    /// The replay records each view holds, as last seen; released events claim a replay by it.
+    private var replayRecordsCountByViewID: [String: Int64] = [:]
     /// The configuration this session was drawn with; `nil` when no remote configuration is in
     /// effect. Drawn once here and fixed for the session's life — sessions never flip.
     let drawnConfiguration: RUMDrawnConfiguration?
@@ -321,6 +323,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         context.sessionForced = isForced
         context.sessionSampledOnError = isSampledOnError
         context.eventsWithheld = eventsWithheld
+        context.sessionHasReportedError = hasReportedError
         return context
     }
 
@@ -353,6 +356,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
 
         processingTime = command.time
+        replayRecordsCountByViewID = context.recordsCountByViewID
         if let appLifecycleCommand = command as? RUMHandleAppLifecycleEventCommand,
            appLifecycleCommand.event == .didEnterBackground,
            withheldEvents?.releaseScheduledAt != nil {
@@ -661,7 +665,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             // Back onto the queue every RUM command is processed on, so the release cannot
             // interleave with the session's own writes. A session that ended in the meantime has
             // already settled its buffer.
-            featureScope.eventWriteContext { _, writer in
+            featureScope.eventWriteContext { context, writer in
+                self?.replayRecordsCountByViewID = context.recordsCountByViewID
                 self?.releaseWithheldEvents(to: writer)
             }
         }
@@ -673,7 +678,11 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             return
         }
         self.withheldEvents = nil
-        let summary = withheldEvents.release(to: writer, now: processingTime)
+        let summary = withheldEvents.release(
+            to: writer,
+            now: processingTime,
+            recordsCountByViewID: replayRecordsCountByViewID
+        )
         dependencies.telemetry.debug(
             "Error session event buffer released",
             attributes: [
