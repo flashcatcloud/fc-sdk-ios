@@ -192,7 +192,8 @@ internal final class RUMFeature: DatadogRemoteFeature {
             remoteConfigurationEnabled: configuration.remoteConfigurationEnabled,
             customEndpoint: configuration.customEndpoint,
             remoteSamplingRates: { [weak remoteSamplingReader] in remoteSamplingReader?.remoteSamplingRates },
-            beforeSampling: configuration.beforeSampling
+            beforeSampling: configuration.beforeSampling,
+            sessionOnError: configuration.sessionOnError
         )
 
         self.monitor = Monitor(

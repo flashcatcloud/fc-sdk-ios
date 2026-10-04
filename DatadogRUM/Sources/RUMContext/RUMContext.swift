@@ -34,11 +34,26 @@ internal struct RUMContext {
     /// The rate this session was actually drawn with, which is what every event it produces
     /// reports. Falls back to the value the app was initialised with, because that is then the
     /// rate that decided it.
+    ///
+    /// A session kept only because it reports an error reports 0 whatever it was drawn at: it
+    /// stands for itself, not for `100 / rate` sessions, and 0 is what the backend reads as "one
+    /// session, do not scale". Decided from how the session was kept rather than from the draw.
     func reportedSessionSampleRate(initialisedWith sampler: Sampler) -> Double {
-        Double(drawnConfiguration?.sessionSampleRate ?? sampler.samplingRate)
+        if sessionSampledOnError {
+            return 0
+        }
+        return Double(drawnConfiguration?.sessionSampleRate ?? sampler.samplingRate)
     }
 
     /// Whether the host application forced this session to be collected. Session Replay reads it
     /// through the core context so a forced session comes out with replay.
     var sessionForced: Bool = false
+
+    /// FLASHCAT FORK - whether the current session is kept only because it reports an error
+    /// (`sessionOnError`). Stays `true` once the error is reported.
+    var sessionSampledOnError: Bool = false
+
+    /// FLASHCAT FORK - whether the current session's events are withheld, still waiting for an
+    /// error. Anything written for the session outside RUM's own scopes must not go out then.
+    var eventsWithheld: Bool = false
 }

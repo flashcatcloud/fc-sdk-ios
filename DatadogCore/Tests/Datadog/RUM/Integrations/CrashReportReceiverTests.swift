@@ -816,13 +816,15 @@ class CrashReportReceiverTests: XCTestCase {
     private func viewSynthesisedForCrash(
         drawnSessionSampleRate: Double?,
         drawnConfigurationVersion: Int64?,
-        initialisedAt initialSampleRate: SampleRate
+        initialisedAt initialSampleRate: SampleRate,
+        sampledForError: Bool? = nil
     ) throws -> RUMViewEvent {
         let sessionState = RUMSessionState.mockWith(
             isInitialSession: true,
             hasTrackedAnyView: false,
             drawnSessionSampleRate: drawnSessionSampleRate,
-            drawnConfigurationVersion: drawnConfigurationVersion
+            drawnConfigurationVersion: drawnConfigurationVersion,
+            sampledForError: sampledForError
         )
         let featureScope = FeatureScopeMock()
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
@@ -848,6 +850,81 @@ class CrashReportReceiverTests: XCTestCase {
             )
         )
         return try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first)
+    }
+
+    func testACrashOfASessionKeptOnError_isStillReported_asASessionThatStandsForItself() throws {
+        // Its withheld events died with the process, so the crash may be the first the backend
+        // hears of the session. It is reported all the same, and like the session's own events
+        // it reports a rate of 0 whatever it was drawn at.
+        let view = try viewSynthesisedForCrash(
+            drawnSessionSampleRate: 0,
+            drawnConfigurationVersion: 7,
+            initialisedAt: 20,
+            sampledForError: true
+        )
+
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 0)
+        XCTAssertEqual(view.session.sampledForError, true)
+    }
+
+    func testControl_aCrashOfAnOrdinarySession_carriesNoOnErrorMarker() throws {
+        let view = try viewSynthesisedForCrash(
+            drawnSessionSampleRate: 20,
+            drawnConfigurationVersion: 7,
+            initialisedAt: 20
+        )
+
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 20)
+        XCTAssertNil(view.session.sampledForError)
+    }
+
+    func testACrashOfASessionKeptOnError_isSentWithTheViewItLastPersisted() throws {
+        // The last view of a session kept on error is written to the crash context even though
+        // it was never uploaded, so the crash next launch has a view to hang from.
+        let featureScope = FeatureScopeMock()
+        let crashDate: Date = .mockDecember15th2019At10AMUTC()
+        let persistedView = edited(RUMViewEvent.mockRandomWith(crashCount: 0)) {
+            var session = $0["session"] as! [String: Any]
+            session["sampled_for_error"] = true
+            $0["session"] = session
+            var dd = $0["_dd"] as! [String: Any]
+            var configuration = dd["configuration"] as! [String: Any]
+            configuration["session_sample_rate"] = 0
+            dd["configuration"] = configuration
+            $0["_dd"] = dd
+        }
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: crashDate),
+            sessionSampler: Sampler(samplingRate: 20)
+        )
+
+        XCTAssertTrue(
+            receiver.receive(
+                message: .payload(Crash(
+                    report: .mockWith(date: crashDate),
+                    context: .mockWith(
+                        trackingConsent: .granted,
+                        lastRUMViewEvent: persistedView,
+                        lastRUMSessionState: .mockWith(sampledForError: true)
+                    )
+                )),
+                from: NOPDatadogCore()
+            )
+        )
+
+        let view = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first)
+        let error = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        XCTAssertEqual(view.session.sampledForError, true)
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 0)
+        XCTAssertEqual(error.dd.configuration?.sessionSampleRate, 0)
+        XCTAssertEqual(error.session.id, persistedView.session.id)
+    }
+
+    private func edited<T: Codable>(_ event: T, _ change: (inout [String: Any]) -> Void) -> T {
+        var json = try! JSONSerialization.jsonObject(with: JSONEncoder().encode(event)) as! [String: Any]
+        change(&json)
+        return try! JSONDecoder().decode(T.self, from: JSONSerialization.data(withJSONObject: json))
     }
 
     func testStateWrittenBeforeTheseFieldsExistedStillDecodes() throws {

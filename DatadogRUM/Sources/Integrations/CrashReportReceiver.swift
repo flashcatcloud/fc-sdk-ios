@@ -355,7 +355,13 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         // because the crash came before any session existed — has no draw of its own, so it
         // reports the configuration in force now, which is also the one that just decided whether
         // this crash is collected at all.
-        let drawnRate = drawnSession?.drawnSessionSampleRate ?? Double(drawnSessionSampleRate(under: remoteRates))
+        //
+        // A session kept only because it reports an error stands for itself, so it reports 0
+        // whatever it was drawn at - exactly as its own events would have.
+        let sampledForError = drawnSession?.sampledForError == true
+        let drawnRate = sampledForError
+            ? 0
+            : drawnSession?.drawnSessionSampleRate ?? Double(drawnSessionSampleRate(under: remoteRates))
         let drawnVersion = drawnSession.map { $0.drawnConfigurationVersion } ?? remoteRates?.version
 
         return RUMViewEvent(
@@ -406,6 +412,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 hasReplay: hasReplay,
                 id: sessionUUID.toRUMDataFormat,
                 isActive: true,
+                sampledForError: sampledForError ? true : nil,
                 sampledForReplay: nil,
                 type: ciTest != nil ? .ciTest : (syntheticsTest != nil ? .synthetics : .user)
             ),

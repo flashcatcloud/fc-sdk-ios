@@ -188,15 +188,21 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
 
         if let forced = command as? RUMSetForcedSessionCommand {
             // A session already being collected keeps running: RUM cannot retro-collect what a
-            // running session already dropped, and cutting it in two would gain nothing. One that
-            // was NOT collected ends now, so a collected one starts in its place. A session
-            // started by this very command is already forced, so there is nothing to replace.
+            // running session already dropped, and cutting it in two would gain nothing. One kept
+            // on error has retro-collected what it can, so it releases that now and runs on as a
+            // collected session. One that was NOT collected at all ends now, so a collected one
+            // starts in its place. A session started by this very command is already forced, so
+            // there is nothing to replace.
             if let activeSession = activeSession, !activeSession.isSampled {
-                _process(
-                    command: RUMStopSessionCommand(time: forced.time, isRequestedByApplication: false),
-                    context: context,
-                    writer: writer
-                )
+                if activeSession.isSampledOnError {
+                    activeSession.forceRelease(writer: writer)
+                } else {
+                    _process(
+                        command: RUMStopSessionCommand(time: forced.time, isRequestedByApplication: false),
+                        context: context,
+                        writer: writer
+                    )
+                }
             }
             return
         }
@@ -221,6 +227,10 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             // proccss(command:context:writer) returned false, so the scope will be deallocated at the end of
             // this execution context. End the "RUM Session Ended" metric:
             defer { dependencies.sessionEndedMetric.endMetric(sessionID: scope.sessionUUID, with: context) }
+
+            // Nothing can be added to what the session withheld any more: release it if the
+            // session reported its error, throw it away otherwise.
+            scope.settleWithheldEvents(writer: writer)
 
             // proccss(command:context:writer) returned false, but if the scope is still active
             // it means the session reached one of the end reasons
@@ -292,17 +302,31 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         guard let activeSession = activeSession, !isForcedSession else {
             return false
         }
+        let remoteRates = dependencies.remoteSamplingRates()
+        let rateNowInForce = remoteRates?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate
+        let sessionOnErrorNowInForce = remoteRates?.sessionOnError ?? dependencies.sessionOnError
+
+        // "Only the sessions that error" is configured as a rate of zero with `sessionOnError`
+        // on, and a session kept on error is the very thing that configuration asks for. Ending
+        // it would re-draw the same kind of session and throw away what it had withheld, on every
+        // first fetch and every release - which is exactly when the errors this is meant to catch
+        // happen. Not even `immediate` changes that: the re-draw would come out the same.
+        if activeSession.isSampledOnError && rateNowInForce == 0 && sessionOnErrorNowInForce {
+            return false
+        }
         if command.activation == .immediate {
             return true
         }
-        let rateNowInForce = dependencies.remoteSamplingRates()?.sessionSampleRate
+
+        let rateItWasDrawnAt = activeSession.drawnConfiguration?.sessionSampleRate
             ?? dependencies.sessionSampler.samplingRate
 
         if rateNowInForce == 0 {
             // A session that is not being collected has nothing to stop, and ending it would only
             // put a stopped session on the record and leave its replacement reporting an explicit
-            // stop.
-            return activeSession.isSampled
+            // stop - unless the switch is what changed: a visitor drawn out at zero with
+            // `sessionOnError` off would now be kept, and only a new draw can keep them.
+            return activeSession.isTracked || (sessionOnErrorNowInForce && rateItWasDrawnAt == 0)
         }
 
         // The other direction, and the reason it is written against the rate the session was DRAWN
@@ -319,9 +343,10 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
         // happen to rotate, and nothing at all is indistinguishable from broken. What it costs is
         // nothing: a session drawn at 0 has no id, no events and no history — it does not exist in
         // the data, so there is no seam for ending it to leave.
-        let rateItWasDrawnAt = activeSession.drawnConfiguration?.sessionSampleRate
-            ?? dependencies.sessionSampler.samplingRate
-        return rateItWasDrawnAt == 0
+        //
+        // A session already kept on error is left alone: it is collected as far as anything can
+        // be, and re-drawing it would only discard what it withheld.
+        return rateItWasDrawnAt == 0 && !activeSession.isSampledOnError
     }
 
     /// Sanity count to make sure initial session is created only once.

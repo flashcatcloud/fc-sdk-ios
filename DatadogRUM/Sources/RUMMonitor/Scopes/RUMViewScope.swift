@@ -615,6 +615,9 @@ extension RUMViewScope {
                 hasReplay: hasReplay,
                 id: self.context.sessionID.toRUMDataFormat,
                 isActive: self.context.isSessionActive,
+                // FLASHCAT FORK - tells the backend this session's detail only starts where the
+                // withheld buffer reached, so the gap before it reads as "not collected".
+                sampledForError: self.context.sessionSampledOnError ? true : nil,
                 sampledForReplay: nil,
                 type: dependencies.sessionType
             ),

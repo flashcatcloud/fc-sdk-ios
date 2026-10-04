@@ -510,6 +510,15 @@ public class objc_RUMConfiguration: NSObject {
         get { swiftConfig.trackMemoryWarnings }
     }
 
+    /// FLASHCAT FORK - keeps the sessions `sessionSampleRate` does not collect in case they report
+    /// an error, uploading the minute before it. See `RUM.Configuration.sessionOnError`.
+    ///
+    /// Default: `NO`.
+    public var sessionOnError: Bool {
+        set { swiftConfig.sessionOnError = newValue }
+        get { swiftConfig.sessionOnError }
+    }
+
     /// FLASHCAT FORK - enables the remote configuration of sampling rates from the console.
     ///
     /// Default: `NO` — no extra requests are made and behaviour is unchanged.

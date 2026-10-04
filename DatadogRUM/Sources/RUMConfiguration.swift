@@ -60,6 +60,22 @@ extension RUM {
         /// Default: `100.0`.
         public var sessionSampleRate: Float
 
+        /// Keeps the sessions `sessionSampleRate` does not collect in case they report an error.
+        ///
+        /// Such a session is collected in memory but nothing is uploaded: only the last minute is
+        /// kept, and if the session ends without an error everything is thrown away. When it
+        /// reports one, the minute before it is uploaded, and the rest of the session is collected
+        /// normally. A session kept this way reports a `session_sample_rate` of 0, because it
+        /// stands for itself rather than for `100 / rate` sessions.
+        ///
+        /// It applies only to sessions the rate leaves out, so with `sessionSampleRate` at 100 it
+        /// has nothing to act on. When `remoteConfigurationEnabled` is on, the console's
+        /// `sessionOnError` takes precedence. A `beforeSampling` that returns 0 turns it off for
+        /// that session: 0 means the session is never collected.
+        ///
+        /// Default: `false`.
+        public var sessionOnError: Bool
+
         /// The predicate for automatically tracking `UIViewControllers` as RUM views.
         ///
         /// RUM will query this predicate for each `UIViewController` presented in the app. The predicate implementation
@@ -458,6 +474,7 @@ extension RUM.Configuration {
     /// - Parameters:
     ///   - applicationID: The RUM application identifier.
     ///   - sessionSampleRate: The sampling rate for RUM sessions. Must be a value between `0` and `100`. Default: `100`.
+    ///   - sessionOnError: Keeps the sessions `sessionSampleRate` does not collect in case they report an error. Default: `false`.
     ///   - uiKitViewsPredicate: The predicate for automatically tracking `UIViewControllers` in `UIKit` as RUM views. Default: `nil`.
     ///   - uiKitActionsPredicate: The UIKit predicate for automatically tracking `UITouch` events as RUM actions. Default: `nil`.
     ///   - swiftUIViewsPredicate: The predicate for automatically tracking `UIViewControllers` in `SwiftUI` as RUM views. Default: `nil`.
@@ -491,6 +508,7 @@ extension RUM.Configuration {
     public init(
         applicationID: String,
         sessionSampleRate: SampleRate = .maxSampleRate,
+        sessionOnError: Bool = false,
         uiKitViewsPredicate: UIKitRUMViewsPredicate? = nil,
         uiKitActionsPredicate: UIKitRUMActionsPredicate? = nil,
         swiftUIViewsPredicate: SwiftUIRUMViewsPredicate? = nil,
@@ -522,6 +540,7 @@ extension RUM.Configuration {
     ) {
         self.applicationID = applicationID
         self.sessionSampleRate = sessionSampleRate
+        self.sessionOnError = sessionOnError
         self.uiKitViewsPredicate = uiKitViewsPredicate
         self.uiKitActionsPredicate = uiKitActionsPredicate
         self.swiftUIViewsPredicate = swiftUIViewsPredicate

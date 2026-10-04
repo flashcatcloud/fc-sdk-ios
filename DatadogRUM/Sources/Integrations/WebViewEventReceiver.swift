@@ -71,6 +71,12 @@ internal final class WebViewEventReceiver: FeatureMessageReceiver {
             guard let rum = context.additionalContext(ofType: RUMCoreContext.self) else {
                 return // Drop event if RUM is not enabled or RUM session is not sampled
             }
+            // FLASHCAT FORK - a session kept on error must not reach the backend before it reports
+            // one. Web view events are not assembled by the native scopes, so they cannot be
+            // withheld with the rest; they would hang from web views the release does not carry.
+            guard !rum.eventsWithheld else {
+                return
+            }
 
             var webViewContext = context.additionalContext(ofType: RUMWebViewContext.self) ?? .init()
             var event = event
