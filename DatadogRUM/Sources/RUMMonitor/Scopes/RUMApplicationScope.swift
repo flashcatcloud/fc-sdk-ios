@@ -195,7 +195,7 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
             // there is nothing to replace.
             if let activeSession = activeSession, !activeSession.isSampled {
                 if activeSession.isSampledOnError {
-                    activeSession.forceRelease(writer: writer, context: context)
+                    activeSession.forceRelease(at: forced.time, writer: writer, context: context)
                 } else {
                     _process(
                         command: RUMStopSessionCommand(time: forced.time, isRequestedByApplication: false),

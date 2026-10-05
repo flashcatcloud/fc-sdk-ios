@@ -46,9 +46,10 @@ class RUMSessionOnErrorTests: XCTestCase {
 
     /// What Session Replay publishes, as RUM reads it from the core context.
     private var replayContext: [AdditionalContext] = []
+    private var trackingConsent: TrackingConsent = .granted
 
     private func process(_ command: RUMCommand, on scope: RUMApplicationScope) {
-        var context: DatadogContext = .mockWith(sdkInitDate: start)
+        var context: DatadogContext = .mockWith(sdkInitDate: start, trackingConsent: trackingConsent)
         replayContext.forEach { context.set(additionalContext: $0) }
         _ = scope.process(command: command, context: context, writer: writer)
     }
@@ -61,11 +62,11 @@ class RUMSessionOnErrorTests: XCTestCase {
         process(RUMStartViewCommand.mockWith(time: at(seconds), identity: .mockViewIdentifier(), name: name, path: name), on: scope)
     }
 
-    private func addError(at seconds: TimeInterval, on scope: RUMApplicationScope, isCrash: Bool? = nil) {
+    private func addError(at seconds: TimeInterval, on scope: RUMApplicationScope, isCrash: Bool? = nil, message: String = "boom") {
         process(
             RUMAddCurrentViewErrorCommand(
                 time: at(seconds),
-                message: "boom",
+                message: message,
                 type: "Error",
                 stack: nil,
                 source: .source,
@@ -336,6 +337,45 @@ class RUMSessionOnErrorTests: XCTestCase {
         XCTAssertEqual(written(RUMErrorEvent.self).count, 1, "the process is about to go away and the buffer with it")
     }
 
+    func testACrashLargerThanTheWholeBudget_stillReleasesTheHistoryAtOnce() {
+        // A crash with its threads and binary images easily outgrows the budget. It goes out on
+        // its own, but the process is still about to go away: the history goes with it, now.
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        addAction(at: 2, on: scope)
+
+        addError(at: 3, on: scope, isCrash: true, message: String(repeating: "x", count: RUMWithheldEventBuffer.Constants.bytesLimit + 1))
+
+        XCTAssertEqual(written(RUMErrorEvent.self).count, 1)
+        XCTAssertEqual(written(RUMActionEvent.self).count, 1, "the history did not wait for a jitter the process will not live to see")
+        XCTAssertEqual(scope.activeSession?.context.eventsWithheld, false)
+    }
+
+    func testForcingTheSession_releasesTheMinuteBeforeTheForcing_notBeforeTheLastCommand() {
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        addAction(at: 2, on: scope)
+
+        process(RUMSetForcedSessionCommand(time: at(2 + RUMWithheldEventBuffer.Constants.duration + 30)), on: scope)
+
+        XCTAssertFalse(written(RUMViewEvent.self).isEmpty, "the view in progress always goes")
+        XCTAssertTrue(written(RUMActionEvent.self).isEmpty, "older than the minute before the forcing")
+    }
+
+    func testInACollectedSession_aFailedRequestReleasingAWithheldReplay_claimsIt() throws {
+        let scope = makeScope(sessionSampleRate: 100)
+        startView("Home", at: 1, on: scope)
+        try replayKeptOnError(by: scope, withheld: true, records: 5)
+        process(RUMStartResourceCommand.mockWith(resourceKey: "/api", time: at(1.5)), on: scope)
+
+        process(RUMStopResourceWithErrorCommand.mockWithErrorMessage(resourceKey: "/api", time: at(2), httpStatusCode: 500), on: scope)
+
+        let error = try XCTUnwrap(written(RUMErrorEvent.self).first)
+        XCTAssertNotNil(error.error.resource, "the failed request's error")
+        XCTAssertEqual(error.session.hasReplay, true, "the error that releases the replay is the one the console opens it from")
+        XCTAssertTrue(scope.activeSession?.context.sessionHasReportedError == true)
+    }
+
     func testControl_aSessionTheRateCollects_carriesNoMarkerAndItsRealRate() {
         let scope = makeScope(sessionSampleRate: 100)
         startView("Home", at: 1, on: scope)
@@ -346,6 +386,50 @@ class RUMSessionOnErrorTests: XCTestCase {
         XCTAssertTrue(views.allSatisfy { $0.session.sampledForError == nil })
         XCTAssertTrue(views.allSatisfy { $0.dd.configuration?.sessionSampleRate == 100 })
         XCTAssertTrue(scheduledReleases.isEmpty)
+    }
+
+    // MARK: - Consent
+
+    func testWhatWasAssembledWithoutConsent_isNeverReleased() {
+        // An ordinary session drops what it assembles while consent is not granted. A session kept
+        // on error must not hold it instead and upload it once consent is granted.
+        let scope = makeScope()
+        trackingConsent = .notGranted
+        startView("Home", at: 1, on: scope)
+        addAction(at: 2, on: scope)
+
+        trackingConsent = .granted
+        addAction(at: 3, on: scope)
+        addError(at: 4, on: scope)
+        fireScheduledReleases()
+
+        XCTAssertEqual(written(RUMActionEvent.self).count, 1, "only what was assembled once consent was granted")
+        XCTAssertEqual(written(RUMErrorEvent.self).count, 1)
+    }
+
+    func testAnErrorAssembledWithoutConsent_doesNotReleaseTheSession() {
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        trackingConsent = .notGranted
+        addError(at: 2, on: scope)
+        trackingConsent = .granted
+
+        XCTAssertTrue(scheduledReleases.isEmpty, "an error that was never collected cannot be the reason the session is")
+        process(RUMStopSessionCommand(time: at(3)), on: scope)
+        XCTAssertTrue(written.isEmpty)
+    }
+
+    func testControl_whatWasAssembledWithPendingConsent_isReleased() {
+        // Pending consent is what the pending storage is for: the release writes through the
+        // writer of the moment, which keeps or purges it with the consent decision.
+        let scope = makeScope()
+        trackingConsent = .pending
+        startView("Home", at: 1, on: scope)
+        addAction(at: 2, on: scope)
+        addError(at: 3, on: scope)
+        fireScheduledReleases()
+
+        XCTAssertEqual(written(RUMActionEvent.self).count, 1)
     }
 
     // MARK: - Replay kept on error

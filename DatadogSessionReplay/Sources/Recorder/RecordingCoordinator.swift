@@ -26,8 +26,10 @@ internal class RecordingCoordinator {
     /// FLASHCAT FORK - whether the current replay is recorded only in case its session reports an
     /// error, and whether its records are still withheld waiting for it.
     private var isSampledOnError = false
-    private var replayWithheld = false
+    private var replayHold: Recorder.ReplayHold = .none
     private var publishedErrorReplay: SessionReplayCoreContext.ErrorReplay?
+    /// FLASHCAT FORK - the tracking consent in force, read with the RUM context.
+    private var trackingConsent: TrackingConsent = .pending
     /// FLASHCAT FORK - whether a replay the draw leaves out is recorded in case its session reports
     /// an error: the console's `sessionReplayOnError` where it published one, the init value
     /// otherwise. Read at each draw.
@@ -77,7 +79,7 @@ internal class RecordingCoordinator {
         }
 
         // Observe changes in the RUM context.
-        rumContextObserver.observe(on: scheduler.queue) { [weak self] in self?.onRUMContextChanged(rumContext: $0) }
+        rumContextObserver.observe(on: scheduler.queue) { [weak self] in self?.onRUMContextChanged(rumContext: $0, trackingConsent: $1) }
     }
 
     /// Enables recording based on user request.
@@ -108,7 +110,8 @@ internal class RecordingCoordinator {
        updateHasReplay()
    }
 
-    private func onRUMContextChanged(rumContext: RUMCoreContext?) {
+    private func onRUMContextChanged(rumContext: RUMCoreContext?, trackingConsent: TrackingConsent) {
+        self.trackingConsent = trackingConsent
         if currentRUMContext?.sessionID != rumContext?.sessionID || currentRUMContext == nil {
             // FLASHCAT FORK - a session the host application forced skips replay's own draw:
             // forcing exists to debug one visitor, and a replay-less recording of them is not the
@@ -121,25 +124,30 @@ internal class RecordingCoordinator {
             let keptOnError = rumContext != nil && !drawn && sessionReplayOnError()
             isSampled = drawn || keptOnError
             isSampledOnError = keptOnError || (isSampled && rumContext?.eventsWithheld == true)
-            replayWithheld = isSampledOnError
+            replayHold = isSampledOnError ? .withheld : .none
         } else if rumContext?.sessionForced == true && currentRUMContext?.sessionForced != true {
             // Forced while it runs: the host application wants this visitor recorded from now on.
             isSampled = true
         }
 
         var released = false
-        if replayWithheld, let rumContext = rumContext, !rumContext.eventsWithheld,
-           rumContext.hasReportedError || rumContext.sessionForced {
-            // The session reported its error, or was forced, and its events are out: what was
-            // withheld goes out with the next record, and from then on the replay is collected like
-            // any other. Never ahead of the events - until they arrive the session does not exist.
-            replayWithheld = false
-            released = true
+        if replayHold != .none, let rumContext = rumContext, rumContext.hasReportedError || rumContext.sessionForced {
+            if rumContext.eventsWithheld {
+                // The session reported its error but its events are still on their way out,
+                // behind their jitter. The records wait for them - until they arrive the session
+                // does not exist - but nothing throws them away any more.
+                replayHold = .releasePending
+            } else {
+                // The events are out: what was withheld goes out with the next record, and from
+                // then on the replay is collected like any other.
+                replayHold = .none
+                released = true
+            }
         }
 
         currentRUMContext = rumContext
 
-        let errorReplay = rumContext.flatMap { isSampledOnError ? SessionReplayCoreContext.ErrorReplay(sessionID: $0.sessionID, withheld: replayWithheld) : nil }
+        let errorReplay = rumContext.flatMap { isSampledOnError ? SessionReplayCoreContext.ErrorReplay(sessionID: $0.sessionID, withheld: replayHold != .none) : nil }
         if errorReplay != publishedErrorReplay {
             srContextPublisher.setErrorReplay(errorReplay)
             publishedErrorReplay = errorReplay
@@ -157,7 +165,7 @@ internal class RecordingCoordinator {
         /// `has_replay` is set to `true` only when the session is sampled
         /// and  the user has enabled the recording. FLASHCAT FORK - and not while the replay is
         /// withheld: it may never be uploaded.
-        let hasReplay = isSampled == true && recordingEnabled == true && !replayWithheld
+        let hasReplay = isSampled == true && recordingEnabled == true && replayHold == .none
         srContextPublisher.setHasReplay(hasReplay)
     }
 
@@ -179,7 +187,8 @@ internal class RecordingCoordinator {
             viewServerTimeOffset: rumContext.viewServerTimeOffset,
             date: Date(),
             telemetry: telemetry,
-            replayWithheld: replayWithheld
+            replayHold: replayHold,
+            trackingConsent: trackingConsent
         )
 
         let methodCalledTrace = telemetry.startMethodCalled(

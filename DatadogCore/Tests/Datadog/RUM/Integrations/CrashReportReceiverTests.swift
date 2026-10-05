@@ -921,6 +921,70 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(error.session.id, persistedView.session.id)
     }
 
+    func testACrashOfASessionKeptOnError_reportedLongAfter_stillSendsItsView() throws {
+        // The view of a session the backend already has goes stale after a few hours and is not
+        // updated. The view of a session kept on error was never uploaded: without it the crash
+        // hangs from a view the backend never sees, and the session never exists.
+        let featureScope = FeatureScopeMock()
+        let crashDate: Date = .mockDecember15th2019At10AMUTC()
+        let persistedView = edited(RUMViewEvent.mockRandomWith(crashCount: 0)) {
+            var session = $0["session"] as! [String: Any]
+            session["sampled_for_error"] = true
+            $0["session"] = session
+        }
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: crashDate.addingTimeInterval(FatalErrorBuilder.Constants.viewEventAvailabilityThreshold + 60)),
+            sessionSampler: Sampler(samplingRate: 20)
+        )
+
+        XCTAssertTrue(
+            receiver.receive(
+                message: .payload(Crash(
+                    report: .mockWith(date: crashDate),
+                    context: .mockWith(
+                        trackingConsent: .granted,
+                        lastRUMViewEvent: persistedView,
+                        lastRUMSessionState: .mockWith(sampledForError: true)
+                    )
+                )),
+                from: NOPDatadogCore()
+            )
+        )
+
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self).count, 1)
+        let view = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first)
+        XCTAssertEqual(view.view.id, persistedView.view.id)
+        XCTAssertEqual(view.view.crash?.count, 1)
+    }
+
+    func testControl_aCrashOfAnOrdinarySession_reportedLongAfter_sendsOnlyTheError() throws {
+        let featureScope = FeatureScopeMock()
+        let crashDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: crashDate.addingTimeInterval(FatalErrorBuilder.Constants.viewEventAvailabilityThreshold + 60)),
+            sessionSampler: Sampler(samplingRate: 20)
+        )
+
+        XCTAssertTrue(
+            receiver.receive(
+                message: .payload(Crash(
+                    report: .mockWith(date: crashDate),
+                    context: .mockWith(
+                        trackingConsent: .granted,
+                        lastRUMViewEvent: .mockRandomWith(crashCount: 0),
+                        lastRUMSessionState: .mockWith(sampledForError: nil)
+                    )
+                )),
+                from: NOPDatadogCore()
+            )
+        )
+
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self).count, 1)
+        XCTAssertTrue(featureScope.eventsWritten(ofType: RUMViewEvent.self).isEmpty)
+    }
+
     private func edited<T: Codable>(_ event: T, _ change: (inout [String: Any]) -> Void) -> T {
         var json = try! JSONSerialization.jsonObject(with: JSONEncoder().encode(event)) as! [String: Any]
         change(&json)

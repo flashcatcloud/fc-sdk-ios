@@ -344,7 +344,9 @@ internal class RUMResourceScope: RUMScope {
             os: context.os,
             service: context.service,
             session: .init(
-                hasReplay: context.hasReplay,
+                // FLASHCAT FORK - a failed request is an error like any other: it releases a
+                // replay withheld until the session errors, and claims it.
+                hasReplay: context.withheldReplayIsHeld(for: parent.context.sessionID, in: parent.context.activeViewID) ? true : context.hasReplay,
                 id: parent.context.sessionID.toRUMDataFormat,
                 type: dependencies.sessionType
             ),

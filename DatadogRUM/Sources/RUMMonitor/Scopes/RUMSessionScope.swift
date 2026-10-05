@@ -355,6 +355,12 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
 
         processingTime = command.time
+        if context.trackingConsent == .notGranted {
+            // Consent was withdrawn. An ordinary session's events are dropped from here on, and
+            // what it wrote before stays written; what a session kept on error holds has not been
+            // written, and it must not follow an error out once consent is granted again.
+            withheldEvents?.discard()
+        }
         if let appLifecycleCommand = command as? RUMHandleAppLifecycleEventCommand,
            appLifecycleCommand.event == .didEnterBackground,
            withheldEvents?.releaseScheduledAt != nil {
@@ -365,7 +371,12 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
         // Every event this session's children assemble goes through the session, which is where
         // errors are noticed and where the events of a session kept on error are withheld.
-        let writer = SessionEventWriter(session: self, writer: writer, recordsCountByViewID: context.recordsCountByViewID)
+        let writer = SessionEventWriter(
+            session: self,
+            writer: writer,
+            recordsCountByViewID: context.recordsCountByViewID,
+            trackingConsent: context.trackingConsent
+        )
 
         var deactivating = false
         if isActive {
@@ -622,14 +633,16 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         metadata: M?,
         completion: @escaping CompletionHandler,
         to writer: Writer,
-        recordsCountByViewID: [String: Int64]
+        recordsCountByViewID: [String: Int64],
+        trackingConsent: TrackingConsent
     ) {
         // Noticed here, after assembly, rather than on the raw error: an error the event mapper
         // dropped never reaches this point, and a session billed for an error nobody can find
         // afterwards would be worse than no session at all. (The SDK's own failures go to
-        // telemetry, not to RUM errors, so none of them can count here.)
+        // telemetry, not to RUM errors, so none of them can count here.) Nor can an error
+        // assembled without consent: the writer drops it, so nobody will find it either.
         let error = value as? RUMErrorEvent
-        if error != nil, !hasReportedError {
+        if error != nil, !hasReportedError, trackingConsent != .notGranted {
             hasReportedError = true
             scheduleWithheldEventsRelease()
         }
@@ -638,11 +651,17 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             writer.write(value: value, metadata: metadata, completion: completion)
             return
         }
-        guard withheldEvents.hold(event: event, metadata: metadata, completion: completion, now: processingTime) else {
+        guard trackingConsent != .notGranted else {
+            // The writer of the moment drops it, and holding it instead would upload it with the
+            // release once consent is granted. Pending consent is held: the release writes
+            // through the writer of its moment, which keeps or purges it with the decision.
+            completion()
+            return
+        }
+        if !withheldEvents.hold(event: event, metadata: metadata, completion: completion, now: processingTime) {
             // An error larger than the whole budget. The session has earned its release, so it
             // goes out on its own, leaving the history it follows to the scheduled release.
             writer.write(value: value, metadata: metadata, completion: completion)
-            return
         }
         if error?.error.isCrash == true {
             // The process is about to go away, and the buffer with it: nothing waits for jitter.
@@ -701,8 +720,12 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
     /// The host application forced this session to be collected: what it withheld goes now,
     /// without waiting for an error or for jitter.
-    func forceRelease(writer: Writer, context: DatadogContext) {
+    ///
+    /// - Parameter time: the time of the forcing command, which the session has not processed:
+    ///   the minute released is the one before it, not before whatever command came last.
+    func forceRelease(at time: Date, writer: Writer, context: DatadogContext) {
         isForced = true
+        processingTime = time
         releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
     }
 
@@ -723,8 +746,16 @@ private struct SessionEventWriter: Writer {
     let session: RUMSessionScope
     let writer: Writer
     let recordsCountByViewID: [String: Int64]
+    let trackingConsent: TrackingConsent
 
     func write<T: Encodable, M: Encodable>(value: T, metadata: M?, completion: @escaping CompletionHandler) {
-        session.write(value: value, metadata: metadata, completion: completion, to: writer, recordsCountByViewID: recordsCountByViewID)
+        session.write(
+            value: value,
+            metadata: metadata,
+            completion: completion,
+            to: writer,
+            recordsCountByViewID: recordsCountByViewID,
+            trackingConsent: trackingConsent
+        )
     }
 }

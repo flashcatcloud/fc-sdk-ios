@@ -19,6 +19,18 @@ internal struct FatalErrorBuilder {
         static let viewEventAvailabilityThreshold: TimeInterval = 14_400 // 4 hours
     }
 
+    /// FLASHCAT FORK - whether the last view of the interrupted session can still be sent along
+    /// with the fatal error, see `Constants.viewEventAvailabilityThreshold`.
+    ///
+    /// The threshold protects a session the backend already has from a stale update. The view of
+    /// a session kept only in case it reports an error was never uploaded: without it, the error
+    /// hangs from a view the backend never sees and the session never exists. It is sent whatever
+    /// the delay.
+    static func canSendView(_ view: RUMViewEvent, errorDate: Date, now: Date) -> Bool {
+        view.session.sampledForError == true
+            || now.timeIntervalSince(errorDate) < Constants.viewEventAvailabilityThreshold
+    }
+
     /// Fatal error types.
     enum FatalError {
         /// A crash with given metadata information.

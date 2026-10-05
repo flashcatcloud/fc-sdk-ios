@@ -29,7 +29,7 @@ class RUMContextReceiverTests: XCTestCase {
         )
 
         var rumContext: RUMCoreContext?
-        receiver.observe(on: NoQueue()) { context in
+        receiver.observe(on: NoQueue()) { context, _ in
             rumContext = context
         }
 
@@ -71,7 +71,7 @@ class RUMContextReceiverTests: XCTestCase {
         )
 
         var rumContexts: [RUMCoreContext] = []
-        receiver.observe(on: NoQueue()) { context in
+        receiver.observe(on: NoQueue()) { context, _ in
             context.flatMap { rumContexts.append($0) }
         }
         // When
@@ -121,7 +121,7 @@ class RUMContextReceiverTests: XCTestCase {
         )
 
         var rumContexts: [RUMCoreContext] = []
-        receiver.observe(on: NoQueue()) { context in
+        receiver.observe(on: NoQueue()) { context, _ in
             context.flatMap { rumContexts.append($0) }
         }
         // When
@@ -158,7 +158,7 @@ class RUMContextReceiverTests: XCTestCase {
         let coreContext2: DatadogContext = .mockWith()
 
         var rumContext: RUMCoreContext? = .mockAny()
-        receiver.observe(on: NoQueue()) { context in
+        receiver.observe(on: NoQueue()) { context, _ in
             rumContext = context
         }
 
@@ -186,7 +186,7 @@ class RUMContextReceiverTests: XCTestCase {
         expectation.isInverted = true
         let core = PassthroughCoreMock()
 
-        receiver.observe(on: NoQueue()) { _ in
+        receiver.observe(on: NoQueue()) { _, _ in
             expectation.fulfill()
         }
 
@@ -198,5 +198,25 @@ class RUMContextReceiverTests: XCTestCase {
         // Then
         waitForExpectations(timeout: 0.1)
     }
+
+    // MARK: - FLASHCAT FORK - consent
+
+    func testWhenConsentChanges_itNotifiesWithTheSameRUMContext() {
+        let core = PassthroughCoreMock()
+        let receiver = RUMContextReceiver()
+        let rum = RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1")
+        var notified: [(RUMCoreContext?, TrackingConsent)] = []
+        receiver.observe(on: NoQueue()) { context, consent in
+            notified.append((context, consent))
+        }
+
+        XCTAssert(receiver.receive(message: .context(.mockWith(trackingConsent: .pending, additionalContext: [rum])), from: core))
+        XCTAssert(receiver.receive(message: .context(.mockWith(trackingConsent: .pending, additionalContext: [rum])), from: core))
+        XCTAssert(receiver.receive(message: .context(.mockWith(trackingConsent: .notGranted, additionalContext: [rum])), from: core))
+
+        XCTAssertEqual(notified.map { $0.1 }, [.pending, .notGranted], "a change of consent alone is notified, a repeat is not")
+        XCTAssertEqual(notified.map { $0.0 }, [rum, rum])
+    }
 }
+
 #endif

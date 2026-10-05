@@ -157,7 +157,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         lastRUMViewEventInPreviousSession lastRUMViewEvent: RUMViewEvent,
         using crashTimings: AdjustedCrashTimings
     ) {
-        if crashTimings.realDateNow.timeIntervalSince(crashTimings.realCrashDate) < FatalErrorBuilder.Constants.viewEventAvailabilityThreshold {
+        if FatalErrorBuilder.canSendView(lastRUMViewEvent, errorDate: crashTimings.realCrashDate, now: crashTimings.realDateNow) {
             send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings)
         } else {
             // We know it is too late for sending RUM view to previous RUM session as it is now stale on backend.

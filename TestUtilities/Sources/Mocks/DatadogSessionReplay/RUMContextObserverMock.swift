@@ -12,15 +12,15 @@ import DatadogInternal
 
 class RUMContextObserverMock: RUMContextObserver {
     private var queue: Queue?
-    private var onNew: ((RUMCoreContext?) -> Void)?
+    private var onNew: ((RUMCoreContext?, TrackingConsent) -> Void)?
 
-    func observe(on queue: Queue, notify: @escaping (RUMCoreContext?) -> Void) {
+    func observe(on queue: Queue, notify: @escaping (RUMCoreContext?, TrackingConsent) -> Void) {
         self.queue = queue
         self.onNew = notify
     }
 
-    func notify(rumContext: RUMCoreContext?) {
-        queue?.run { self.onNew?(rumContext) }
+    func notify(rumContext: RUMCoreContext?, trackingConsent: TrackingConsent = .granted) {
+        queue?.run { self.onNew?(rumContext, trackingConsent) }
     }
 }
 #endif

@@ -41,8 +41,11 @@ public class Recorder: Recording {
         /// The telemetry instance to report to.
         let telemetry: Telemetry
         /// FLASHCAT FORK - whether the records of this replay are withheld until its session
-        /// reports an error.
-        let replayWithheld: Bool
+        /// reports an error, and whether that release is already on its way.
+        let replayHold: ReplayHold
+        /// FLASHCAT FORK - the tracking consent at the moment of requesting the snapshot. Records
+        /// withheld without consent are thrown away rather than released once it is granted.
+        let trackingConsent: TrackingConsent
 
         internal init(
             textAndInputPrivacy: TextAndInputPrivacyLevel,
@@ -54,7 +57,8 @@ public class Recorder: Recording {
             viewServerTimeOffset: TimeInterval?,
             date: Date,
             telemetry: Telemetry,
-            replayWithheld: Bool = false
+            replayHold: ReplayHold = .none,
+            trackingConsent: TrackingConsent = .granted
         ) {
             self.textAndInputPrivacy = textAndInputPrivacy
             self.imagePrivacy = imagePrivacy
@@ -65,8 +69,22 @@ public class Recorder: Recording {
             self.viewServerTimeOffset = viewServerTimeOffset
             self.date = date
             self.telemetry = telemetry
-            self.replayWithheld = replayWithheld
+            self.replayHold = replayHold
+            self.trackingConsent = trackingConsent
         }
+    }
+
+    /// FLASHCAT FORK - what happens to the records of a replay kept only in case its session
+    /// reports an error.
+    public enum ReplayHold {
+        /// The records are written as they are recorded.
+        case none
+        /// The records are withheld, and thrown away when the view or the session changes.
+        case withheld
+        /// The session has reported its error and its events are on their way out: the records
+        /// are still withheld so they never reach the backend ahead of the events, but nothing
+        /// throws them away any more - a view change included.
+        case releasePending
     }
 
     /// Swizzles `UIApplication` for recording touch events.

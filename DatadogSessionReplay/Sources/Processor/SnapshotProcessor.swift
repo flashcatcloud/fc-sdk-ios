@@ -66,7 +66,10 @@ internal class SnapshotProcessor: SnapshotProcessing {
     /// or `withheldReplayResourcesLimit` resources, and recording restarts from a full snapshot.
     private var withheldRecords: [EnrichedRecord] = []
     private var withheldRecordsCount = 0
+    /// Each resource once, by identifier: the builder reports every image's resource on every
+    /// snapshot, and the budget is meant for distinct images, not for snapshots.
     private var withheldResources: [Resource] = []
+    private var withheldResourceIdentifiers: Set<String> = []
     private var withheldSince: Date?
     /// How many withheld segments were thrown away before the one finally released.
     private var droppedWithheldSegments = 0
@@ -98,6 +101,16 @@ internal class SnapshotProcessor: SnapshotProcessing {
     }
 
     private func processSync(viewTreeSnapshot: ViewTreeSnapshot, touchSnapshot: TouchSnapshot?) {
+        if viewTreeSnapshot.context.replayHold != .none && viewTreeSnapshot.context.trackingConsent == .notGranted {
+            // Nothing recorded without consent may be released once it is granted: what is held
+            // is thrown away and nothing is held until consent returns, when the segment starts
+            // over from a full snapshot. A replay that is not withheld is written as usual, to a
+            // writer that drops it.
+            discardWithheldRecords(sameSession: false)
+            lastSnapshot = nil
+            lastWireframes = nil
+            return
+        }
         let mustRestartSegment = settleWithheldRecords(for: viewTreeSnapshot.context)
         let builder = WireframesBuilder(webViewSlotIDs: viewTreeSnapshot.webViewSlotIDs)
         let nodes = nodesFlattener.flattenNodes(in: viewTreeSnapshot)
@@ -156,7 +169,7 @@ internal class SnapshotProcessor: SnapshotProcessing {
             let enrichedRecord = EnrichedRecord(context: viewTreeSnapshot.context, records: records)
             trackRecord(key: enrichedRecord.viewID, value: Int64(records.count))
 
-            if viewTreeSnapshot.context.replayWithheld {
+            if viewTreeSnapshot.context.replayHold != .none {
                 if withheldRecords.isEmpty {
                     withheldSince = viewTreeSnapshot.context.date
                 }
@@ -171,11 +184,13 @@ internal class SnapshotProcessor: SnapshotProcessing {
         lastSnapshot = viewTreeSnapshot
         lastWireframes = wireframes
 
-        if viewTreeSnapshot.context.replayWithheld {
+        if viewTreeSnapshot.context.replayHold != .none {
             // Uploading the images of a replay that may never be uploaded would cost the
             // application the very upload it chose to avoid. They wait with the segment, and are
             // not marked processed until they actually go.
-            withheldResources.append(contentsOf: builder.resources)
+            for resource in builder.resources where withheldResourceIdentifiers.insert(resource.calculateIdentifier()).inserted {
+                withheldResources.append(resource)
+            }
         } else {
             resourceProcessor.process(
                 resources: builder.resources,
@@ -200,7 +215,7 @@ internal class SnapshotProcessor: SnapshotProcessing {
             return false
         }
         let sameSession = first.applicationID == context.applicationID && first.sessionID == context.sessionID
-        if sameSession && !context.replayWithheld {
+        if sameSession && context.replayHold == .none {
             // The session reported its error (or was forced): the segment goes out as recorded.
             withheldRecords.forEach { recordWriter.write(nextRecord: $0) }
             resourceProcessor.process(resources: withheldResources, context: .init(first.applicationID))
@@ -216,6 +231,13 @@ internal class SnapshotProcessor: SnapshotProcessing {
             droppedWithheldSegments = 0
             return false
         }
+        if sameSession && context.replayHold == .releasePending {
+            // The session's error is reported and the release is on its way: a view change no
+            // longer throws the segment away, or an error followed by a screen change - the
+            // usual way an app shows one - would lose the replay of the screen it happened on.
+            // The segment of the new view is held behind it and goes out with it.
+            return false
+        }
         let sameView = sameSession && first.viewID == context.viewID
         let outgrown = context.date.timeIntervalSince(since) > Self.withheldReplayDuration
             || withheldRecordsCount > Self.withheldReplayRecordsLimit
@@ -223,8 +245,17 @@ internal class SnapshotProcessor: SnapshotProcessing {
         guard !sameView || outgrown else {
             return false
         }
-        // Thrown away: the view or the session changed, or the segment outgrew the window. What it
-        // counted is given back, so no view claims a replay that was never uploaded.
+        // Thrown away: the view or the session changed, or the segment outgrew the window.
+        discardWithheldRecords(sameSession: sameSession)
+        return sameView
+    }
+
+    /// Throws away what is withheld. What it counted is given back, so no view claims a replay
+    /// that was never uploaded.
+    private func discardWithheldRecords(sameSession: Bool) {
+        guard !withheldRecords.isEmpty else {
+            return
+        }
         for record in withheldRecords {
             let remaining = (recordsCountByViewID[record.viewID] ?? 0) - Int64(record.records.count)
             recordsCountByViewID[record.viewID] = remaining > 0 ? remaining : nil
@@ -232,13 +263,13 @@ internal class SnapshotProcessor: SnapshotProcessing {
         srContextPublisher.setRecordsCountByViewID(recordsCountByViewID)
         droppedWithheldSegments = sameSession ? droppedWithheldSegments + 1 : 0
         clearWithheldRecords()
-        return sameView
     }
 
     private func clearWithheldRecords() {
         withheldRecords = []
         withheldRecordsCount = 0
         withheldResources = []
+        withheldResourceIdentifiers = []
         withheldSince = nil
     }
 }

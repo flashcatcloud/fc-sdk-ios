@@ -26,4 +26,16 @@ extension DatadogContext {
         additionalContext(ofType: SessionReplayCoreContext.ErrorReplay.self)
             .flatMap { $0.sessionID == sessionID.toRUMDataFormat ? $0 : nil }
     }
+
+    /// FLASHCAT FORK - whether an error in the given view claims a replay that is still withheld.
+    /// The error is what releases it, so the records its view still holds are uploaded alongside
+    /// it; it is the event the console opens the replay from. Judged by what the view holds, not
+    /// by the recorder running: a view whose withheld records were all thrown away has nothing
+    /// to offer.
+    func withheldReplayIsHeld(for sessionID: RUMUUID, in viewID: RUMUUID?) -> Bool {
+        guard errorReplay(of: sessionID)?.withheld == true, let viewID = viewID else {
+            return false
+        }
+        return (recordsCountByViewID[viewID.toRUMDataFormat] ?? 0) > 0
+    }
 }

@@ -808,7 +808,7 @@ extension RUMViewScope {
             os: context.os,
             service: context.service,
             session: .init(
-                hasReplay: claimsWithheldReplay(context: context) ? true : context.hasReplay,
+                hasReplay: context.withheldReplayIsHeld(for: self.context.sessionID, in: viewUUID) ? true : context.hasReplay,
                 id: self.context.sessionID.toRUMDataFormat,
                 type: dependencies.sessionType
             ),
@@ -835,15 +835,6 @@ extension RUMViewScope {
             // view update is written.
             command.completionHandler()
         }
-    }
-
-    /// FLASHCAT FORK - whether an error claims a replay that is still withheld. The error is what
-    /// releases it, so the records its view still holds are uploaded alongside it; it is the event
-    /// the console opens the replay from. Judged by what the view holds, not by the recorder
-    /// running: a view whose withheld records were all thrown away has nothing to offer.
-    private func claimsWithheldReplay(context: DatadogContext) -> Bool {
-        context.errorReplay(of: self.context.sessionID)?.withheld == true
-            && (context.recordsCountByViewID[viewUUID.toRUMDataFormat] ?? 0) > 0
     }
 
     private func sendLongTaskEvent(on command: RUMAddLongTaskCommand, context: DatadogContext, writer: Writer) {

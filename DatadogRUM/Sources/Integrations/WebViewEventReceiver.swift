@@ -139,6 +139,10 @@ internal final class WebViewEventReceiver: FeatureMessageReceiver {
             guard let rum = context.additionalContext(ofType: RUMCoreContext.self) else {
                 return // Drop event if RUM is not enabled or RUM session is not sampled
             }
+            // FLASHCAT FORK - nothing of a session kept on error goes out before it reports one.
+            guard !rum.eventsWithheld else {
+                return
+            }
 
             var event = event
 

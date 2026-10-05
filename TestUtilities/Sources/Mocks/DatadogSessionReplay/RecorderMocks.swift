@@ -535,7 +535,8 @@ extension Recorder.Context: AnyMockable, RandomMockable {
         rumContext: RUMCoreContext,
         date: Date = Date(),
         telemetry: Telemetry = NOPTelemetry(),
-        replayWithheld: Bool = false
+        replayHold: Recorder.ReplayHold = .none,
+        trackingConsent: TrackingConsent = .granted
     ) {
         self.init(
             textAndInputPrivacy: textAndInputPrivacy,
@@ -547,7 +548,8 @@ extension Recorder.Context: AnyMockable, RandomMockable {
             viewServerTimeOffset: rumContext.viewServerTimeOffset,
             date: date,
             telemetry: telemetry,
-            replayWithheld: replayWithheld
+            replayHold: replayHold,
+            trackingConsent: trackingConsent
         )
     }
 }

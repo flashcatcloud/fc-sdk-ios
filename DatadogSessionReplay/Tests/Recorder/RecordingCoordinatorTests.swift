@@ -312,7 +312,7 @@ class RecordingCoordinatorTests: XCTestCase {
         rumContextObserver.notify(rumContext: rum)
 
         XCTAssertTrue(scheduler.isRunning)
-        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayWithheld, true)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, .withheld)
         XCTAssertEqual(errorReplay, .init(sessionID: "s1", withheld: true))
         XCTAssertEqual(hasReplay, false, "a withheld replay may never be uploaded")
     }
@@ -331,7 +331,7 @@ class RecordingCoordinatorTests: XCTestCase {
 
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: true))
 
-        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayWithheld, true)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, .withheld)
         XCTAssertEqual(errorReplay, .init(sessionID: "s1", withheld: true))
     }
 
@@ -340,7 +340,7 @@ class RecordingCoordinatorTests: XCTestCase {
 
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
 
-        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayWithheld, false)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, Recorder.ReplayHold.none)
         XCTAssertNil(errorReplay)
         XCTAssertEqual(hasReplay, true)
     }
@@ -353,7 +353,7 @@ class RecordingCoordinatorTests: XCTestCase {
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", hasReportedError: true))
 
         XCTAssertGreaterThan(recordingMock.captureNextRecordCallsCount, capturesBefore)
-        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayWithheld, false)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, Recorder.ReplayHold.none)
         XCTAssertEqual(errorReplay, .init(sessionID: "s1", withheld: false), "still a replay kept on error, no longer withheld")
         XCTAssertEqual(hasReplay, true)
     }
@@ -366,11 +366,21 @@ class RecordingCoordinatorTests: XCTestCase {
 
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: true, hasReportedError: true))
         XCTAssertEqual(errorReplay?.withheld, true)
-        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayWithheld, true)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, .releasePending, "still withheld, but nothing throws it away any more")
 
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: false, hasReportedError: true))
         XCTAssertEqual(errorReplay?.withheld, false)
-        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayWithheld, false)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, Recorder.ReplayHold.none)
+    }
+
+    func test_theConsentTravelsWithTheRUMContext() {
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"), trackingConsent: .notGranted)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.trackingConsent, .notGranted)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"), trackingConsent: .granted)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.trackingConsent, .granted)
     }
 
     func test_forcingTheSession_releasesTheReplay() {

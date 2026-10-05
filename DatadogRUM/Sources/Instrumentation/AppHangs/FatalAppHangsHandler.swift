@@ -120,7 +120,7 @@ internal final class FatalAppHangsHandler {
             let error = builder.createRUMError(with: fatalHang.lastRUMView)
             let view = builder.updateRUMViewWithError(fatalHang.lastRUMView)
 
-            if realDateNow.timeIntervalSince(realErrorDate) < FatalErrorBuilder.Constants.viewEventAvailabilityThreshold {
+            if FatalErrorBuilder.canSendView(fatalHang.lastRUMView, errorDate: realErrorDate, now: realDateNow) {
                 DD.logger.debug("Sending fatal App hang as RUM error with issuing RUM view update")
                 // It is still OK to send RUM view to previous RUM session.
                 writer.write(value: error)
