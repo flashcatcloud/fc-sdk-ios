@@ -294,6 +294,34 @@ class RUMSessionOnErrorTests: XCTestCase {
         XCTAssertTrue(written.isEmpty)
     }
 
+    func testARequestFailingAfterTheSessionWasStopped_releasesNothing() {
+        // The stop leaves the view alive for the request it still waits for. The session ended
+        // without an error all the same, and the late failure belongs to a session that is gone.
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        process(RUMStartResourceCommand.mockWith(resourceKey: "/api", time: at(1.5)), on: scope)
+        addAction(at: 2, on: scope)
+
+        process(RUMStopSessionCommand(time: at(3)), on: scope)
+        process(RUMStopResourceWithErrorCommand.mockWithErrorMessage(resourceKey: "/api", time: at(4), httpStatusCode: 500), on: scope)
+        fireScheduledReleases()
+
+        XCTAssertTrue(written.isEmpty, "a session that ended without an error never reaches the backend")
+        XCTAssertTrue(scheduledReleases.isEmpty)
+    }
+
+    func testControl_anErrorReportedBeforeTheStop_stillReleasesAtTheStop_withARequestPending() {
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        process(RUMStartResourceCommand.mockWith(resourceKey: "/api", time: at(1.5)), on: scope)
+        addError(at: 2, on: scope)
+
+        process(RUMStopSessionCommand(time: at(3)), on: scope)
+
+        XCTAssertEqual(written(RUMErrorEvent.self).count, 1, "released at the stop, not when the request completes")
+        XCTAssertFalse(written(RUMViewEvent.self).isEmpty)
+    }
+
     func testWhenTheSessionTimesOutWithoutAnError_itsBufferIsThrownAway() {
         let scope = makeScope()
         startView("Home", at: 1, on: scope)

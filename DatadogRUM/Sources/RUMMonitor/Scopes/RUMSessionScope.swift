@@ -369,6 +369,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
         // Every event this session's children assemble goes through the session, which is where
         // errors are noticed and where the events of a session kept on error are withheld.
+        let storageWriter = writer
         let writer = SessionEventWriter(
             session: self,
             writer: writer,
@@ -427,6 +428,14 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
         // Propagate command
         viewScopes = viewScopes.scopes(byPropagating: command, context: context, writer: writer)
+
+        if deactivating {
+            // The session is over, whatever its views still wait for: a request that fails after
+            // the stop, or an error a retained view assembles, belongs to a session that ended
+            // without one and must not bring it back. Settled here, not when the scope is finally
+            // dropped, so nothing can be added in between. One that reported its error releases.
+            settleWithheldEvents(writer: storageWriter, context: context)
+        }
 
         if (isActive || deactivating) && !hasActiveView {
             // If this session is active and there is no active view, update fatal error context accordingly, so eventual
@@ -739,8 +748,10 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
     }
 
-    /// Called once the session is over. What a session that reported its error withheld is
-    /// released; what one that did not is thrown away, so the session never reaches the backend.
+    /// Called once the session is over: at the stop, or when the scope of a session that timed
+    /// out is dropped. What a session that reported its error withheld is released; what one
+    /// that did not is thrown away, so the session never reaches the backend - not through a
+    /// late event either, see `write`.
     func settleWithheldEvents(writer: Writer, context: DatadogContext) {
         if hasReportedError {
             releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
