@@ -754,6 +754,46 @@ class SnapshotProcessorTests: XCTestCase {
         XCTAssertEqual(recordWriter.records.count, 1)
     }
 
+    func testAWithheldSegmentOverItsResourceByteBudget_restartsFromAFullSnapshot() throws {
+        // Distinct images keep their decoded bitmaps alive while held; a feed shows many in a
+        // minute, so they are budgeted in bytes, not only in number.
+        let core = PassthroughCoreMock()
+        let resourceProcessor = ResourceProcessorSpy()
+        let processor = SnapshotProcessor(
+            queue: NoQueue(),
+            recordWriter: recordWriter,
+            resourceProcessor: resourceProcessor,
+            srContextPublisher: SRContextPublisher(core: core),
+            telemetry: TelemetryMock()
+        )
+        var distinct = 0
+        func bigImage() -> UIImageResource {
+            // One bitmap, told apart by its tint: the identifier covers the tint, and a distinct
+            // tint is cheaper and surer than a distinct bitmap.
+            let size = CGSize(width: 1_024, height: 1_024) // 4 MiB a bitmap at scale 1
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                UIColor.red.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+            }
+            distinct += 1
+            return UIImageResource(image: image, tintColor: UIColor(white: CGFloat(distinct) / 100, alpha: 1))
+        }
+        XCTAssertEqual(bigImage().estimatedRetainedBytes, 4 * 1_024 * 1_024)
+        let start = Date()
+        let images = SnapshotProcessor.withheldReplayResourcesBytesLimit / (4 * 1_024 * 1_024) + 1
+        for index in 0..<images {
+            processor.process(viewTreeSnapshot: imageSnapshot(resource: bigImage(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(Double(index) * 0.1), replayHold: .withheld), touchSnapshot: nil)
+        }
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: bigImage(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(20), replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: bigImage(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(21), replayHold: .none), touchSnapshot: nil)
+
+        let released = try XCTUnwrap(recordWriter.records.first)
+        XCTAssertTrue(released.records.contains { $0.isFullSnapshotRecord }, "the restarted segment plays on its own")
+        XCTAssertEqual(resourceProcessor.resources.count, 2, "only the images recorded since the restart")
+    }
+
     func testAWithheldReplayOfASessionThatEndedWithoutAnError_isThrownAway() {
         let core = PassthroughCoreMock()
         let processor = makeProcessor(core: core)

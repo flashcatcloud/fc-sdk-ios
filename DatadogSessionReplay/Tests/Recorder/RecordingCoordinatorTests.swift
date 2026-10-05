@@ -404,17 +404,22 @@ class RecordingCoordinatorTests: XCTestCase {
 
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s2", viewID: "v2"))
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s3", viewID: "v3"))
-        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 2, "s2's replay, withheld, went with s2")
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 2, "every change away from a session throws away whatever is still held")
     }
 
-    func test_control_whenConsentIsWithdrawn_aReplayThatIsNotWithheldIsLeftToItsWriter() {
-        prepareRecordingCoordinator(sampler: .mockKeepAll())
+    func test_whenConsentIsWithdrawnAfterARelease_theRecordsStillHeldAreThrownAwayToo() {
+        // A release only tells the processor to write with the next snapshot; with recording
+        // stopped none is taken, so the records are still held when consent goes.
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
         let rum = RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1")
         rumContextObserver.notify(rumContext: rum, trackingConsent: .granted)
-
-        rumContextObserver.notify(rumContext: rum, trackingConsent: .notGranted)
-
+        recordingCoordinator?.stopRecording()
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", hasReportedError: true), trackingConsent: .granted)
         XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 0)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", hasReportedError: true), trackingConsent: .notGranted)
+
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 1)
     }
 
     func test_forcingTheSession_releasesTheReplay() {

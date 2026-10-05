@@ -115,9 +115,11 @@ internal class RecordingCoordinator {
     private func onRUMContextChanged(rumContext: RUMCoreContext?, trackingConsent: TrackingConsent) {
         self.trackingConsent = trackingConsent
         if currentRUMContext?.sessionID != rumContext?.sessionID || currentRUMContext == nil {
-            if replayHold != .none {
-                // FLASHCAT FORK - the session is over, and what its replay withheld goes with it:
-                // now, rather than with the next snapshot, which may never come.
+            // FLASHCAT FORK - the session is over, and what its replay withheld goes with it: now,
+            // rather than with the next snapshot, which may never come. Whatever this coordinator
+            // believes about the hold: records released here are only written by a snapshot, and
+            // with recording stopped none was taken, so they may still be held.
+            if currentRUMContext != nil {
                 recorder.discardWithheldRecords()
             }
             // FLASHCAT FORK - a session the host application forced skips replay's own draw:
@@ -157,9 +159,10 @@ internal class RecordingCoordinator {
 
         currentRUMContext = rumContext
 
-        if trackingConsent == .notGranted && replayHold != .none {
+        if trackingConsent == .notGranted {
             // Consent withdrawn: what is withheld goes now, not with the next snapshot - recording
             // may be stopped and never take one, and the records would wait for a later grant.
+            // Whatever the hold state says, for the reason above.
             recorder.discardWithheldRecords()
         }
 

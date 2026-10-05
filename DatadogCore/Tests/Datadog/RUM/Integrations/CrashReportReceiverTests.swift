@@ -857,7 +857,7 @@ class CrashReportReceiverTests: XCTestCase {
         // hears of the session. It is reported all the same, and like the session's own events
         // it reports a rate of 0 whatever it was drawn at.
         let view = try viewSynthesisedForCrash(
-            drawnSessionSampleRate: 0,
+            drawnSessionSampleRate: 20, // drawn out at 20 and kept by the switch: 0 is not the draw
             drawnConfigurationVersion: 7,
             initialisedAt: 20,
             sampledForError: true

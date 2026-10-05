@@ -35,8 +35,10 @@ extension SessionReplay {
         ///
         /// Such a replay is recorded but nothing is uploaded until the session reports an error: the
         /// replay of the current view is kept, at most the last minute of it, and thrown away when
-        /// the session ends without one. When the error comes, what is kept is uploaded and the rest
-        /// of the replay is collected normally. When RUM's remote configuration is enabled, the
+        /// the session ends without one. A view change, or the segment outgrowing its budget, throws
+        /// the kept segment away and recording starts over from a full snapshot, so what survives is
+        /// the current view's replay. When the error comes, what is kept is uploaded and the rest of
+        /// the replay is collected normally. When RUM's remote configuration is enabled, the
         /// console's `sessionReplayOnError` takes precedence.
         ///
         /// The console's switch can only act on a Session Replay that is running: with

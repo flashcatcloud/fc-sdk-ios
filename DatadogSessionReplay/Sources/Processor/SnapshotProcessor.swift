@@ -73,14 +73,18 @@ internal class SnapshotProcessor: SnapshotProcessing {
     /// snapshot, and the budget is meant for distinct images, not for snapshots.
     private var withheldResources: [Resource] = []
     private var withheldResourceIdentifiers: Set<String> = []
+    private var withheldResourcesBytes = 0
     private var withheldSince: Date?
     /// How many withheld segments were thrown away before the one finally released.
     private var droppedWithheldSegments = 0
     /// The span a withheld replay may cover - the same minute the withheld events promise.
     static let withheldReplayDuration: TimeInterval = 60
-    /// Memory bounds of a withheld segment, whatever its span.
+    /// Memory bounds of a withheld segment, whatever its span. The resources are bounded in
+    /// bytes as well as in number: an image feed shows a hundred distinct photos in a minute,
+    /// and each one held keeps its decoded bitmap alive.
     static let withheldReplayRecordsLimit = 2_000
     static let withheldReplayResourcesLimit = 100
+    static let withheldReplayResourcesBytesLimit = 16 * 1_024 * 1_024
 
     init(
         queue: Queue,
@@ -203,6 +207,7 @@ internal class SnapshotProcessor: SnapshotProcessing {
             // not marked processed until they actually go.
             for resource in builder.resources where withheldResourceIdentifiers.insert(resource.calculateIdentifier()).inserted {
                 withheldResources.append(resource)
+                withheldResourcesBytes += resource.estimatedRetainedBytes
             }
         } else {
             resourceProcessor.process(
@@ -255,6 +260,7 @@ internal class SnapshotProcessor: SnapshotProcessing {
         let outgrown = context.date.timeIntervalSince(since) > Self.withheldReplayDuration
             || withheldRecordsCount > Self.withheldReplayRecordsLimit
             || withheldResources.count > Self.withheldReplayResourcesLimit
+            || withheldResourcesBytes > Self.withheldReplayResourcesBytesLimit
         guard !sameView || outgrown else {
             return false
         }
@@ -283,6 +289,7 @@ internal class SnapshotProcessor: SnapshotProcessing {
         withheldRecordsCount = 0
         withheldResources = []
         withheldResourceIdentifiers = []
+        withheldResourcesBytes = 0
         withheldSince = nil
     }
 }

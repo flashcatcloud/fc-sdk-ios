@@ -77,8 +77,9 @@ extension RUM {
         /// Such a session has a session id from its start, and the other features see it as they
         /// see any collected session's: logs and traces carry it. The backend only learns of the
         /// session if it reports an error, so for a session that never does, that id leads nowhere.
-        /// The host application is not handed it until then: `currentSessionID` returns `nil` and
-        /// `onSessionStart` reports the session as discarded, until its events are released.
+        /// The host application is not handed it until then: `currentSessionID` returns `nil`
+        /// until the session's events are released, and `onSessionStart` - called once, when the
+        /// session starts - reports it as discarded.
         ///
         /// Default: `false`.
         public var sessionOnError: Bool
