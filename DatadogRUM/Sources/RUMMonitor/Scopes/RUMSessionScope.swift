@@ -103,6 +103,10 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     /// FLASHCAT FORK - the events of a session kept on error, until they are released or thrown
     /// away; `nil` for every other session and once released.
     private var withheldEvents: RUMWithheldEventBuffer?
+    /// FLASHCAT FORK - whether what this session withheld was thrown away: the session ended
+    /// without an error, so nothing of it may ever go out - not even an event a child assembles
+    /// afterwards, from a callback that kept the session's writer.
+    private var withheldEventsDiscarded = false
     /// FLASHCAT FORK - whether this session's events are withheld. Stays `true` until they are
     /// actually written out - after the error, behind the release jitter - so nothing else of the
     /// session (its replay, web view events) can reach the backend ahead of its views.
@@ -635,6 +639,10 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         // afterwards would be worse than no session at all. (The SDK's own failures go to
         // telemetry, not to RUM errors, so none of them can count here.) Nor can an error
         // assembled without consent: the writer drops it, so nobody will find it either.
+        guard !withheldEventsDiscarded else {
+            completion()
+            return
+        }
         let error = value as? RUMErrorEvent
         if error != nil, !hasReportedError, trackingConsent != .notGranted {
             hasReportedError = true
@@ -736,9 +744,10 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     func settleWithheldEvents(writer: Writer, context: DatadogContext) {
         if hasReportedError {
             releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
-        } else {
-            withheldEvents?.discard()
-            withheldEvents = nil
+        } else if let withheldEvents = withheldEvents {
+            withheldEvents.discard()
+            self.withheldEvents = nil
+            withheldEventsDiscarded = true
         }
     }
 }

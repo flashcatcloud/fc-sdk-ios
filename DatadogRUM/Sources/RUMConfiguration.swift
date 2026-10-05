@@ -65,7 +65,7 @@ extension RUM {
         ///
         /// Such a session is collected in memory but nothing is uploaded: only the last minute is
         /// kept, and if the session ends without an error everything is thrown away. When it
-        /// reports one, the minute before it is uploaded, and the rest of the session is collected
+        /// reports one, up to the minute before it is uploaded, and the rest of the session is collected
         /// normally. A session kept this way reports a `session_sample_rate` of 0, because it
         /// stands for itself rather than for `100 / rate` sessions.
         ///

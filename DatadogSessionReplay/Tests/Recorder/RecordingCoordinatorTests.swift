@@ -383,6 +383,28 @@ class RecordingCoordinatorTests: XCTestCase {
         XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.trackingConsent, .granted)
     }
 
+    func test_whenConsentIsWithdrawn_theWithheldRecordsAreThrownAwayAtOnce() {
+        // Not with the next snapshot: recording may be stopped and never take one.
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+        let rum = RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1")
+        rumContextObserver.notify(rumContext: rum, trackingConsent: .granted)
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 0)
+
+        rumContextObserver.notify(rumContext: rum, trackingConsent: .notGranted)
+
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 1)
+    }
+
+    func test_control_whenConsentIsWithdrawn_aReplayThatIsNotWithheldIsLeftToItsWriter() {
+        prepareRecordingCoordinator(sampler: .mockKeepAll())
+        let rum = RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1")
+        rumContextObserver.notify(rumContext: rum, trackingConsent: .granted)
+
+        rumContextObserver.notify(rumContext: rum, trackingConsent: .notGranted)
+
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 0)
+    }
+
     func test_forcingTheSession_releasesTheReplay() {
         prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
         rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
@@ -482,6 +504,12 @@ final class RecordingMock: Recording {
         captureNextRecordReceivedRecorderContext = recorderContext
         captureNextRecordReceivedInvocations.append(recorderContext)
         try captureNextRecordClosure?(recorderContext)
+    }
+
+    var discardWithheldRecordsCallsCount = 0
+
+    func discardWithheldRecords() {
+        discardWithheldRecordsCallsCount += 1
     }
 }
 #endif

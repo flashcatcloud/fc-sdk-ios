@@ -724,6 +724,26 @@ class SnapshotProcessorTests: XCTestCase {
         XCTAssertTrue(released.records[2].isFullSnapshotRecord)
     }
 
+    func testDiscardingTheWithheldRecords_throwsThemAway_andRecordingRestartsFromAFullSnapshot() throws {
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let rum: RUMCoreContext = .mockWith(viewID: "v1", serverTimeOffset: 0)
+        let viewTree = generateSimpleViewTree()
+        let start = Date()
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start, rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        XCTAssertEqual(core.recordsCountByViewID?["v1"], 3)
+
+        processor.discardWithheldRecords()
+
+        XCTAssertNil(core.recordsCountByViewID?["v1"], "what was held is given back")
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(1), rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(2), rumContext: rum, replayHold: .none), touchSnapshot: nil)
+        let released = try XCTUnwrap(recordWriter.records.first)
+        XCTAssertEqual(recordWriter.records.count, 1)
+        XCTAssertTrue(released.records[0].isMetaRecord, "it starts over from a full snapshot")
+        XCTAssertTrue(released.records[2].isFullSnapshotRecord)
+    }
+
     func testControl_aReplayThatIsNotWithheld_isWrittenWhateverTheConsent() {
         // The writer of the moment decides for it, as it always did.
         let processor = makeProcessor(core: PassthroughCoreMock())

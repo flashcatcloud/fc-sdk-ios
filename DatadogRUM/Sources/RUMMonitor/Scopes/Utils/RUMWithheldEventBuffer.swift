@@ -49,14 +49,14 @@ internal final class RUMWithheldEventBuffer {
         let time: Date
         let bytes: Int
         let tier: EvictionTier
-        let write: (Writer, _ claimingReplay: Bool) -> Void
+        let write: (Writer, _ claimingReplayRecords: Int64?) -> Void
         let discard: () -> Void
     }
 
     private struct HeldView {
         /// The view's start date, as the event reports it.
         let date: Int64
-        let write: (Writer, _ claimingReplay: Bool) -> Void
+        let write: (Writer, _ claimingReplayRecords: Int64?) -> Void
         let discard: () -> Void
     }
 
@@ -93,8 +93,8 @@ internal final class RUMWithheldEventBuffer {
         completion: @escaping CompletionHandler,
         now: Date
     ) -> Bool {
-        let write: (Writer, Bool) -> Void = { writer, claimingReplay in
-            writer.write(value: claimingReplay ? event.claimingReplay() : event, metadata: metadata, completion: completion)
+        let write: (Writer, Int64?) -> Void = { writer, records in
+            writer.write(value: records.map { event.claimingReplay(records: $0) } ?? event, metadata: metadata, completion: completion)
         }
 
         if let view = event as? RUMViewEvent {
@@ -103,7 +103,7 @@ internal final class RUMWithheldEventBuffer {
             return true
         }
 
-        let eventBytes = (try? JSONEncoder().encode(event).count) ?? 0
+        let eventBytes = (try? JSONEncoder.dd.default().encode(event).count) ?? 0
         guard eventBytes <= Constants.bytesLimit else {
             if event is RUMErrorEvent {
                 return false
@@ -158,7 +158,7 @@ internal final class RUMWithheldEventBuffer {
         prune(now: now)
 
         let orderedViews = viewOrder.compactMap { id in views[id].map { (id, $0) } }.sorted { $0.1.date < $1.1.date }
-        let keptReplay = { (viewID: String) in (recordsCountByViewID[viewID] ?? 0) > 0 }
+        let keptReplay = { (viewID: String) -> Int64? in recordsCountByViewID[viewID].flatMap { $0 > 0 ? $0 : nil } }
 
         orderedViews.forEach { id, view in view.write(writer, keptReplay(id)) }
         details.filter { $0.tier == .lastResort }.forEach { $0.write(writer, keptReplay($0.viewID)) }
@@ -183,7 +183,7 @@ internal final class RUMWithheldEventBuffer {
 
     // MARK: - Private
 
-    private func holdView(id: String, date: Int64, write: @escaping (Writer, Bool) -> Void, discard: @escaping () -> Void) {
+    private func holdView(id: String, date: Int64, write: @escaping (Writer, Int64?) -> Void, discard: @escaping () -> Void) {
         // Upsert: a view event is cumulative, so the latest one supersedes the ones before it.
         views[id]?.discard()
         viewOrder.removeAll { $0 == id }
@@ -284,17 +284,26 @@ internal protocol RUMWithheldEvent: Codable {
 extension RUMWithheldEvent {
     var evictionTier: RUMWithheldEventBuffer.EvictionTier { .last }
 
-    /// The same event, claiming the session's replay (`session.has_replay`). The generated models
-    /// keep the field immutable, so it is set through their JSON form; an event that does not
-    /// round-trip is written as it was.
-    func claimingReplay() -> Self {
-        guard let data = try? JSONEncoder().encode(self),
+    /// The same event, claiming the session's replay (`session.has_replay`) and, for a view, the
+    /// records its view holds (`_dd.replay_stats.records_count`): a view that ended while the
+    /// replay was withheld gets no later update to carry the count. The generated models keep the
+    /// fields immutable, so they are set through the JSON form the intake receives - the same
+    /// encoder, so a custom attribute comes back exactly as it will be sent; an event that does
+    /// not round-trip is written as it was.
+    func claimingReplay(records: Int64) -> Self {
+        guard let data = try? JSONEncoder.dd.default().encode(self),
               var json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               var session = json["session"] as? [String: Any] else {
             return self
         }
         session["has_replay"] = true
         json["session"] = session
+        if json["type"] as? String == "view", var dd = json["_dd"] as? [String: Any] {
+            var replayStats = dd["replay_stats"] as? [String: Any] ?? [:]
+            replayStats["records_count"] = records
+            dd["replay_stats"] = replayStats
+            json["_dd"] = dd
+        }
         return (try? JSONSerialization.data(withJSONObject: json))
             .flatMap { try? JSONDecoder().decode(Self.self, from: $0) } ?? self
     }

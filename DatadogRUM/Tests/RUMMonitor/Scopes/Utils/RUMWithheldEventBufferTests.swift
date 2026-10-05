@@ -316,11 +316,62 @@ class RUMWithheldEventBufferTests: XCTestCase {
     }
 
     func testEveryKindOfEventCanClaimTheReplay() {
-        XCTAssertEqual(view("v1", date: 1).claimingReplay().session.hasReplay, true)
-        XCTAssertEqual(error(on: "v1").claimingReplay().session.hasReplay, true)
-        XCTAssertEqual(resource(on: "v1", statusCode: 200).claimingReplay().session.hasReplay, true)
-        XCTAssertEqual(longTask(on: "v1").claimingReplay().session.hasReplay, true)
-        XCTAssertEqual(RUMActionEvent.mockAny().claimingReplay().session.hasReplay, true)
+        XCTAssertEqual(view("v1", date: 1).claimingReplay(records: 1).session.hasReplay, true)
+        XCTAssertEqual(error(on: "v1").claimingReplay(records: 1).session.hasReplay, true)
+        XCTAssertEqual(resource(on: "v1", statusCode: 200).claimingReplay(records: 1).session.hasReplay, true)
+        XCTAssertEqual(longTask(on: "v1").claimingReplay(records: 1).session.hasReplay, true)
+        XCTAssertEqual(RUMActionEvent.mockAny().claimingReplay(records: 1).session.hasReplay, true)
+        XCTAssertEqual(RUMVitalAppLaunchEvent.mockRandom().claimingReplay(records: 1).session.hasReplay, true)
+        XCTAssertEqual(RUMVitalDurationEvent.mockRandom().claimingReplay(records: 1).session.hasReplay, true)
+        XCTAssertEqual(RUMVitalOperationStepEvent.mockRandom().claimingReplay(records: 1).session.hasReplay, true)
+    }
+
+    func testClaimingTheReplayChangesNothingElse_asTheIntakeWillSeeIt() throws {
+        // The claim goes through the JSON form of the event, so every field of every kind of event
+        // must reach the intake exactly as it would have - random attributes included, and a date
+        // among them, which the intake's encoder writes as a string and a plain one as a number.
+        func json<T: Encodable>(_ event: T) throws -> NSDictionary {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder.dd.default().encode(event)) as? NSDictionary)
+        }
+        func claimed(_ original: NSDictionary, records: Int64) -> NSDictionary {
+            let copy = NSMutableDictionary(dictionary: original)
+            let session = NSMutableDictionary(dictionary: copy["session"] as? NSDictionary ?? [:])
+            session["has_replay"] = true
+            copy["session"] = session
+            if copy["type"] as? String == "view" {
+                let dd = NSMutableDictionary(dictionary: copy["_dd"] as? NSDictionary ?? [:])
+                let stats = NSMutableDictionary(dictionary: dd["replay_stats"] as? NSDictionary ?? [:])
+                stats["records_count"] = records
+                dd["replay_stats"] = stats
+                copy["_dd"] = dd
+            }
+            return copy
+        }
+        struct Nested: Encodable {
+            let n = 1.5
+            let s = "x"
+        }
+        let attributes = RUMEventAttributes(contextInfo: ["when": Date(timeIntervalSince1970: 1_700_000_000), "nested": Nested()])
+        for _ in 0..<20 {
+            var view = RUMViewEvent.mockRandom()
+            view.context = attributes
+            XCTAssertEqual(try json(view.claimingReplay(records: 7)), claimed(try json(view), records: 7))
+            var error = RUMErrorEvent.mockRandom()
+            error.context = attributes
+            XCTAssertEqual(try json(error.claimingReplay(records: 7)), claimed(try json(error), records: 7))
+            let resource = RUMResourceEvent.mockRandom()
+            XCTAssertEqual(try json(resource.claimingReplay(records: 7)), claimed(try json(resource), records: 7))
+            let action = RUMActionEvent.mockAny()
+            XCTAssertEqual(try json(action.claimingReplay(records: 7)), claimed(try json(action), records: 7))
+            let longTask = RUMLongTaskEvent.mockRandom()
+            XCTAssertEqual(try json(longTask.claimingReplay(records: 7)), claimed(try json(longTask), records: 7))
+            let appLaunch = RUMVitalAppLaunchEvent.mockRandom()
+            XCTAssertEqual(try json(appLaunch.claimingReplay(records: 7)), claimed(try json(appLaunch), records: 7))
+            let duration = RUMVitalDurationEvent.mockRandom()
+            XCTAssertEqual(try json(duration.claimingReplay(records: 7)), claimed(try json(duration), records: 7))
+            let step = RUMVitalOperationStepEvent.mockRandom()
+            XCTAssertEqual(try json(step.claimingReplay(records: 7)), claimed(try json(step), records: 7))
+        }
     }
 
     func testReleasedEventsClaimTheReplayOnlyWhereTheirViewKeptRecords() {
@@ -332,6 +383,11 @@ class RUMWithheldEventBufferTests: XCTestCase {
         _ = buffer.release(to: writer, now: start, recordsCountByViewID: ["v1": 3, "v2": 0])
 
         XCTAssertEqual(writer.events(ofType: RUMViewEvent.self).map { $0.session.hasReplay == true }, [true, false])
+        XCTAssertEqual(
+            writer.events(ofType: RUMViewEvent.self).map { $0.dd.replayStats?.recordsCount },
+            [3, nil],
+            "a view that ended while the replay was withheld gets no later update to carry the count"
+        )
         XCTAssertEqual(writer.events(ofType: RUMActionEvent.self).first?.session.hasReplay, true)
         XCTAssertNotEqual(writer.events(ofType: RUMErrorEvent.self).first?.session.hasReplay, true)
     }

@@ -18,6 +18,9 @@ internal protocol SnapshotProcessing {
     /// - Parameter viewTreeSnapshot: the snapshot of a next view tree
     /// - Parameter touchSnapshot: the snapshot of next touch interactions (or `nil` if no interactions happened)
     func process(viewTreeSnapshot: ViewTreeSnapshot, touchSnapshot: TouchSnapshot?)
+    /// FLASHCAT FORK - throws away the records withheld until the session reports an error, see
+    /// `Recording.discardWithheldRecords()`.
+    func discardWithheldRecords()
 }
 
 /// The brain of the Session Replay.
@@ -100,15 +103,25 @@ internal class SnapshotProcessor: SnapshotProcessing {
         queue.run { [weak self] in self?.processSync(viewTreeSnapshot: viewTreeSnapshot, touchSnapshot: touchSnapshot) }
     }
 
+    func discardWithheldRecords() {
+        queue.run { [weak self] in self?.discardWithheldRecordsAndRestart() }
+    }
+
+    /// Throws away what is withheld and makes the next snapshot start a new segment, from a full
+    /// snapshot: incremental records cannot follow a dropped history.
+    private func discardWithheldRecordsAndRestart() {
+        discardWithheldRecords(sameSession: false)
+        lastSnapshot = nil
+        lastWireframes = nil
+    }
+
     private func processSync(viewTreeSnapshot: ViewTreeSnapshot, touchSnapshot: TouchSnapshot?) {
         if viewTreeSnapshot.context.replayHold != .none && viewTreeSnapshot.context.trackingConsent == .notGranted {
             // Nothing recorded without consent may be released once it is granted: what is held
             // is thrown away and nothing is held until consent returns, when the segment starts
             // over from a full snapshot. A replay that is not withheld is written as usual, to a
             // writer that drops it.
-            discardWithheldRecords(sameSession: false)
-            lastSnapshot = nil
-            lastWireframes = nil
+            discardWithheldRecordsAndRestart()
             return
         }
         let mustRestartSegment = settleWithheldRecords(for: viewTreeSnapshot.context)

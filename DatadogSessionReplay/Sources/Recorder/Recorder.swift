@@ -11,6 +11,10 @@ import DatadogInternal
 /// A type managing Session Replay recording.
 internal protocol Recording {
     func captureNextRecord(_ recorderContext: Recorder.Context) throws
+    /// FLASHCAT FORK - throws away the records withheld until the session reports an error.
+    /// Called when tracking consent is withdrawn: the records cannot wait for the next snapshot
+    /// to carry the withdrawal, because recording may be stopped and never take one.
+    func discardWithheldRecords()
 }
 
 /// The main engine and the heart beat of Session Replay.
@@ -148,6 +152,10 @@ public class Recorder: Recording {
 
         let touchSnapshot = touchSnapshotProducer.takeSnapshot(context: recorderContext)
         snapshotProcessor.process(viewTreeSnapshot: viewTreeSnapshot, touchSnapshot: touchSnapshot)
+    }
+
+    func discardWithheldRecords() {
+        snapshotProcessor.discardWithheldRecords()
     }
 }
 #endif

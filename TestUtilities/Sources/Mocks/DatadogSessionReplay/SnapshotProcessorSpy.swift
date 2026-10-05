@@ -18,5 +18,11 @@ public class SnapshotProcessorSpy: SnapshotProcessing {
     public func process(viewTreeSnapshot: ViewTreeSnapshot, touchSnapshot: TouchSnapshot?) {
         processedSnapshots.append((viewTreeSnapshot, touchSnapshot))
     }
+
+    public private(set) var discardWithheldRecordsCallsCount = 0
+
+    public func discardWithheldRecords() {
+        discardWithheldRecordsCallsCount += 1
+    }
 }
 #endif

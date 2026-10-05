@@ -152,6 +152,12 @@ internal class RecordingCoordinator {
 
         currentRUMContext = rumContext
 
+        if trackingConsent == .notGranted && replayHold != .none {
+            // Consent withdrawn: what is withheld goes now, not with the next snapshot - recording
+            // may be stopped and never take one, and the records would wait for a later grant.
+            recorder.discardWithheldRecords()
+        }
+
         let errorReplay = rumContext.flatMap { isSampledOnError ? SessionReplayCoreContext.ErrorReplay(sessionID: $0.sessionID, withheld: replayHold != .none) : nil }
         if errorReplay != publishedErrorReplay {
             srContextPublisher.setErrorReplay(errorReplay)

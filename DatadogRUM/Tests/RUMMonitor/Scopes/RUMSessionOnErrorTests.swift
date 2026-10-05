@@ -278,6 +278,22 @@ class RUMSessionOnErrorTests: XCTestCase {
         XCTAssertEqual(written.count, countAfterEnd, "the late timer finds nothing left to write")
     }
 
+    func testAfterItsBufferWasThrownAway_nothingTheSessionStillAssemblesGoesOut() throws {
+        // A child can assemble an event after the session ended - an app-launch vital from an
+        // app-state callback that kept the session's writer. Nothing of a thrown-away session
+        // may ever go out.
+        let scope = makeScope()
+        let session = try XCTUnwrap(scope.activeSession)
+        startView("Home", at: 1, on: scope)
+        session.settleWithheldEvents(writer: writer, context: .mockWith(sdkInitDate: start))
+
+        addAction(at: 2, on: scope)
+        addError(at: 3, on: scope)
+        fireScheduledReleases()
+
+        XCTAssertTrue(written.isEmpty)
+    }
+
     func testWhenTheSessionTimesOutWithoutAnError_itsBufferIsThrownAway() {
         let scope = makeScope()
         startView("Home", at: 1, on: scope)

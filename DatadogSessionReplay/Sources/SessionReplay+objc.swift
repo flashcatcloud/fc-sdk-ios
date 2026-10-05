@@ -52,7 +52,9 @@ public final class objc_SessionReplayConfiguration: NSObject {
     /// The sampling rate for Session Replay. It is applied in addition to the RUM session sample rate.
     ///
     /// It must be a number between 0.0 and 100.0, where 0 means no replays will be recorded
-    /// and 100 means all RUM sessions will contain replay.
+    /// and 100 means all RUM sessions will contain replay. With `sessionReplayOnError`, the
+    /// replays the rate leaves out are still recorded, and uploaded if the session reports an
+    /// error.
     ///
     /// Note: This sample rate is applied in addition to the RUM sample rate. For example, if RUM uses a sample rate of 80%
     /// and Session Replay uses a sample rate of 20%, it means that out of all user sessions, 80% will be included in RUM,
