@@ -395,6 +395,18 @@ class RecordingCoordinatorTests: XCTestCase {
         XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 1)
     }
 
+    func test_whenTheSessionChanges_theWithheldRecordsAreThrownAwayAtOnce() {
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+
+        rumContextObserver.notify(rumContext: nil)
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 1, "the session ended")
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s2", viewID: "v2"))
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s3", viewID: "v3"))
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 2, "s2's replay, withheld, went with s2")
+    }
+
     func test_control_whenConsentIsWithdrawn_aReplayThatIsNotWithheldIsLeftToItsWriter() {
         prepareRecordingCoordinator(sampler: .mockKeepAll())
         let rum = RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1")

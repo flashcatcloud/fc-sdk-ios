@@ -74,10 +74,11 @@ extension RUM {
         /// `sessionOnError` takes precedence. A `beforeSampling` that returns 0 turns it off for
         /// that session: 0 means the session is never collected.
         ///
-        /// Such a session has a session id from its start, and other features see it as they see
-        /// any collected session's: logs and traces carry it, and `currentSessionID` returns it.
-        /// The backend only learns of the session if it reports an error, so for a session that
-        /// never does, that id leads nowhere. `onSessionStart` reports such a session as discarded.
+        /// Such a session has a session id from its start, and the other features see it as they
+        /// see any collected session's: logs and traces carry it. The backend only learns of the
+        /// session if it reports an error, so for a session that never does, that id leads nowhere.
+        /// The host application is not handed it until then: `currentSessionID` returns `nil` and
+        /// `onSessionStart` reports the session as discarded, until its events are released.
         ///
         /// Default: `false`.
         public var sessionOnError: Bool

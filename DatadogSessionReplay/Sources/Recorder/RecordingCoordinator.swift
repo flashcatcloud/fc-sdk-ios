@@ -115,6 +115,11 @@ internal class RecordingCoordinator {
     private func onRUMContextChanged(rumContext: RUMCoreContext?, trackingConsent: TrackingConsent) {
         self.trackingConsent = trackingConsent
         if currentRUMContext?.sessionID != rumContext?.sessionID || currentRUMContext == nil {
+            if replayHold != .none {
+                // FLASHCAT FORK - the session is over, and what its replay withheld goes with it:
+                // now, rather than with the next snapshot, which may never come.
+                recorder.discardWithheldRecords()
+            }
             // FLASHCAT FORK - a session the host application forced skips replay's own draw:
             // forcing exists to debug one visitor, and a replay-less recording of them is not the
             // thing that was asked for.

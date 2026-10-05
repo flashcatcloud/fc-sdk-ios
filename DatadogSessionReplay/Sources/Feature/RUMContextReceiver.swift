@@ -38,8 +38,10 @@ internal class RUMContextReceiver: FeatureMessageReceiver, RUMContextObserver {
         let new = context.additionalContext(ofType: RUMCoreContext.self)
         let consent = context.trackingConsent
 
-        // Notify only if it has changed:
-        if new != previous || consent != previousConsent {
+        // Notify only if it has changed. A change of consent alone matters only to a replay, and
+        // there is none without a RUM context: notifying then would only re-run a draw for a
+        // session that does not exist.
+        if new != previous || (new != nil && consent != previousConsent) {
             onNew?(new, consent)
             previous = new
             previousConsent = consent

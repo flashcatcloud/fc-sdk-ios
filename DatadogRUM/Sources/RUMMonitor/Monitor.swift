@@ -208,10 +208,13 @@ extension Monitor: RUMMonitorProtocol {
         // Synchronise it through the context thread to make sure we return the correct
         // sessionID after all other events have been processed (also on the context thread):
         featureScope.context { [weak self] _ in
-            guard let sessionId = self?.scopes.activeSession?.sessionUUID else {
+            // FLASHCAT FORK - a session kept only in case it reports an error has an id the
+            // backend may never hear of: none is reported until its events are released.
+            guard let session = self?.scopes.activeSession, !session.eventsWithheld else {
                 completion(nil)
                 return
             }
+            let sessionId = session.sessionUUID
 
             var sessionIdValue: String? = nil
             if sessionId != RUMUUID.nullUUID {

@@ -753,13 +753,21 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 }
 
 /// FLASHCAT FORK - the writer a session hands its children for one command.
+///
+/// It holds the session weakly: a child can keep the writer in a callback that outlives the
+/// command, and a writer that kept the session alive would let that callback write for a session
+/// that is gone - which, before this writer existed, it could not.
 private struct SessionEventWriter: Writer {
-    let session: RUMSessionScope
+    weak var session: RUMSessionScope?
     let writer: Writer
     let recordsCountByViewID: [String: Int64]
     let trackingConsent: TrackingConsent
 
     func write<T: Encodable, M: Encodable>(value: T, metadata: M?, completion: @escaping CompletionHandler) {
+        guard let session = session else {
+            completion()
+            return
+        }
         session.write(
             value: value,
             metadata: metadata,

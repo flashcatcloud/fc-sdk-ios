@@ -1514,8 +1514,10 @@
 		D23F8EA229DDCD38001CFAE8 /* RUMSessionScopeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C2C20824C0C75500C0321C /* RUMSessionScopeTests.swift */; };
 		DE687A414FCC3A4D328ABC7E /* RUMDrawnConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C01AEEC8C09EEE28EC2CA9A /* RUMDrawnConfigurationTests.swift */; };
 		03A3BCB38C7F97F821CA4965 /* RUMSessionOnErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20A4B01202B2F775C373743 /* RUMSessionOnErrorTests.swift */; };
+		934A3437181588824A5FBDC6 /* RUMSessionOnErrorMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A647F06B01CA85BF674200F /* RUMSessionOnErrorMonitorTests.swift */; };
 		A36A655187BCCE5680EC5984 /* RUMDrawnConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C01AEEC8C09EEE28EC2CA9A /* RUMDrawnConfigurationTests.swift */; };
 		65988DF1FBFA41A086BA328C /* RUMSessionOnErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20A4B01202B2F775C373743 /* RUMSessionOnErrorTests.swift */; };
+		CC702B605AFD07BF04948216 /* RUMSessionOnErrorMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A647F06B01CA85BF674200F /* RUMSessionOnErrorMonitorTests.swift */; };
 		D23F8EA329DDCD38001CFAE8 /* RUMUserActionScopeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617CD0DC24CEDDD300B0B557 /* RUMUserActionScopeTests.swift */; };
 		D23F8EA629DDCD38001CFAE8 /* RUMDeviceInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61FD9FCE28534EBD00214BD9 /* RUMDeviceInfoTests.swift */; };
 		D23F8EA829DDCD38001CFAE8 /* RUMResourceScopeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61494CB424C864680082C633 /* RUMResourceScopeTests.swift */; };
@@ -3407,6 +3409,7 @@
 		61C2C20824C0C75500C0321C /* RUMSessionScopeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMSessionScopeTests.swift; sourceTree = "<group>"; };
 		4C01AEEC8C09EEE28EC2CA9A /* RUMDrawnConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMDrawnConfigurationTests.swift; sourceTree = "<group>"; };
 		E20A4B01202B2F775C373743 /* RUMSessionOnErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMSessionOnErrorTests.swift; sourceTree = "<group>"; };
+		0A647F06B01CA85BF674200F /* RUMSessionOnErrorMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMSessionOnErrorMonitorTests.swift; sourceTree = "<group>"; };
 		61C2C21124C5951400C0321C /* RUMViewScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMViewScope.swift; sourceTree = "<group>"; };
 		61C3637F2436164B00C4D4E6 /* ObjcExceptionHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjcExceptionHandlerTests.swift; sourceTree = "<group>"; };
 		61C3E63624BF191F008053F2 /* RUMScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMScope.swift; sourceTree = "<group>"; };
@@ -6325,6 +6328,7 @@
 				61C2C20824C0C75500C0321C /* RUMSessionScopeTests.swift */,
 				4C01AEEC8C09EEE28EC2CA9A /* RUMDrawnConfigurationTests.swift */,
 				E20A4B01202B2F775C373743 /* RUMSessionOnErrorTests.swift */,
+				0A647F06B01CA85BF674200F /* RUMSessionOnErrorMonitorTests.swift */,
 				617CD0DC24CEDDD300B0B557 /* RUMUserActionScopeTests.swift */,
 				6198D27024C6E3B700493501 /* RUMViewScopeTests.swift */,
 				6141CE652806B3F200EBB879 /* Utils */,
@@ -10626,6 +10630,7 @@
 				D23F8EA229DDCD38001CFAE8 /* RUMSessionScopeTests.swift in Sources */,
 				A36A655187BCCE5680EC5984 /* RUMDrawnConfigurationTests.swift in Sources */,
 				65988DF1FBFA41A086BA328C /* RUMSessionOnErrorTests.swift in Sources */,
+				CC702B605AFD07BF04948216 /* RUMSessionOnErrorMonitorTests.swift in Sources */,
 				0904F9F52EE1DA6800ED9A22 /* UIKitExtensionsTests.swift in Sources */,
 				3C4CF9992C47CC92006DE1C0 /* MemoryWarningMonitorTests.swift in Sources */,
 				D23F8EA329DDCD38001CFAE8 /* RUMUserActionScopeTests.swift in Sources */,
@@ -11128,6 +11133,7 @@
 				D29A9FBD29DDB483005C54A4 /* RUMSessionScopeTests.swift in Sources */,
 				DE687A414FCC3A4D328ABC7E /* RUMDrawnConfigurationTests.swift in Sources */,
 				03A3BCB38C7F97F821CA4965 /* RUMSessionOnErrorTests.swift in Sources */,
+				934A3437181588824A5FBDC6 /* RUMSessionOnErrorMonitorTests.swift in Sources */,
 				0904F9F62EE1DA6800ED9A22 /* UIKitExtensionsTests.swift in Sources */,
 				3C4CF9982C47CC91006DE1C0 /* MemoryWarningMonitorTests.swift in Sources */,
 				D29A9FAB29DDB483005C54A4 /* RUMUserActionScopeTests.swift in Sources */,

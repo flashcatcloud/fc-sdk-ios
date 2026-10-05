@@ -217,6 +217,20 @@ class RUMContextReceiverTests: XCTestCase {
         XCTAssertEqual(notified.map { $0.1 }, [.pending, .notGranted], "a change of consent alone is notified, a repeat is not")
         XCTAssertEqual(notified.map { $0.0 }, [rum, rum])
     }
+
+    func testControl_withoutARUMContext_aConsentChangeIsNotNotified() {
+        // There is no replay without a RUM context, so nothing to tell; notifying would only re-run
+        // a draw for a session that does not exist.
+        let core = PassthroughCoreMock()
+        let receiver = RUMContextReceiver()
+        var notifications = 0
+        receiver.observe(on: NoQueue()) { _, _ in notifications += 1 }
+
+        XCTAssert(receiver.receive(message: .context(.mockWith(trackingConsent: .pending)), from: core))
+        XCTAssert(receiver.receive(message: .context(.mockWith(trackingConsent: .granted)), from: core))
+
+        XCTAssertEqual(notifications, 0)
+    }
 }
 
 #endif

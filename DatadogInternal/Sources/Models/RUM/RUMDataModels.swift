@@ -5513,7 +5513,7 @@ public struct RUMViewEvent: RUMDataModel {
         /// Whether this session is collected only because it reported an error (`sessionOnError`)
         public let sampledForError: Bool?
 
-        /// Whether the replay of this session is collected only because it reported an error (`sessionReplayOnError`)
+        /// Whether the replay of this session is collected only because it reported an error (`sessionReplayOnError`, or a replay withheld with a session kept by `sessionOnError`)
         public let sampledForErrorReplay: Bool?
 
         /// Whether this session has been sampled for replay
