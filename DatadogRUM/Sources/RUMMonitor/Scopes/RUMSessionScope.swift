@@ -355,12 +355,6 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         }
 
         processingTime = command.time
-        if context.trackingConsent == .notGranted {
-            // Consent was withdrawn. An ordinary session's events are dropped from here on, and
-            // what it wrote before stays written; what a session kept on error holds has not been
-            // written, and it must not follow an error out once consent is granted again.
-            withheldEvents?.discard()
-        }
         if let appLifecycleCommand = command as? RUMHandleAppLifecycleEventCommand,
            appLifecycleCommand.event == .didEnterBackground,
            withheldEvents?.releaseScheduledAt != nil {
@@ -718,8 +712,16 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         )
     }
 
+    /// Tracking consent was withdrawn: what is withheld has not been written, and must not follow
+    /// a later error out once consent is granted again. The session goes on withholding, and
+    /// nothing assembled without consent is held - see `write`.
+    func discardWithheldEvents() {
+        withheldEvents?.discard()
+    }
+
     /// The host application forced this session to be collected: what it withheld goes now,
-    /// without waiting for an error or for jitter.
+    /// without waiting for an error or for jitter. A collected session is only marked forced,
+    /// which releases a replay kept on error.
     ///
     /// - Parameter time: the time of the forcing command, which the session has not processed:
     ///   the minute released is the one before it, not before whatever command came last.

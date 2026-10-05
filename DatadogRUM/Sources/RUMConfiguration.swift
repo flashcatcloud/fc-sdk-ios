@@ -55,7 +55,8 @@ extension RUM {
         /// The sampling rate for RUM sessions.
         ///
         /// It must be a number between 0.0 and 100.0, where 0 means no sessions will be sent
-        /// and 100 means all will be uploaded.
+        /// and 100 means all will be uploaded. With `sessionOnError`, the sessions the rate leaves
+        /// out are still uploaded if they report an error.
         ///
         /// Default: `100.0`.
         public var sessionSampleRate: Float

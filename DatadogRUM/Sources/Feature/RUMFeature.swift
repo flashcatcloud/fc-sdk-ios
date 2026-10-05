@@ -262,6 +262,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
                 monitor: monitor
             ),
             RemoteSamplingReceiver(monitor: monitor),
+            TrackingConsentReceiver(monitor: monitor),
             FlagEvaluationReceiver(monitor: monitor),
             WebViewEventReceiver(
                 featureScope: featureScope,

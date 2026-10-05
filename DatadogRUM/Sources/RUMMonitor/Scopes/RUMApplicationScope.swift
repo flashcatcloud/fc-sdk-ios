@@ -188,13 +188,14 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
 
         if let forced = command as? RUMSetForcedSessionCommand {
             // A session already being collected keeps running: RUM cannot retro-collect what a
-            // running session already dropped, and cutting it in two would gain nothing. One kept
-            // on error has retro-collected what it can, so it releases that now and runs on as a
-            // collected session. One that was NOT collected at all ends now, so a collected one
-            // starts in its place. A session started by this very command is already forced, so
-            // there is nothing to replace.
-            if let activeSession = activeSession, !activeSession.isSampled {
-                if activeSession.isSampledOnError {
+            // running session already dropped, and cutting it in two would gain nothing. It is
+            // marked forced all the same, because its replay may be kept on error and forcing
+            // releases that. One kept on error has retro-collected what it can, so it releases
+            // that now and runs on as a collected session. One that was NOT collected at all ends
+            // now, so a collected one starts in its place. A session started by this very command
+            // is already forced, so there is nothing to do.
+            if let activeSession = activeSession, !activeSession.isForced {
+                if activeSession.isTracked {
                     activeSession.forceRelease(at: forced.time, writer: writer, context: context)
                 } else {
                     _process(
@@ -302,6 +303,11 @@ internal class RUMApplicationScope: RUMScope, RUMContextProvider {
                 )
             }
         )
+    }
+
+    /// FLASHCAT FORK - tracking consent was withdrawn, see `TrackingConsentReceiver`.
+    func discardWithheldEvents() {
+        sessionScopes.forEach { $0.discardWithheldEvents() }
     }
 
     // MARK: - Private

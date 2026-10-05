@@ -328,6 +328,20 @@ class RUMSessionOnErrorTests: XCTestCase {
         XCTAssertEqual(scope.activeSession?.context.eventsWithheld, false)
     }
 
+    func testForcingACollectedSession_marksItForced_withoutEndingIt() throws {
+        // Its replay may be kept on error, and forcing is what releases that.
+        let scope = makeScope(sessionSampleRate: 100, sessionOnError: false)
+        let session = try XCTUnwrap(scope.activeSession)
+        startView("Home", at: 1, on: scope)
+        XCTAssertEqual(session.context.sessionForced, false)
+
+        process(RUMSetForcedSessionCommand(time: at(2)), on: scope)
+
+        XCTAssertTrue(scope.activeSession === session, "a collected session keeps running")
+        XCTAssertEqual(session.context.sessionForced, true)
+        XCTAssertTrue(scheduledReleases.isEmpty)
+    }
+
     func testACrashReportedInProcess_releasesAtOnce() {
         let scope = makeScope()
         startView("Home", at: 1, on: scope)
@@ -417,6 +431,21 @@ class RUMSessionOnErrorTests: XCTestCase {
         XCTAssertTrue(scheduledReleases.isEmpty, "an error that was never collected cannot be the reason the session is")
         process(RUMStopSessionCommand(time: at(3)), on: scope)
         XCTAssertTrue(written.isEmpty)
+    }
+
+    func testWhenConsentIsWithdrawn_whatWasHeldIsThrownAway_andTheSessionGoesOnWithholding() {
+        let scope = makeScope()
+        startView("Home", at: 1, on: scope)
+        addAction(at: 2, on: scope)
+
+        scope.discardWithheldEvents() // what the consent receiver does on a withdrawal
+
+        addAction(at: 3, on: scope)
+        addError(at: 4, on: scope)
+        fireScheduledReleases()
+
+        XCTAssertEqual(written(RUMActionEvent.self).count, 1, "only what was held after consent returned")
+        XCTAssertEqual(written(RUMErrorEvent.self).count, 1)
     }
 
     func testControl_whatWasAssembledWithPendingConsent_isReleased() {

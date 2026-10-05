@@ -100,6 +100,10 @@ public protocol RUMMonitorProtocol: RUMMonitorViewProtocol, AnyObject {
     /// re-decided, so one that was being collected without replay keeps running without it. Ending
     /// it to gain a recording would cost the visitor's current view — the part somebody turned
     /// forcing on to watch.
+    ///
+    /// A session kept only in case it reports an error (`sessionOnError`) is released at once,
+    /// with what it withheld, and runs on as a collected session with replay; a replay kept only
+    /// in case the session reports an error (`sessionReplayOnError`) is released at once too.
     func setForcedSession()
 
     /// The custom values delivered with the console's remote configuration.

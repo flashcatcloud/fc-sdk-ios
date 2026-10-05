@@ -236,6 +236,14 @@ extension Monitor: RUMMonitorProtocol {
         process(command: RUMRemoteSamplingChangedCommand(activation: activation, time: dateProvider.now))
     }
 
+    /// FLASHCAT FORK - tracking consent was withdrawn: a session kept on error throws away what it
+    /// withheld. Decided on the queue every command runs on, like the writes it discards.
+    func discardWithheldEvents() {
+        featureScope.eventWriteContext { [weak self] _, _ in
+            self?.scopes.discardWithheldEvents()
+        }
+    }
+
     func getRemoteConfig() -> [String: Any]? {
         guard let json = remoteConfigCustom,
               let data = json.data(using: .utf8),

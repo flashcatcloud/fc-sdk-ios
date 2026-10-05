@@ -402,6 +402,18 @@ class RecordingCoordinatorTests: XCTestCase {
         XCTAssertTrue(scheduler.isRunning)
     }
 
+    func test_control_forcingACollectedSessionWithoutReplay_doesNotStartRecordingIt() {
+        // A session already under way is not re-decided: one collected without replay keeps
+        // running without it, as `setForcedSession` documents.
+        prepareRecordingCoordinator(sampler: .mockRejectAll())
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+        XCTAssertFalse(scheduler.isRunning)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", sessionForced: true))
+
+        XCTAssertFalse(scheduler.isRunning)
+    }
+
     func test_theDrawIsLockedForTheSession() {
         var onError = false
         recordingCoordinator = RecordingCoordinator(

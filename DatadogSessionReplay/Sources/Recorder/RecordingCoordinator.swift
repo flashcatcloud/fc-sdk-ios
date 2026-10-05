@@ -26,6 +26,8 @@ internal class RecordingCoordinator {
     /// FLASHCAT FORK - whether the current replay is recorded only in case its session reports an
     /// error, and whether its records are still withheld waiting for it.
     private var isSampledOnError = false
+    /// FLASHCAT FORK - whether RUM keeps the current session only in case it reports an error.
+    private var sessionKeptOnError = false
     private var replayHold: Recorder.ReplayHold = .none
     private var publishedErrorReplay: SessionReplayCoreContext.ErrorReplay?
     /// FLASHCAT FORK - the tracking consent in force, read with the RUM context.
@@ -122,11 +124,14 @@ internal class RecordingCoordinator {
             // whatever replay it draws: until its events are released the backend has no such
             // session, and a replay uploaded before them would have nothing to attach to.
             let keptOnError = rumContext != nil && !drawn && sessionReplayOnError()
+            sessionKeptOnError = rumContext?.eventsWithheld == true
             isSampled = drawn || keptOnError
-            isSampledOnError = keptOnError || (isSampled && rumContext?.eventsWithheld == true)
+            isSampledOnError = keptOnError || (isSampled && sessionKeptOnError)
             replayHold = isSampledOnError ? .withheld : .none
-        } else if rumContext?.sessionForced == true && currentRUMContext?.sessionForced != true {
-            // Forced while it runs: the host application wants this visitor recorded from now on.
+        } else if rumContext?.sessionForced == true && currentRUMContext?.sessionForced != true && sessionKeptOnError {
+            // Forced while it runs. A session kept on error was not collected until now, so it is
+            // recorded from now on like a session drawn forced. A collected session keeps running
+            // as it was drawn - see `setForcedSession` - but forcing releases a replay it withheld.
             isSampled = true
         }
 
