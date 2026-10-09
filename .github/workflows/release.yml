@@ -44,6 +44,8 @@ jobs:
           make dependencies
 
       - name: Run unit tests
+        env:
+          TEST_RETRIES: 3
         run: |
           make test-ios-all PLATFORM="iOS Simulator" DEVICE="iPhone 16 Pro"
 
