@@ -94,5 +94,11 @@ fi
 
 set -x
 
+# TEST_RETRIES (optional): run each failing test up to this many times, passing if any run passes.
+RETRY_ARGS=()
+if [ -n "$TEST_RETRIES" ]; then
+    RETRY_ARGS=(-retry-tests-on-failure -test-iterations "$TEST_RETRIES")
+fi
+
 xcodebuild -version
-xcodebuild -workspace "$WORKSPACE" -destination "$DESTINATION" -scheme "$SCHEME" test | xcbeautify
+xcodebuild -workspace "$WORKSPACE" -destination "$DESTINATION" -scheme "$SCHEME" "${RETRY_ARGS[@]}" test | xcbeautify
