@@ -84,14 +84,15 @@ class CrashReportingFeatureTests: XCTestCase {
         plugin.pendingCrashReport = crashReport
 
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didSendCrashReport")
+        let expectation = self.expectation(description: "didReadPendingCrashReport")
 
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
             crashReportingPlugin: plugin
         )
 
-        sender.didSendCrashReport = {
+        // Fulfilled once the plugin has recorded the purge decision, which happens after the report is sent.
+        plugin.didReadPendingCrashReport = {
             expectation.fulfill()
         }
 

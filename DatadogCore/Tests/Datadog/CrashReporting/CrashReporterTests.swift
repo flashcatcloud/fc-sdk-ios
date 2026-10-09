@@ -164,7 +164,7 @@ class CrashReporterTests: XCTestCase {
             // Then
             waitForExpectations(timeout: 5, handler: nil)
             DDAssertDictionariesEqual(
-                try plugin.injectedContextData!.toJSONObject(),
+                try XCTUnwrap(plugin.injectedContextData).toJSONObject(),
                 try initialCrashContext.data.toJSONObject()
             )
         }
@@ -191,9 +191,9 @@ class CrashReporterTests: XCTestCase {
             crashContextProvider.onCrashContextChange(updatedCrashContext)
 
             // Then
-            waitForExpectations(timeout: 2, handler: nil)
+            waitForExpectations(timeout: 5, handler: nil)
             DDAssertDictionariesEqual(
-                try plugin.injectedContextData!.toJSONObject(),
+                try XCTUnwrap(plugin.injectedContextData).toJSONObject(),
                 try updatedCrashContext.data.toJSONObject()
             )
         }
