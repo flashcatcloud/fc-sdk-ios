@@ -297,7 +297,7 @@ internal final class RemoteSamplingController {
             return
         }
 
-        let previousSessionSampleRate = snapshot.rates.sessionSampleRate
+        let previousRates = snapshot.rates
         snapshot = parsed.snapshot
         if let storageKey = storageKey {
             store?.save(snapshot, forKey: storageKey)
@@ -305,7 +305,10 @@ internal final class RemoteSamplingController {
         currentRates = snapshot.rates
         publishRates(snapshot.rates)
 
-        let drawChanged = previousSessionSampleRate != snapshot.rates.sessionSampleRate
+        // The on-error switch is part of the draw: turning it on is what lets a visitor drawn out
+        // at a rate of zero be kept after all, and RUM has to hear of it to re-draw that visitor.
+        let drawChanged = previousRates.sessionSampleRate != snapshot.rates.sessionSampleRate
+            || previousRates.sessionOnError != snapshot.rates.sessionOnError
         if drawChanged {
             notifyRatesChanged(parsed.activation)
         }

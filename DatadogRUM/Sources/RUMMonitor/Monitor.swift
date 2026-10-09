@@ -150,31 +150,7 @@ internal class Monitor: RUMCommandSubscriber {
         }
 
         // update the core context with rum context
-        featureScope.set(
-            context: { [weak self] () -> RUMCoreContext? in
-                guard let self = self else {
-                    return nil
-                }
-
-                let context = self.scopes.activeSession?.viewScopes.last?.context ??
-                                self.scopes.activeSession?.context ??
-                                self.scopes.context
-
-                guard context.sessionID != .nullUUID else {
-                    // if Session was sampled or not yet started
-                    return nil
-                }
-
-                return RUMCoreContext(
-                    applicationID: context.rumApplicationID,
-                    sessionID: context.sessionID.rawValue.uuidString.lowercased(),
-                    viewID: context.activeViewID?.rawValue.uuidString.lowercased(),
-                    userActionID: context.activeUserActionID?.rawValue.uuidString.lowercased(),
-                    viewServerTimeOffset: self.scopes.activeSession?.viewScopes.last?.serverTimeOffset,
-                    sessionForced: context.sessionForced
-                )
-            }
-        )
+        scopes.publishCoreContext()
     }
 
     // TODO: RUMM-896
@@ -232,10 +208,13 @@ extension Monitor: RUMMonitorProtocol {
         // Synchronise it through the context thread to make sure we return the correct
         // sessionID after all other events have been processed (also on the context thread):
         featureScope.context { [weak self] _ in
-            guard let sessionId = self?.scopes.activeSession?.sessionUUID else {
+            // FLASHCAT FORK - a session kept only in case it reports an error has an id the
+            // backend may never hear of: none is reported until its events are released.
+            guard let session = self?.scopes.activeSession, !session.eventsWithheld else {
                 completion(nil)
                 return
             }
+            let sessionId = session.sessionUUID
 
             var sessionIdValue: String? = nil
             if sessionId != RUMUUID.nullUUID {
@@ -258,6 +237,14 @@ extension Monitor: RUMMonitorProtocol {
     /// session is decided in `RUMApplicationScope`, which holds the state the answer depends on.
     func notifyRemoteSamplingChanged(activation: RemoteSamplingActivation) {
         process(command: RUMRemoteSamplingChangedCommand(activation: activation, time: dateProvider.now))
+    }
+
+    /// FLASHCAT FORK - tracking consent was withdrawn: a session kept on error throws away what it
+    /// withheld. Decided on the queue every command runs on, like the writes it discards.
+    func discardWithheldEvents() {
+        featureScope.eventWriteContext { [weak self] _, _ in
+            self?.scopes.discardWithheldEvents()
+        }
     }
 
     func getRemoteConfig() -> [String: Any]? {

@@ -89,7 +89,9 @@ public enum SessionReplay {
             )
         }
 
-        guard configuration.replaySampleRate > 0 else {
+        // FLASHCAT FORK - a rate of 0 records nothing, unless replays are kept on error: "only the
+        // replays of sessions that error" is configured exactly as a rate of 0 with the switch on.
+        guard configuration.replaySampleRate > 0 || configuration.sessionReplayOnError else {
             return
         }
         let resources = ResourcesFeature(core: core, configuration: configuration)

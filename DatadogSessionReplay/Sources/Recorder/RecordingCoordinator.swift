@@ -23,6 +23,19 @@ internal class RecordingCoordinator {
 
     private var currentRUMContext: RUMCoreContext? = nil
     private var isSampled = false
+    /// FLASHCAT FORK - whether the current replay is recorded only in case its session reports an
+    /// error, and whether its records are still withheld waiting for it.
+    private var isSampledOnError = false
+    /// FLASHCAT FORK - whether RUM keeps the current session only in case it reports an error.
+    private var sessionKeptOnError = false
+    private var replayHold: Recorder.ReplayHold = .none
+    private var publishedErrorReplay: SessionReplayCoreContext.ErrorReplay?
+    /// FLASHCAT FORK - the tracking consent in force, read with the RUM context.
+    private var trackingConsent: TrackingConsent = .pending
+    /// FLASHCAT FORK - whether a replay the draw leaves out is recorded in case its session reports
+    /// an error: the console's `sessionReplayOnError` where it published one, the init value
+    /// otherwise. Read at each draw.
+    private let sessionReplayOnError: () -> Bool
 
     /// `recordingEnabled` is used to track when the user 
     /// has enabled or disabled the recording for Session Replay.
@@ -44,6 +57,7 @@ internal class RecordingCoordinator {
         sampler: Sampler,
         telemetry: Telemetry,
         startRecordingImmediately: Bool,
+        sessionReplayOnError: @escaping () -> Bool = { false },
         methodCallTelemetrySamplingRate: Float = 0.1
     ) {
         self.recorder = recorder
@@ -55,6 +69,7 @@ internal class RecordingCoordinator {
         self.srContextPublisher = srContextPublisher
         self.telemetry = telemetry
         self.methodCallTelemetrySamplingRate = methodCallTelemetrySamplingRate
+        self.sessionReplayOnError = sessionReplayOnError
 
         srContextPublisher.setHasReplay(false)
 
@@ -66,7 +81,7 @@ internal class RecordingCoordinator {
         }
 
         // Observe changes in the RUM context.
-        rumContextObserver.observe(on: scheduler.queue) { [weak self] in self?.onRUMContextChanged(rumContext: $0) }
+        rumContextObserver.observe(on: scheduler.queue) { [weak self] in self?.onRUMContextChanged(rumContext: $0, trackingConsent: $1) }
     }
 
     /// Enables recording based on user request.
@@ -97,24 +112,79 @@ internal class RecordingCoordinator {
        updateHasReplay()
    }
 
-    private func onRUMContextChanged(rumContext: RUMCoreContext?) {
+    private func onRUMContextChanged(rumContext: RUMCoreContext?, trackingConsent: TrackingConsent) {
+        self.trackingConsent = trackingConsent
         if currentRUMContext?.sessionID != rumContext?.sessionID || currentRUMContext == nil {
+            // FLASHCAT FORK - the session is over, and what its replay withheld goes with it: now,
+            // rather than with the next snapshot, which may never come. Whatever this coordinator
+            // believes about the hold: records released here are only written by a snapshot, and
+            // with recording stopped none was taken, so they may still be held.
+            if currentRUMContext != nil {
+                recorder.discardWithheldRecords()
+            }
             // FLASHCAT FORK - a session the host application forced skips replay's own draw:
             // forcing exists to debug one visitor, and a replay-less recording of them is not the
             // thing that was asked for.
-            isSampled = rumContext?.sessionForced == true || sampler.sample()
+            let drawn = rumContext?.sessionForced == true || sampler.sample()
+            // FLASHCAT FORK - a replay the draw leaves out is still recorded, withheld, when it is
+            // kept in case the session errors. And a session RUM itself keeps on error withholds
+            // whatever replay it draws: until its events are released the backend has no such
+            // session, and a replay uploaded before them would have nothing to attach to.
+            let keptOnError = rumContext != nil && !drawn && sessionReplayOnError()
+            sessionKeptOnError = rumContext?.eventsWithheld == true
+            isSampled = drawn || keptOnError
+            isSampledOnError = keptOnError || (isSampled && sessionKeptOnError)
+            replayHold = isSampledOnError ? .withheld : .none
+        } else if rumContext?.sessionForced == true && currentRUMContext?.sessionForced != true && sessionKeptOnError {
+            // Forced while it runs. A session kept on error was not collected until now, so it is
+            // recorded from now on like a session drawn forced. A collected session keeps running
+            // as it was drawn - see `setForcedSession` - but forcing releases a replay it withheld.
+            isSampled = true
+        }
+
+        var released = false
+        if replayHold != .none, let rumContext = rumContext, rumContext.hasReportedError || rumContext.sessionForced {
+            if rumContext.eventsWithheld {
+                // The session reported its error but its events are still on their way out,
+                // behind their jitter. The records wait for them - until they arrive the session
+                // does not exist - but nothing throws them away any more.
+                replayHold = .releasePending
+            } else {
+                // The events are out: what was withheld goes out with the next record, and from
+                // then on the replay is collected like any other.
+                replayHold = .none
+                released = true
+            }
         }
 
         currentRUMContext = rumContext
 
+        if trackingConsent == .notGranted {
+            // Consent withdrawn: what is withheld goes now, not with the next snapshot - recording
+            // may be stopped and never take one, and the records would wait for a later grant.
+            // Whatever the hold state says, for the reason above.
+            recorder.discardWithheldRecords()
+        }
+
+        let errorReplay = rumContext.flatMap { isSampledOnError ? SessionReplayCoreContext.ErrorReplay(sessionID: $0.sessionID, withheld: replayHold != .none) : nil }
+        if errorReplay != publishedErrorReplay {
+            srContextPublisher.setErrorReplay(errorReplay)
+            publishedErrorReplay = errorReplay
+        }
         evaluateRecordingConditions()
+        if released && recordingEnabled {
+            // Take that next record now, rather than whenever the screen next changes: the app may
+            // be about to go away.
+            captureNextRecord()
+        }
     }
 
     /// Updates the `has_replay` flag to indicate if recording is active.
     private func updateHasReplay() {
         /// `has_replay` is set to `true` only when the session is sampled
-        /// and  the user has enabled the recording.
-        let hasReplay = isSampled == true && recordingEnabled == true
+        /// and  the user has enabled the recording. FLASHCAT FORK - and not while the replay is
+        /// withheld: it may never be uploaded.
+        let hasReplay = isSampled == true && recordingEnabled == true && replayHold == .none
         srContextPublisher.setHasReplay(hasReplay)
     }
 
@@ -135,7 +205,9 @@ internal class RecordingCoordinator {
             viewID: viewID,
             viewServerTimeOffset: rumContext.viewServerTimeOffset,
             date: Date(),
-            telemetry: telemetry
+            telemetry: telemetry,
+            replayHold: replayHold,
+            trackingConsent: trackingConsent
         )
 
         let methodCalledTrace = telemetry.startMethodCalled(

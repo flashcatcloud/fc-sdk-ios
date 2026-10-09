@@ -70,7 +70,7 @@ internal final class WatchdogTerminationReporter: WatchdogTerminationReporting {
             let error = builder.createRUMError(with: viewEvent)
             let view = builder.updateRUMViewWithError(viewEvent)
 
-            if realDateNow.timeIntervalSince(errorDate) < FatalErrorBuilder.Constants.viewEventAvailabilityThreshold {
+            if FatalErrorBuilder.canSendView(viewEvent, errorDate: errorDate, now: realDateNow) {
                 DD.logger.debug("Sending Watchdog Termination as RUM error with issuing RUM view update")
                 // It is still OK to send RUM view to previous RUM session.
                 writer.write(value: error)

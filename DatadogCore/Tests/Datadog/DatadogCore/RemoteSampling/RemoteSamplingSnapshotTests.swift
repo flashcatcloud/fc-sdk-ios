@@ -120,6 +120,54 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         }
     }
 
+    func testReadsTheOnErrorSwitch() throws {
+        for (raw, expected) in [("true", true), ("false", false)] {
+            let body = #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": 0, "sessionOnError": \#(raw) } }"#
+            let response = try RemoteSamplingResponse.parse(body: body.data(using: .utf8)!, etag: .mockAny())
+            XCTAssertEqual(response.snapshot.sessionOnError, expected)
+            XCTAssertEqual(response.snapshot.rates.sessionOnError, expected)
+        }
+    }
+
+    func testAnOnErrorSwitchItCannotReadStaysAbsent_andCostsNothingElse() throws {
+        // Absent means "keep the init value"; a value that is not a JSON boolean is read the same
+        // way, field by field, like a rate.
+        let bodies = [
+            #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": 20 } }"#,
+            #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": 20, "sessionOnError": 1 } }"#,
+            #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionSampleRate": 20, "sessionOnError": "true" } }"#,
+        ]
+        for string in bodies {
+            let response = try RemoteSamplingResponse.parse(body: string.data(using: .utf8)!, etag: .mockAny())
+            XCTAssertNil(response.snapshot.sessionOnError, string)
+            XCTAssertEqual(response.snapshot.sessionSampleRate, 20, string)
+        }
+    }
+
+    func testReadsTheReplayOnErrorSwitch() throws {
+        let body = #"{ "schema_version": 1, "version": 3, "enabled": true, "rum": { "sessionReplayOnError": true } }"#
+        let response = try RemoteSamplingResponse.parse(body: body.data(using: .utf8)!, etag: .mockAny())
+
+        XCTAssertEqual(response.snapshot.rates.sessionReplayOnError, true)
+        XCTAssertNil(response.snapshot.rates.sessionOnError, "the two switches are read apart")
+    }
+
+    func testTheKillSwitchClearsTheOnErrorSwitchToo() throws {
+        let body = #"{ "schema_version": 1, "version": 4, "enabled": false, "rum": { "sessionOnError": true } }"#
+        let response = try RemoteSamplingResponse.parse(body: body.data(using: .utf8)!, etag: .mockAny())
+
+        XCTAssertNil(response.snapshot.rates.sessionOnError)
+    }
+
+    func testASnapshotStoredBeforeTheSwitchExistedStillLoads() throws {
+        let stored = #"{ "version": 5, "enabled": true, "sessionSampleRate": 20 }"#.data(using: .utf8)!
+
+        let snapshot = try JSONDecoder().decode(RemoteSamplingSnapshot.self, from: stored)
+
+        XCTAssertEqual(snapshot.sessionSampleRate, 20)
+        XCTAssertNil(snapshot.sessionOnError)
+    }
+
     func testACustomBagItCannotReadDoesNotCostItTheKnobs() throws {
         // The application's own bag is not part of what makes a body a configuration. A mistake at
         // the application's level must not switch the platform's settings back off.

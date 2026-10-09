@@ -55,10 +55,34 @@ extension RUM {
         /// The sampling rate for RUM sessions.
         ///
         /// It must be a number between 0.0 and 100.0, where 0 means no sessions will be sent
-        /// and 100 means all will be uploaded.
+        /// and 100 means all will be uploaded. With `sessionOnError`, the sessions the rate leaves
+        /// out are still uploaded if they report an error.
         ///
         /// Default: `100.0`.
         public var sessionSampleRate: Float
+
+        /// Keeps the sessions `sessionSampleRate` does not collect in case they report an error.
+        ///
+        /// Such a session is collected in memory but nothing is uploaded: only the last minute is
+        /// kept, and if the session ends without an error everything is thrown away. When it
+        /// reports one, up to the minute before it is uploaded, and the rest of the session is collected
+        /// normally. A session kept this way reports a `session_sample_rate` of 0, because it
+        /// stands for itself rather than for `100 / rate` sessions.
+        ///
+        /// It applies only to sessions the rate leaves out, so with `sessionSampleRate` at 100 it
+        /// has nothing to act on. When `remoteConfigurationEnabled` is on, the console's
+        /// `sessionOnError` takes precedence. A `beforeSampling` that returns 0 turns it off for
+        /// that session: 0 means the session is never collected.
+        ///
+        /// Such a session has a session id from its start, and the other features see it as they
+        /// see any collected session's: logs and traces carry it. The backend only learns of the
+        /// session if it reports an error, so for a session that never does, that id leads nowhere.
+        /// The host application is not handed it until then: `currentSessionID` returns `nil`
+        /// until the session's events are released, and `onSessionStart` - called once, when the
+        /// session starts - reports it as discarded.
+        ///
+        /// Default: `false`.
+        public var sessionOnError: Bool
 
         /// The predicate for automatically tracking `UIViewControllers` as RUM views.
         ///
@@ -487,6 +511,7 @@ extension RUM.Configuration {
     ///   - collectAccessibility: Determines whether accessibility data should be collected and included in RUM view events. Default: `false`.
     ///   - remoteConfigurationEnabled: Enables remote configuration of sampling rates from the console. Default: `false`.
     ///   - beforeSampling: Has the last word on session sampling. Default: `nil`.
+    ///   - sessionOnError: Keeps the sessions `sessionSampleRate` does not collect in case they report an error. Default: `false`.
     ///   - featureFlags: Experimental feature flags.
     public init(
         applicationID: String,
@@ -518,10 +543,12 @@ extension RUM.Configuration {
         collectAccessibility: Bool = false,
         remoteConfigurationEnabled: Bool = false,
         beforeSampling: BeforeSamplingCallback? = nil,
+        sessionOnError: Bool = false,
         featureFlags: FeatureFlags = .defaults
     ) {
         self.applicationID = applicationID
         self.sessionSampleRate = sessionSampleRate
+        self.sessionOnError = sessionOnError
         self.uiKitViewsPredicate = uiKitViewsPredicate
         self.uiKitActionsPredicate = uiKitActionsPredicate
         self.swiftUIViewsPredicate = swiftUIViewsPredicate

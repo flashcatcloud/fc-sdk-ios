@@ -32,6 +32,13 @@ public struct RUMSessionState: Codable, Equatable {
     /// init value — the one number we know did not decide the session.
     public let drawnSessionSampleRate: Double?
     public let drawnConfigurationVersion: Int64?
+    /// FLASHCAT FORK - whether this session is collected only because it reports an error
+    /// (`sessionOnError`). Its events are held in memory until then, so a crash reported on the
+    /// next launch may be the first thing the backend ever hears of it: the crash still has to be
+    /// reported, as a session that stands for itself (`session_sample_rate` 0) rather than for
+    /// `100 / rate` sessions. `nil` in state written by an earlier version, which had no such
+    /// sessions.
+    public let sampledForError: Bool?
 
     /// Creates a RUM Session State
     /// - Parameters:
@@ -45,7 +52,8 @@ public struct RUMSessionState: Codable, Equatable {
         hasTrackedAnyView: Bool,
         didStartWithReplay: Bool?,
         drawnSessionSampleRate: Double? = nil,
-        drawnConfigurationVersion: Int64? = nil
+        drawnConfigurationVersion: Int64? = nil,
+        sampledForError: Bool? = nil
     ) {
         self.sessionUUID = sessionUUID
         self.isInitialSession = isInitialSession
@@ -53,6 +61,7 @@ public struct RUMSessionState: Codable, Equatable {
         self.didStartWithReplay = didStartWithReplay
         self.drawnSessionSampleRate = drawnSessionSampleRate
         self.drawnConfigurationVersion = drawnConfigurationVersion
+        self.sampledForError = sampledForError
     }
 }
 

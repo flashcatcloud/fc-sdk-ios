@@ -81,7 +81,13 @@ internal class SessionReplayFeature: SessionReplayConfiguration, DatadogRemoteFe
             recorder: recorder,
             sampler: Sampler(samplingRate: configuration.debugSDK ? 100 : configuration.replaySampleRate),
             telemetry: telemetry,
-            startRecordingImmediately: configuration.startRecordingImmediately
+            startRecordingImmediately: configuration.startRecordingImmediately,
+            sessionReplayOnError: { [weak core] in
+                // FLASHCAT FORK - the console's switch where it published one. Read synchronously,
+                // like RUM's own draw, so the replay of a session is drawn under the same values.
+                (core as? RemoteSamplingReader)?.remoteSamplingRates?.sessionReplayOnError
+                    ?? configuration.sessionReplayOnError
+            }
         )
         self.requestBuilder = SegmentRequestBuilder(
             customUploadURL: configuration.customEndpoint,

@@ -39,7 +39,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
                     hasTrackedAnyView: true,
                     didStartWithReplay: state.didStartWithReplay,
                     drawnSessionSampleRate: state.drawnSessionSampleRate,
-                    drawnConfigurationVersion: state.drawnConfigurationVersion
+                    drawnConfigurationVersion: state.drawnConfigurationVersion,
+                    sampledForError: state.sampledForError
                 )
             }
         }
@@ -84,10 +85,34 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     let startPrecondition: RUMSessionPrecondition?
     /// If events from this session should be sampled (send to Datadog).
     let isSampled: Bool
+    /// FLASHCAT FORK - the rate left this session out, but `sessionOnError` keeps it in case it
+    /// reports an error: its events are assembled as usual and withheld in memory until then.
+    /// Stays `true` once the error is reported, because it is what the events report about how
+    /// the session was kept.
+    let isSampledOnError: Bool
+    /// Whether this session assembles events at all.
+    var isTracked: Bool { isSampled || isSampledOnError }
     /// If the host application forced this session to be collected through
     /// `RUMMonitorProtocol.setForcedSession()`. Session Replay reads it so a forced session comes
-    /// out with replay rather than being dropped by replay's own draw.
-    let isForced: Bool
+    /// out with replay rather than being dropped by replay's own draw. A session kept on error
+    /// becomes forced when the application forces it while it runs.
+    private(set) var isForced: Bool
+    /// FLASHCAT FORK - whether this session reported an error the application can find: one that
+    /// was assembled and survived the event mapper. It is what releases a session kept on error.
+    private(set) var hasReportedError = false
+    /// FLASHCAT FORK - the events of a session kept on error, until they are released or thrown
+    /// away; `nil` for every other session and once released.
+    private var withheldEvents: RUMWithheldEventBuffer?
+    /// FLASHCAT FORK - whether what this session withheld was thrown away: the session ended
+    /// without an error, so nothing of it may ever go out - not even an event a child assembles
+    /// afterwards, from a callback that kept the session's writer.
+    private var withheldEventsDiscarded = false
+    /// FLASHCAT FORK - whether this session's events are withheld. Stays `true` until they are
+    /// actually written out - after the error, behind the release jitter - so nothing else of the
+    /// session (its replay, web view events) can reach the backend ahead of its views.
+    var eventsWithheld: Bool { withheldEvents != nil }
+    /// The time of the command being processed, which is what the withheld events are aged by.
+    private var processingTime: Date
     /// The configuration this session was drawn with; `nil` when no remote configuration is in
     /// effect. Drawn once here and fixed for the session's life — sessions never flip.
     let drawnConfiguration: RUMDrawnConfiguration?
@@ -134,13 +159,15 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         // visible to THIS draw — which is the draw the stored snapshot exists for.
         let remoteRates = dependencies.remoteSamplingRates()
             ?? context.additionalContext(ofType: RemoteSamplingRates.self)
-        let drawnRate = Self.resolveSampleRate(
+        let (drawnRate, sessionOnError) = Self.resolveSampling(
             remoteRates: remoteRates,
             dependencies: dependencies
         )
         // A forced session skips the draw entirely: the app has said this visitor must be
         // collected, and a coin flip could still say no.
         self.isSampled = isForced || Sampler(samplingRate: drawnRate).sample()
+        // Only the sessions the draw left out, so a session is never counted by both.
+        self.isSampledOnError = !isSampled && sessionOnError
         // What the events report. A forced session reports 100, because 100 is what decided it:
         // being collected was certain. Reporting the rate the draw WOULD have used says the
         // opposite of the truth twice over — weighted extrapolation multiplies the session back
@@ -158,7 +185,9 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             initialSessionSampleRate: dependencies.sessionSampler.samplingRate
         )
         self.startPrecondition = startPrecondition
-        self.sessionUUID = isSampled ? dependencies.rumUUIDGenerator.generateUnique() : .nullUUID
+        self.sessionUUID = isSampled || isSampledOnError ? dependencies.rumUUIDGenerator.generateUnique() : .nullUUID
+        self.withheldEvents = isSampledOnError ? RUMWithheldEventBuffer() : nil
+        self.processingTime = startTime
         self.isInitialSession = isInitialSession
         self.sessionStartTime = startTime
         self.lastInteractionTime = startTime
@@ -170,7 +199,8 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             hasTrackedAnyView: false,
             didStartWithReplay: context.hasReplay,
             drawnSessionSampleRate: drawnConfiguration.map { Double($0.sessionSampleRate) },
-            drawnConfigurationVersion: drawnConfiguration?.version
+            drawnConfigurationVersion: drawnConfiguration?.version,
+            sampledForError: isSampledOnError ? true : nil
         )
         self.interactionToNextViewMetric = dependencies.interactionToNextViewMetricFactory()
 
@@ -256,29 +286,33 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     }
 
     /// The rate this session is drawn at: the console's where it published one, the init value
-    /// otherwise, with the host application's hook having the final say.
-    private static func resolveSampleRate(
+    /// otherwise, with the host application's hook having the final say. And whether a session
+    /// the rate leaves out is kept in case it reports an error, in the same order.
+    private static func resolveSampling(
         remoteRates: RemoteSamplingRates?,
         dependencies: RUMScopeDependencies
-    ) -> SampleRate {
+    ) -> (rate: SampleRate, sessionOnError: Bool) {
         let base = remoteRates?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate
+        let sessionOnError = remoteRates?.sessionOnError ?? dependencies.sessionOnError
         guard let hook = dependencies.beforeSampling else {
-            return base
+            return (base, sessionOnError)
         }
         let custom = remoteRates?.custom
             .flatMap { $0.data(using: .utf8) }
             .flatMap { try? JSONSerialization.jsonObject(with: $0) }
             .flatMap { $0 as? [String: Any] }
         guard let override = hook(BeforeSamplingContext(sessionSampleRate: base, custom: custom)) else {
-            return base
+            return (base, sessionOnError)
         }
         // A rate we cannot trust is not a rate to sample a customer's traffic with, and a mistake
         // in the host application must never take their collection down with it.
         guard override >= 0, override <= 100 else {
             dependencies.telemetry.error("beforeSampling returned \(override), which is not a rate; drawing at \(base) instead")
-            return base
+            return (base, sessionOnError)
         }
-        return override
+        // The hook's documented contract is "0 never collects". A session it draws at 0 must not
+        // be kept by the on-error switch either, or "never" would quietly become "on error".
+        return (override, sessionOnError && override != 0)
     }
 
     // MARK: - RUMContextProvider
@@ -290,6 +324,9 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         context.sessionPrecondition = startPrecondition
         context.drawnConfiguration = drawnConfiguration
         context.sessionForced = isForced
+        context.sessionSampledOnError = isSampledOnError
+        context.eventsWithheld = eventsWithheld
+        context.sessionHasReportedError = hasReportedError
         return context
     }
 
@@ -311,7 +348,7 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             lastInteractionTime = command.time
         }
 
-        if !isSampled {
+        if !isTracked {
             // Make sure sessions end even if they are not sampled
             if command is RUMStopSessionCommand {
                 endReason = .stopAPI
@@ -320,6 +357,25 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
             return true // keep this session until it gets ended by any `endReason`
         }
+
+        processingTime = command.time
+        if let appLifecycleCommand = command as? RUMHandleAppLifecycleEventCommand,
+           appLifecycleCommand.event == .didEnterBackground,
+           withheldEvents?.releaseScheduledAt != nil {
+            // A release already scheduled goes now rather than after its jitter: the app may not
+            // come back. One that has nothing scheduled is kept - backgrounding is usually brief,
+            // and the minute it holds is what the next error would need.
+            releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
+        }
+        // Every event this session's children assemble goes through the session, which is where
+        // errors are noticed and where the events of a session kept on error are withheld.
+        let storageWriter = writer
+        let writer = SessionEventWriter(
+            session: self,
+            writer: writer,
+            recordsCountByViewID: context.recordsCountByViewID,
+            trackingConsent: context.trackingConsent
+        )
 
         var deactivating = false
         if isActive {
@@ -372,6 +428,14 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
 
         // Propagate command
         viewScopes = viewScopes.scopes(byPropagating: command, context: context, writer: writer)
+
+        if deactivating {
+            // The session is over, whatever its views still wait for: a request that fails after
+            // the stop, or an error a retained view assembles, belongs to a session that ended
+            // without one and must not bring it back. Settled here, not when the scope is finally
+            // dropped, so nothing can be added in between. One that reported its error releases.
+            settleWithheldEvents(writer: storageWriter, context: context)
+        }
 
         if (isActive || deactivating) && !hasActiveView {
             // If this session is active and there is no active view, update fatal error context accordingly, so eventual
@@ -565,5 +629,163 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
     private func hasExpired(currentTime: Date) -> Bool {
         let sessionDuration = currentTime.timeIntervalSince(sessionStartTime)
         return sessionDuration >= Constants.sessionMaxDuration
+    }
+
+    // MARK: - Error sessions (FLASHCAT FORK)
+
+    /// Writes an event assembled by this session's children: straight through, or into the
+    /// withheld buffer while the session is kept on error.
+    fileprivate func write<T: Encodable, M: Encodable>(
+        value: T,
+        metadata: M?,
+        completion: @escaping CompletionHandler,
+        to writer: Writer,
+        recordsCountByViewID: [String: Int64],
+        trackingConsent: TrackingConsent
+    ) {
+        // Noticed here, after assembly, rather than on the raw error: an error the event mapper
+        // dropped never reaches this point, and a session billed for an error nobody can find
+        // afterwards would be worse than no session at all. (The SDK's own failures go to
+        // telemetry, not to RUM errors, so none of them can count here.) Nor can an error
+        // assembled without consent: the writer drops it, so nobody will find it either.
+        guard !withheldEventsDiscarded else {
+            completion()
+            return
+        }
+        let error = value as? RUMErrorEvent
+        if error != nil, !hasReportedError, trackingConsent != .notGranted {
+            hasReportedError = true
+            scheduleWithheldEventsRelease()
+        }
+
+        guard let withheldEvents = withheldEvents, let event = value as? RUMWithheldEvent else {
+            writer.write(value: value, metadata: metadata, completion: completion)
+            return
+        }
+        guard trackingConsent != .notGranted else {
+            // The writer of the moment drops it, and holding it instead would upload it with the
+            // release once consent is granted. Pending consent is held: the release writes
+            // through the writer of its moment, which keeps or purges it with the decision.
+            completion()
+            return
+        }
+        if !withheldEvents.hold(event: event, metadata: metadata, completion: completion, now: processingTime) {
+            // An error larger than the whole budget. The session has earned its release, so it
+            // goes out on its own, leaving the history it follows to the scheduled release.
+            writer.write(value: value, metadata: metadata, completion: completion)
+        }
+        if error?.error.isCrash == true {
+            // The process is about to go away, and the buffer with it: nothing waits for jitter.
+            releaseWithheldEvents(to: writer, recordsCountByViewID: recordsCountByViewID)
+        }
+    }
+
+    /// Schedules the release of what this session withheld, spread over a few seconds so that a
+    /// fleet hitting the same failure does not upload all at once.
+    private func scheduleWithheldEventsRelease() {
+        guard let withheldEvents = withheldEvents, withheldEvents.releaseScheduledAt == nil else {
+            return
+        }
+        withheldEvents.freezeWindow(at: processingTime)
+        let featureScope = dependencies.featureScope
+        let application = parent as? RUMApplicationScope
+        dependencies.scheduleWithheldEventsRelease(
+            RUMWithheldEventBuffer.releaseDelay(sessionID: sessionUUID.toRUMDataFormat)
+        ) { [weak self, weak application] in
+            // Back onto the queue every RUM command is processed on, so the release cannot
+            // interleave with the session's own writes. A session that ended in the meantime has
+            // already settled its buffer.
+            featureScope.eventWriteContext { context, writer in
+                self?.releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
+                // Released outside of any command, so nothing else would tell the other features
+                // that the session's events are out - and its replay waits for exactly that.
+                application?.publishCoreContext()
+            }
+        }
+    }
+
+    /// Writes out everything withheld; from then on the session's events go straight through.
+    ///
+    /// - Parameter recordsCountByViewID: the replay records each view holds, by which released
+    ///   events claim a replay.
+    private func releaseWithheldEvents(to writer: Writer, recordsCountByViewID: [String: Int64]) {
+        guard let withheldEvents = withheldEvents else {
+            return
+        }
+        self.withheldEvents = nil
+        let summary = withheldEvents.release(
+            to: writer,
+            now: processingTime,
+            recordsCountByViewID: recordsCountByViewID
+        )
+        dependencies.telemetry.debug(
+            "Error session event buffer released",
+            attributes: [
+                "buffer.views_count": summary.viewsCount,
+                "buffer.events_count": summary.eventsCount,
+                "buffer.dropped_count": summary.droppedCount,
+                "buffer.bytes": summary.bytes
+            ]
+        )
+    }
+
+    /// Tracking consent was withdrawn: what is withheld has not been written, and must not follow
+    /// a later error out once consent is granted again. The session goes on withholding, and
+    /// nothing assembled without consent is held - see `write`.
+    func discardWithheldEvents() {
+        withheldEvents?.discard()
+    }
+
+    /// The host application forced this session to be collected: what it withheld goes now,
+    /// without waiting for an error or for jitter. A collected session is only marked forced,
+    /// which releases a replay kept on error.
+    ///
+    /// - Parameter time: the time of the forcing command, which the session has not processed:
+    ///   the minute released is the one before it, not before whatever command came last.
+    func forceRelease(at time: Date, writer: Writer, context: DatadogContext) {
+        isForced = true
+        processingTime = time
+        releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
+    }
+
+    /// Called once the session is over: at the stop, or when the scope of a session that timed
+    /// out is dropped. What a session that reported its error withheld is released; what one
+    /// that did not is thrown away, so the session never reaches the backend - not through a
+    /// late event either, see `write`.
+    func settleWithheldEvents(writer: Writer, context: DatadogContext) {
+        if hasReportedError {
+            releaseWithheldEvents(to: writer, recordsCountByViewID: context.recordsCountByViewID)
+        } else if let withheldEvents = withheldEvents {
+            withheldEvents.discard()
+            self.withheldEvents = nil
+            withheldEventsDiscarded = true
+        }
+    }
+}
+
+/// FLASHCAT FORK - the writer a session hands its children for one command.
+///
+/// It holds the session weakly: a child can keep the writer in a callback that outlives the
+/// command, and a writer that kept the session alive would let that callback write for a session
+/// that is gone - which, before this writer existed, it could not.
+private struct SessionEventWriter: Writer {
+    weak var session: RUMSessionScope?
+    let writer: Writer
+    let recordsCountByViewID: [String: Int64]
+    let trackingConsent: TrackingConsent
+
+    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, completion: @escaping CompletionHandler) {
+        guard let session = session else {
+            completion()
+            return
+        }
+        session.write(
+            value: value,
+            metadata: metadata,
+            completion: completion,
+            to: writer,
+            recordsCountByViewID: recordsCountByViewID,
+            trackingConsent: trackingConsent
+        )
     }
 }

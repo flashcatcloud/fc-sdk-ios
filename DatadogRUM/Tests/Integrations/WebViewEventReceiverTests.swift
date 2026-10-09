@@ -299,6 +299,55 @@ class WebViewEventReceiverTests: XCTestCase {
         XCTAssertTrue(featureScope.eventsWritten.isEmpty, "The event must be dropped")
     }
 
+    func testGivenSessionWithheldUntilError_whenReceivingWebEvent_itIsDropped() throws {
+        // A session kept only in case it errors must not reach the backend before it does, and
+        // web view events are not assembled by the native scopes that withhold the rest.
+        featureScope.contextMock = .mockWith(
+            additionalContext: [RUMCoreContext(applicationID: .mockRandom(), sessionID: .mockRandom(), eventsWithheld: true)]
+        )
+        let receiver = WebViewEventReceiver(
+            featureScope: featureScope,
+            dateProvider: DateProviderMock(),
+            commandSubscriber: RUMCommandSubscriberMock(),
+            viewCache: ViewCache(dateProvider: SystemDateProvider())
+        )
+
+        let result = receiver.receive(message: webViewTrackingMessage(with: randomWebEvent()), from: NOPDatadogCore())
+
+        XCTAssertTrue(result, "It must accept the message")
+        XCTAssertTrue(featureScope.eventsWritten.isEmpty, "The event must be dropped")
+
+        // Control: the same session once it has reported its error.
+        featureScope.contextMock = .mockWith(
+            additionalContext: [RUMCoreContext(applicationID: .mockRandom(), sessionID: .mockRandom(), eventsWithheld: false)]
+        )
+        _ = receiver.receive(message: webViewTrackingMessage(with: randomWebEvent()), from: NOPDatadogCore())
+        XCTAssertEqual(featureScope.eventsWritten.count, 1)
+    }
+
+    func testGivenSessionWithheldUntilError_whenReceivingWebTelemetry_itIsDropped() throws {
+        featureScope.contextMock = .mockWith(
+            additionalContext: [RUMCoreContext(applicationID: .mockRandom(), sessionID: .mockRandom(), eventsWithheld: true)]
+        )
+        let receiver = WebViewEventReceiver(
+            featureScope: featureScope,
+            dateProvider: DateProviderMock(),
+            commandSubscriber: RUMCommandSubscriberMock(),
+            viewCache: ViewCache(dateProvider: SystemDateProvider())
+        )
+        let telemetry: JSON = ["type": "telemetry", "date": 1, "session": ["id": "web"], "application": ["id": "web"]]
+
+        XCTAssertTrue(receiver.receive(message: .webview(.telemetry(telemetry)), from: NOPDatadogCore()))
+        XCTAssertTrue(featureScope.eventsWritten.isEmpty, "nothing of the session goes out before it reports an error")
+
+        // Control: the same session once released.
+        featureScope.contextMock = .mockWith(
+            additionalContext: [RUMCoreContext(applicationID: .mockRandom(), sessionID: .mockRandom(), eventsWithheld: false)]
+        )
+        XCTAssertTrue(receiver.receive(message: .webview(.telemetry(telemetry)), from: NOPDatadogCore()))
+        XCTAssertEqual(featureScope.eventsWritten.count, 1)
+    }
+
     func testGivenReplayContextAvailable_whenReceivingWebEvent_itInjectReplayInfo() throws {
         // Given
         let dateProvider = RelativeDateProvider()

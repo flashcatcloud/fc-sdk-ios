@@ -25,6 +25,13 @@ public struct RUMCoreContext: AdditionalContext, Equatable {
     /// replay: forcing exists to debug one visitor, and a replay-less recording of them is not the
     /// thing that was asked for.
     public let sessionForced: Bool
+    /// FLASHCAT FORK - whether the session is kept only in case it reports an error and its events
+    /// are still withheld (`sessionOnError`). Nothing else may be uploaded for the session then:
+    /// if it never errors, it must never reach the backend.
+    public let eventsWithheld: Bool
+    /// FLASHCAT FORK - whether the session has reported an error: one that was assembled and
+    /// survived the event mapper. A replay kept only in case of an error is released by it.
+    public let hasReportedError: Bool
 
     /// Creates a RUM context.
     ///
@@ -35,13 +42,17 @@ public struct RUMCoreContext: AdditionalContext, Equatable {
     ///   - userActionID: The ID of current RUM action (standard UUID `String`, lowercased).
     ///   - viewServerTimeOffset: Current view related server time offset
     ///   - sessionForced: Whether the host application forced this session to be collected.
+    ///   - eventsWithheld: Whether the session's events are withheld until it reports an error.
+    ///   - hasReportedError: Whether the session has reported an error.
     public init(
         applicationID: String,
         sessionID: String,
         viewID: String? = nil,
         userActionID: String? = nil,
         viewServerTimeOffset: TimeInterval? = nil,
-        sessionForced: Bool = false
+        sessionForced: Bool = false,
+        eventsWithheld: Bool = false,
+        hasReportedError: Bool = false
     ) {
         self.applicationID = applicationID
         self.sessionID = sessionID
@@ -49,5 +60,7 @@ public struct RUMCoreContext: AdditionalContext, Equatable {
         self.userActionID = userActionID
         self.viewServerTimeOffset = viewServerTimeOffset
         self.sessionForced = sessionForced
+        self.eventsWithheld = eventsWithheld
+        self.hasReportedError = hasReportedError
     }
 }

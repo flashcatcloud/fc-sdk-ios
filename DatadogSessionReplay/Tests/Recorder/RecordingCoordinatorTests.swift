@@ -295,6 +295,189 @@ class RecordingCoordinatorTests: XCTestCase {
         XCTAssertFalse(hasReplay.value)
     }
 
+    // MARK: - FLASHCAT FORK - replay kept on error
+
+    private var errorReplay: SessionReplayCoreContext.ErrorReplay? {
+        core.context.additionalContext(ofType: SessionReplayCoreContext.ErrorReplay.self)
+    }
+
+    private var hasReplay: Bool? {
+        core.context.additionalContext(ofType: SessionReplayCoreContext.HasReplay.self)?.value
+    }
+
+    func test_aReplayTheDrawLeavesOut_isRecordedWithheld_whenKeptOnError() throws {
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+        let rum = RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1")
+
+        rumContextObserver.notify(rumContext: rum)
+
+        XCTAssertTrue(scheduler.isRunning)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, .withheld)
+        XCTAssertEqual(errorReplay, .init(sessionID: "s1", withheld: true))
+        XCTAssertEqual(hasReplay, false, "a withheld replay may never be uploaded")
+    }
+
+    func test_control_withTheSwitchOff_aReplayTheDrawLeavesOutIsNotRecorded() {
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: false)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+
+        XCTAssertFalse(scheduler.isRunning)
+        XCTAssertNil(errorReplay)
+    }
+
+    func test_aSampledReplay_isWithheldAlongsideTheEventsOfASessionKeptOnError() {
+        prepareRecordingCoordinator(sampler: .mockKeepAll())
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: true))
+
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, .withheld)
+        XCTAssertEqual(errorReplay, .init(sessionID: "s1", withheld: true))
+    }
+
+    func test_control_aSampledReplayOfACollectedSession_isNotWithheld() {
+        prepareRecordingCoordinator(sampler: .mockKeepAll(), sessionReplayOnError: true)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, Recorder.ReplayHold.none)
+        XCTAssertNil(errorReplay)
+        XCTAssertEqual(hasReplay, true)
+    }
+
+    func test_theSessionsError_releasesTheReplay() {
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+        let capturesBefore = recordingMock.captureNextRecordCallsCount
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", hasReportedError: true))
+
+        XCTAssertGreaterThan(recordingMock.captureNextRecordCallsCount, capturesBefore)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, Recorder.ReplayHold.none)
+        XCTAssertEqual(errorReplay, .init(sessionID: "s1", withheld: false), "still a replay kept on error, no longer withheld")
+        XCTAssertEqual(hasReplay, true)
+    }
+
+    func test_aReplayWithheldWithTheSessionsEvents_waitsForThoseEventsToBeOut() {
+        // The error is reported before the events go out (they leave behind a jitter); until
+        // they arrive the session does not exist, and a replay sent first has nothing to attach to.
+        prepareRecordingCoordinator(sampler: .mockKeepAll())
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: true))
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: true, hasReportedError: true))
+        XCTAssertEqual(errorReplay?.withheld, true)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, .releasePending, "still withheld, but nothing throws it away any more")
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: false, hasReportedError: true))
+        XCTAssertEqual(errorReplay?.withheld, false)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.replayHold, Recorder.ReplayHold.none)
+    }
+
+    func test_theConsentTravelsWithTheRUMContext() {
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"), trackingConsent: .notGranted)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.trackingConsent, .notGranted)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"), trackingConsent: .granted)
+        XCTAssertEqual(recordingMock.captureNextRecordReceivedRecorderContext?.trackingConsent, .granted)
+    }
+
+    func test_whenConsentIsWithdrawn_theWithheldRecordsAreThrownAwayAtOnce() {
+        // Not with the next snapshot: recording may be stopped and never take one.
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+        let rum = RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1")
+        rumContextObserver.notify(rumContext: rum, trackingConsent: .granted)
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 0)
+
+        rumContextObserver.notify(rumContext: rum, trackingConsent: .notGranted)
+
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 1)
+    }
+
+    func test_whenTheSessionChanges_theWithheldRecordsAreThrownAwayAtOnce() {
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+
+        rumContextObserver.notify(rumContext: nil)
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 1, "the session ended")
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s2", viewID: "v2"))
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s3", viewID: "v3"))
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 2, "every change away from a session throws away whatever is still held")
+    }
+
+    func test_whenConsentIsWithdrawnAfterARelease_theRecordsStillHeldAreThrownAwayToo() {
+        // A release only tells the processor to write with the next snapshot; with recording
+        // stopped none is taken, so the records are still held when consent goes.
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+        let rum = RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1")
+        rumContextObserver.notify(rumContext: rum, trackingConsent: .granted)
+        recordingCoordinator?.stopRecording()
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", hasReportedError: true), trackingConsent: .granted)
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 0)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", hasReportedError: true), trackingConsent: .notGranted)
+
+        XCTAssertEqual(recordingMock.discardWithheldRecordsCallsCount, 1)
+    }
+
+    func test_forcingTheSession_releasesTheReplay() {
+        prepareRecordingCoordinator(sampler: .mockRejectAll(), sessionReplayOnError: true)
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", sessionForced: true))
+
+        XCTAssertEqual(errorReplay?.withheld, false)
+    }
+
+    func test_forcingASessionWithoutReplay_startsRecordingIt() {
+        prepareRecordingCoordinator(sampler: .mockRejectAll())
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", eventsWithheld: true))
+        XCTAssertFalse(scheduler.isRunning)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", sessionForced: true))
+
+        XCTAssertTrue(scheduler.isRunning)
+    }
+
+    func test_control_forcingACollectedSessionWithoutReplay_doesNotStartRecordingIt() {
+        // A session already under way is not re-decided: one collected without replay keeps
+        // running without it, as `setForcedSession` documents.
+        prepareRecordingCoordinator(sampler: .mockRejectAll())
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+        XCTAssertFalse(scheduler.isRunning)
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1", sessionForced: true))
+
+        XCTAssertFalse(scheduler.isRunning)
+    }
+
+    func test_theDrawIsLockedForTheSession() {
+        var onError = false
+        recordingCoordinator = RecordingCoordinator(
+            scheduler: scheduler,
+            textAndInputPrivacy: .maskAll,
+            imagePrivacy: .maskAll,
+            touchPrivacy: .hide,
+            rumContextObserver: rumContextObserver,
+            srContextPublisher: contextPublisher,
+            recorder: recordingMock,
+            sampler: .mockRejectAll(),
+            telemetry: NOPTelemetry(),
+            startRecordingImmediately: true,
+            sessionReplayOnError: { onError }
+        )
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v1"))
+
+        onError = true
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s1", viewID: "v2"))
+        XCTAssertFalse(scheduler.isRunning, "a switch turned on mid-session applies to the next session")
+
+        rumContextObserver.notify(rumContext: RUMCoreContext(applicationID: "a", sessionID: "s2", viewID: "v3"))
+        XCTAssertTrue(scheduler.isRunning)
+    }
+
     private func prepareRecordingCoordinator(
         sampler: Sampler = .mockKeepAll(),
         textAndInputPrivacy: TextAndInputPrivacyLevel = .maskSensitiveInputs,
@@ -302,7 +485,8 @@ class RecordingCoordinatorTests: XCTestCase {
         touchPrivacy: TouchPrivacyLevel = .show,
         telemetry: Telemetry = NOPTelemetry(),
         methodCallTelemetrySamplingRate: Float = 0,
-        startRecordingImmediately: Bool = true
+        startRecordingImmediately: Bool = true,
+        sessionReplayOnError: Bool = false
     ) {
         recordingCoordinator = RecordingCoordinator(
             scheduler: scheduler,
@@ -315,6 +499,7 @@ class RecordingCoordinatorTests: XCTestCase {
             sampler: sampler,
             telemetry: telemetry,
             startRecordingImmediately: startRecordingImmediately,
+            sessionReplayOnError: { sessionReplayOnError },
             methodCallTelemetrySamplingRate: methodCallTelemetrySamplingRate
         )
     }
@@ -336,6 +521,12 @@ final class RecordingMock: Recording {
         captureNextRecordReceivedRecorderContext = recorderContext
         captureNextRecordReceivedInvocations.append(recorderContext)
         try captureNextRecordClosure?(recorderContext)
+    }
+
+    var discardWithheldRecordsCallsCount = 0
+
+    func discardWithheldRecords() {
+        discardWithheldRecordsCallsCount += 1
     }
 }
 #endif

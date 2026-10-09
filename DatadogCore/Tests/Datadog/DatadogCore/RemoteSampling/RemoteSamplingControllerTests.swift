@@ -537,6 +537,27 @@ class RemoteSamplingControllerTests: XCTestCase {
         XCTAssertEqual(harness.recorder.ratesChanged, [.immediate, .nextSession])
     }
 
+    func testTurningTheOnErrorSwitchIsReportedAsAChange() {
+        // The switch is part of the draw: a visitor drawn out at zero is kept once it turns on,
+        // and RUM must hear of it to draw them again.
+        let harness = Harness()
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 1, "enabled": true, "rum": { "sessionSampleRate": 0 } }"#.data(using: .utf8)!))
+        }
+        harness.controller.onSourcePublished(source)
+        eventually(harness.recorder.published.count == 1)
+        XCTAssertEqual(harness.recorder.ratesChanged.count, 1)
+
+        harness.client.handler = { _ in
+            .success((.mockResponseWith(statusCode: 200), #"{ "schema_version": 1, "version": 2, "enabled": true, "rum": { "sessionSampleRate": 0, "sessionOnError": true } }"#.data(using: .utf8)!))
+        }
+        harness.controller.onSourcePublished(source)
+        eventually(harness.recorder.published.count == 2)
+
+        XCTAssertEqual(harness.recorder.published.last?.sessionOnError, true)
+        XCTAssertEqual(harness.recorder.ratesChanged.count, 2)
+    }
+
     // MARK: - Stale configuration
 
     func testAConfigurationOlderThanTheOneInForceIsRefusedWithoutWedgingTheController() {

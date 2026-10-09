@@ -52,7 +52,9 @@ public final class objc_SessionReplayConfiguration: NSObject {
     /// The sampling rate for Session Replay. It is applied in addition to the RUM session sample rate.
     ///
     /// It must be a number between 0.0 and 100.0, where 0 means no replays will be recorded
-    /// and 100 means all RUM sessions will contain replay.
+    /// and 100 means all RUM sessions will contain replay. With `sessionReplayOnError`, the
+    /// replays the rate leaves out are still recorded, and uploaded if the session reports an
+    /// error.
     ///
     /// Note: This sample rate is applied in addition to the RUM sample rate. For example, if RUM uses a sample rate of 80%
     /// and Session Replay uses a sample rate of 20%, it means that out of all user sessions, 80% will be included in RUM,
@@ -84,6 +86,15 @@ public final class objc_SessionReplayConfiguration: NSObject {
     @objc public var touchPrivacyLevel: objc_TouchPrivacyLevel {
         set { _swift.touchPrivacyLevel = newValue._swift }
         get { .init(_swift.touchPrivacyLevel) }
+    }
+
+    /// FLASHCAT FORK - records the replays `replaySampleRate` does not collect in case their session
+    /// reports an error. See `SessionReplay.Configuration.sessionReplayOnError`.
+    ///
+    /// Default: `NO`.
+    @objc public var sessionReplayOnError: Bool {
+        set { _swift.sessionReplayOnError = newValue }
+        get { _swift.sessionReplayOnError }
     }
 
     /// Defines it the recording should start automatically. When `true`, the recording starts automatically; when `false` it doesn't, and the recording will need to be started manually.

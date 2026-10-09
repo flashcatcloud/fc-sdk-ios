@@ -1077,7 +1077,9 @@ extension RUMScopeDependencies {
         remoteConfigurationEnabled: Bool = false,
         customEndpoint: URL? = nil,
         remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
-        beforeSampling: BeforeSamplingCallback? = nil
+        beforeSampling: BeforeSamplingCallback? = nil,
+        sessionOnError: Bool = false,
+        scheduleWithheldEventsRelease: @escaping (TimeInterval, @escaping () -> Void) -> Void = { _, _ in }
     ) -> RUMScopeDependencies {
         return RUMScopeDependencies(
             featureScope: featureScope,
@@ -1110,7 +1112,9 @@ extension RUMScopeDependencies {
             remoteConfigurationEnabled: remoteConfigurationEnabled,
             customEndpoint: customEndpoint,
             remoteSamplingRates: remoteSamplingRates,
-            beforeSampling: beforeSampling
+            beforeSampling: beforeSampling,
+            sessionOnError: sessionOnError,
+            scheduleWithheldEventsRelease: scheduleWithheldEventsRelease
         )
     }
 
@@ -1170,7 +1174,9 @@ extension RUMScopeDependencies {
             watchdogTermination: watchdogTermination ?? self.watchdogTermination,
             networkSettledMetricFactory: networkSettledMetricFactory ?? self.networkSettledMetricFactory,
             interactionToNextViewMetricFactory: interactionToNextViewMetricFactory ?? self.interactionToNextViewMetricFactory,
-            sessionType: sessionType
+            sessionType: sessionType,
+            sessionOnError: self.sessionOnError,
+            scheduleWithheldEventsRelease: self.scheduleWithheldEventsRelease
         )
     }
 }

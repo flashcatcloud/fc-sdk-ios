@@ -478,7 +478,340 @@ class SnapshotProcessorTests: XCTestCase {
 
     private let snapshotBuilder = ViewTreeSnapshotBuilder(additionalNodeRecorders: [], featureFlags: .allEnabled)
 
-    private func generateViewTreeSnapshot(for viewTree: UIView, date: Date, rumContext: RUMCoreContext) -> ViewTreeSnapshot {
+    // MARK: - FLASHCAT FORK - replay withheld until the session errors
+
+    private func makeProcessor(core: PassthroughCoreMock, telemetry: Telemetry = TelemetryMock()) -> SnapshotProcessor {
+        SnapshotProcessor(
+            queue: NoQueue(),
+            recordWriter: recordWriter,
+            resourceProcessor: ResourceProcessorSpy(),
+            srContextPublisher: SRContextPublisher(core: core),
+            telemetry: telemetry
+        )
+    }
+
+    func testAWithheldReplayWritesNothing_butCountsItsRecords() {
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let rum: RUMCoreContext = .mockWith(viewID: "v1", serverTimeOffset: 0)
+        let viewTree = generateSimpleViewTree()
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start, rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(1), rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+
+        XCTAssertTrue(recordWriter.records.isEmpty)
+        XCTAssertEqual(core.recordsCountByViewID?["v1"], 3, "counted as recorded, so a release can claim them")
+    }
+
+    func testWhenTheSessionReleasesTheReplay_theWithheldSegmentIsWrittenFirst_inOrder() throws {
+        let telemetry = TelemetryMock()
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core, telemetry: telemetry)
+        let rum: RUMCoreContext = .mockWith(viewID: "v1", serverTimeOffset: 0)
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start, rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(1), rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(2), rumContext: rum, replayHold: .none), touchSnapshot: nil)
+
+        XCTAssertEqual(recordWriter.records.count, 3)
+        let first = try XCTUnwrap(recordWriter.records.first)
+        XCTAssertTrue(first.records[0].isMetaRecord, "the released segment plays on its own: it starts with a full snapshot")
+        XCTAssertTrue(first.records[2].isFullSnapshotRecord)
+        XCTAssertFalse(recordWriter.records[2].records.contains { $0.isFullSnapshotRecord }, "and the replay simply carries on")
+        XCTAssertTrue(telemetry.messages.contains { message in
+            guard case let .debug(_, text, _) = message else {
+                return false
+            }
+            return text == "Error session replay released"
+        })
+    }
+
+    func testWhenTheViewChangesWhileWithheld_theSegmentIsThrownAway_andItsCountGivenBack() {
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start, rumContext: .mockWith(viewID: "v1", serverTimeOffset: 0), replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(1), rumContext: .mockWith(viewID: "v2", serverTimeOffset: 0), replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(2), rumContext: .mockWith(viewID: "v2", serverTimeOffset: 0), replayHold: .none), touchSnapshot: nil)
+
+        XCTAssertNil(core.recordsCountByViewID?["v1"], "no view claims a replay that was never uploaded")
+        XCTAssertEqual(recordWriter.records.map { $0.viewID }, ["v2", "v2"])
+    }
+
+    func testWhenAWithheldSegmentOutgrowsTheWindow_itRestartsFromAFullSnapshot() throws {
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let rum: RUMCoreContext = .mockWith(viewID: "v1", serverTimeOffset: 0)
+        let viewTree = generateSimpleViewTree()
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start, rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(SnapshotProcessor.withheldReplayDuration + 1), rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(SnapshotProcessor.withheldReplayDuration + 2), rumContext: rum, replayHold: .none), touchSnapshot: nil)
+
+        let released = try XCTUnwrap(recordWriter.records.first)
+        XCTAssertTrue(released.records[0].isMetaRecord)
+        XCTAssertTrue(released.records[2].isFullSnapshotRecord, "incremental records cannot follow a dropped history")
+        XCTAssertEqual(core.recordsCountByViewID?["v1"], 3 + Int64(recordWriter.records.dropFirst().reduce(0) { $0 + $1.records.count }))
+    }
+
+    private func imageSnapshot(resource: UIImageResource, sessionID: String, viewID: String, date: Date, replayHold: Recorder.ReplayHold) -> ViewTreeSnapshot {
+        let builder = UIImageViewWireframesBuilder(
+            wireframeID: .mockAny(),
+            imageWireframeID: .mockAny(),
+            attributes: .mockAny(),
+            contentFrame: .mockAny(),
+            imageResource: resource,
+            imagePrivacyLevel: .maskNonBundledOnly
+        )
+        return .mockWith(
+            context: .init(
+                textAndInputPrivacy: .maskAll,
+                imagePrivacy: .maskNonBundledOnly,
+                touchPrivacy: .hide,
+                rumContext: .mockWith(sessionID: sessionID, viewID: viewID, serverTimeOffset: 0),
+                date: date,
+                replayHold: replayHold
+            ),
+            nodes: [Node(viewAttributes: .mockAny(), wireframesBuilder: builder)]
+        )
+    }
+
+    func testTheResourcesOfAWithheldReplay_waitForItsRelease() throws {
+        let resource: UIImageResource = .mockRandom()
+        let resourceProcessor = ResourceProcessorSpy()
+        let processor = SnapshotProcessor(
+            queue: NoQueue(),
+            recordWriter: recordWriter,
+            resourceProcessor: resourceProcessor,
+            srContextPublisher: SRContextPublisher(core: PassthroughCoreMock()),
+            telemetry: TelemetryMock()
+        )
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: resource, sessionID: "s1", viewID: "v1", date: start, replayHold: .withheld), touchSnapshot: nil)
+        XCTAssertTrue(resourceProcessor.resources.isEmpty, "an image of a replay that may never be uploaded is not uploaded")
+
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: resource, sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(1), replayHold: .none), touchSnapshot: nil)
+        let released = try XCTUnwrap(resourceProcessor.processedResources.first?.resources.first)
+        XCTAssertEqual(released.calculateIdentifier(), resource.calculateIdentifier(), "handed over with the segment it belongs to")
+    }
+
+    func testTheResourcesOfAThrownAwayReplay_areNeverProcessed() {
+        let resourceProcessor = ResourceProcessorSpy()
+        let processor = SnapshotProcessor(
+            queue: NoQueue(),
+            recordWriter: recordWriter,
+            resourceProcessor: resourceProcessor,
+            srContextPublisher: SRContextPublisher(core: PassthroughCoreMock()),
+            telemetry: TelemetryMock()
+        )
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: .mockRandom(), sessionID: "s1", viewID: "v1", date: start, replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(1), rumContext: .mockWith(sessionID: "s2", viewID: "v2", serverTimeOffset: 0)), touchSnapshot: nil)
+
+        XCTAssertTrue(resourceProcessor.resources.isEmpty)
+    }
+
+    func testAWithheldSegmentOverItsResourceBudget_restartsFromAFullSnapshot() throws {
+        let core = PassthroughCoreMock()
+        let resourceProcessor = ResourceProcessorSpy()
+        let processor = SnapshotProcessor(
+            queue: NoQueue(),
+            recordWriter: recordWriter,
+            resourceProcessor: resourceProcessor,
+            srContextPublisher: SRContextPublisher(core: core),
+            telemetry: TelemetryMock()
+        )
+        let start = Date()
+        let snapshots = SnapshotProcessor.withheldReplayResourcesLimit + 1
+        for index in 0..<snapshots {
+            processor.process(viewTreeSnapshot: imageSnapshot(resource: .mockRandom(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(Double(index) * 0.1), replayHold: .withheld), touchSnapshot: nil)
+        }
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: .mockRandom(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(20), replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: .mockRandom(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(21), replayHold: .none), touchSnapshot: nil)
+
+        let released = try XCTUnwrap(recordWriter.records.first)
+        XCTAssertTrue(released.records.contains { $0.isFullSnapshotRecord }, "the restarted segment plays on its own")
+        XCTAssertLessThanOrEqual(recordWriter.records.count, 2, "only what was recorded since the restart is released")
+        XCTAssertEqual(resourceProcessor.resources.count, 2)
+    }
+
+    func testAWithheldSegment_countsAResourceOnce_howeverManySnapshotsShowIt() throws {
+        // The builder reports every image's resource on every snapshot, ten times a second. Counted
+        // per snapshot, a screen with a few images would spend the resource budget within seconds
+        // and the withheld segment would be restarted over and over, keeping nothing before the error.
+        let resource: UIImageResource = .mockRandom()
+        let resourceProcessor = ResourceProcessorSpy()
+        let telemetry = TelemetryMock()
+        let processor = SnapshotProcessor(
+            queue: NoQueue(),
+            recordWriter: recordWriter,
+            resourceProcessor: resourceProcessor,
+            srContextPublisher: SRContextPublisher(core: PassthroughCoreMock()),
+            telemetry: telemetry
+        )
+        let start = Date()
+        let snapshots = SnapshotProcessor.withheldReplayResourcesLimit + 50
+        for index in 0..<snapshots {
+            processor.process(viewTreeSnapshot: imageSnapshot(resource: resource, sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(Double(index) * 0.1), replayHold: .withheld), touchSnapshot: nil)
+        }
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: resource, sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(Double(snapshots) * 0.1), replayHold: .none), touchSnapshot: nil)
+
+        let release = telemetry.messages.compactMap { message -> [String: Encodable]? in
+            guard case let .debug(_, text, attributes) = message, text == "Error session replay released" else {
+                return nil
+            }
+            return attributes
+        }
+        XCTAssertEqual(release.first?["segment.dropped_before"] as? Int, 0, "the segment was never restarted")
+        XCTAssertEqual(resourceProcessor.processedResources.first?.resources.count, 1, "one image, handed over once with the segment")
+    }
+
+    func testWhileTheReleaseIsPending_aViewChangeKeepsTheSegment_andTheNewViewIsHeldBehindIt() throws {
+        // An error is usually followed by a screen change - the app showing it. The release
+        // is on its way, so the segment of the screen the error happened on must survive it.
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start, rumContext: .mockWith(viewID: "v1", serverTimeOffset: 0), replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(1), rumContext: .mockWith(viewID: "v2", serverTimeOffset: 0), replayHold: .releasePending), touchSnapshot: nil)
+        XCTAssertTrue(recordWriter.records.isEmpty, "nothing goes out before the events do")
+        XCTAssertEqual(core.recordsCountByViewID?["v1"], 3, "the first view still holds its records")
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(2), rumContext: .mockWith(viewID: "v2", serverTimeOffset: 0), replayHold: .none), touchSnapshot: nil)
+
+        XCTAssertEqual(recordWriter.records.map { $0.viewID }, ["v1", "v2", "v2"])
+        XCTAssertTrue(try XCTUnwrap(recordWriter.records[1].records.first?.isMetaRecord), "the new view starts its own segment")
+    }
+
+    func testControl_withoutAReleasePending_aViewChangeThrowsTheSegmentAway() {
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start, rumContext: .mockWith(viewID: "v1", serverTimeOffset: 0), replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(1), rumContext: .mockWith(viewID: "v2", serverTimeOffset: 0), replayHold: .withheld), touchSnapshot: nil)
+
+        XCTAssertNil(core.recordsCountByViewID?["v1"])
+    }
+
+    func testWhatWasRecordedWithoutConsent_isThrownAway_andRecordingRestartsFromAFullSnapshot() throws {
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let rum: RUMCoreContext = .mockWith(viewID: "v1", serverTimeOffset: 0)
+        let viewTree = generateSimpleViewTree()
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start, rumContext: rum, replayHold: .withheld, trackingConsent: .granted), touchSnapshot: nil)
+        XCTAssertEqual(core.recordsCountByViewID?["v1"], 3)
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(1), rumContext: rum, replayHold: .withheld, trackingConsent: .notGranted), touchSnapshot: nil)
+        XCTAssertNil(core.recordsCountByViewID?["v1"], "what was held is given back")
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(2), rumContext: rum, replayHold: .withheld, trackingConsent: .granted), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(3), rumContext: rum, replayHold: .none, trackingConsent: .granted), touchSnapshot: nil)
+
+        // The held full snapshot; the releasing snapshot of the unchanged tree adds no record.
+        XCTAssertEqual(recordWriter.records.count, 1, "only what was recorded once consent returned")
+        let released = try XCTUnwrap(recordWriter.records.first)
+        XCTAssertTrue(released.records[0].isMetaRecord, "it starts over from a full snapshot")
+        XCTAssertTrue(released.records[2].isFullSnapshotRecord)
+    }
+
+    func testDiscardingTheWithheldRecords_throwsThemAway_andRecordingRestartsFromAFullSnapshot() throws {
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let rum: RUMCoreContext = .mockWith(viewID: "v1", serverTimeOffset: 0)
+        let viewTree = generateSimpleViewTree()
+        let start = Date()
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start, rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        XCTAssertEqual(core.recordsCountByViewID?["v1"], 3)
+
+        processor.discardWithheldRecords()
+
+        XCTAssertNil(core.recordsCountByViewID?["v1"], "what was held is given back")
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(1), rumContext: rum, replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: viewTree, date: start.addingTimeInterval(2), rumContext: rum, replayHold: .none), touchSnapshot: nil)
+        let released = try XCTUnwrap(recordWriter.records.first)
+        XCTAssertEqual(recordWriter.records.count, 1)
+        XCTAssertTrue(released.records[0].isMetaRecord, "it starts over from a full snapshot")
+        XCTAssertTrue(released.records[2].isFullSnapshotRecord)
+    }
+
+    func testControl_aReplayThatIsNotWithheld_isWrittenWhateverTheConsent() {
+        // The writer of the moment decides for it, as it always did.
+        let processor = makeProcessor(core: PassthroughCoreMock())
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start, rumContext: .mockWith(viewID: "v1", serverTimeOffset: 0), replayHold: .none, trackingConsent: .notGranted), touchSnapshot: nil)
+
+        XCTAssertEqual(recordWriter.records.count, 1)
+    }
+
+    func testAWithheldSegmentOverItsResourceByteBudget_restartsFromAFullSnapshot() throws {
+        // Distinct images keep their decoded bitmaps alive while held; a feed shows many in a
+        // minute, so they are budgeted in bytes, not only in number.
+        let core = PassthroughCoreMock()
+        let resourceProcessor = ResourceProcessorSpy()
+        let processor = SnapshotProcessor(
+            queue: NoQueue(),
+            recordWriter: recordWriter,
+            resourceProcessor: resourceProcessor,
+            srContextPublisher: SRContextPublisher(core: core),
+            telemetry: TelemetryMock()
+        )
+        var distinct = 0
+        func bigImage() -> UIImageResource {
+            // One bitmap, told apart by its tint: the identifier covers the tint, and a distinct
+            // tint is cheaper and surer than a distinct bitmap.
+            let size = CGSize(width: 1_024, height: 1_024) // 4 MiB a bitmap at scale 1
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                UIColor.red.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+            }
+            distinct += 1
+            return UIImageResource(image: image, tintColor: UIColor(white: CGFloat(distinct) / 100, alpha: 1))
+        }
+        XCTAssertEqual(bigImage().estimatedRetainedBytes, 4 * 1_024 * 1_024)
+        let start = Date()
+        let images = SnapshotProcessor.withheldReplayResourcesBytesLimit / (4 * 1_024 * 1_024) + 1
+        for index in 0..<images {
+            processor.process(viewTreeSnapshot: imageSnapshot(resource: bigImage(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(Double(index) * 0.1), replayHold: .withheld), touchSnapshot: nil)
+        }
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: bigImage(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(20), replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: imageSnapshot(resource: bigImage(), sessionID: "s1", viewID: "v1", date: start.addingTimeInterval(21), replayHold: .none), touchSnapshot: nil)
+
+        let released = try XCTUnwrap(recordWriter.records.first)
+        XCTAssertTrue(released.records.contains { $0.isFullSnapshotRecord }, "the restarted segment plays on its own")
+        XCTAssertEqual(resourceProcessor.resources.count, 2, "only the images recorded since the restart")
+    }
+
+    func testAWithheldReplayOfASessionThatEndedWithoutAnError_isThrownAway() {
+        let core = PassthroughCoreMock()
+        let processor = makeProcessor(core: core)
+        let start = Date()
+
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start, rumContext: .mockWith(sessionID: "s1", viewID: "v1", serverTimeOffset: 0), replayHold: .withheld), touchSnapshot: nil)
+        processor.process(viewTreeSnapshot: generateViewTreeSnapshot(for: generateSimpleViewTree(), date: start.addingTimeInterval(1), rumContext: .mockWith(sessionID: "s2", viewID: "v2", serverTimeOffset: 0)), touchSnapshot: nil)
+
+        XCTAssertEqual(recordWriter.records.map { $0.sessionID }, ["s2"])
+    }
+
+    private func generateViewTreeSnapshot(
+        for viewTree: UIView,
+        date: Date,
+        rumContext: RUMCoreContext,
+        replayHold: Recorder.ReplayHold = .none,
+        trackingConsent: TrackingConsent = .granted
+    ) -> ViewTreeSnapshot {
         snapshotBuilder.createSnapshot(
             of: viewTree,
             with: .init(
@@ -486,7 +819,9 @@ class SnapshotProcessorTests: XCTestCase {
                 imagePrivacy: .mockRandom(),
                 touchPrivacy: .mockRandom(),
                 rumContext: rumContext,
-                date: date
+                date: date,
+                replayHold: replayHold,
+                trackingConsent: trackingConsent
             )
         )
     }

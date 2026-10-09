@@ -69,6 +69,12 @@ internal struct RUMScopeDependencies {
     let remoteSamplingRates: () -> RemoteSamplingRates?
     /// The host application's last word on the draw, consulted after the console's rate.
     let beforeSampling: BeforeSamplingCallback?
+    /// Whether a session the rate leaves out is kept in case it reports an error, as initialised.
+    /// The console's `sessionOnError` takes precedence where it published one.
+    let sessionOnError: Bool
+    /// Runs the release of a withheld session's events after the given delay. Injected so tests
+    /// can fire the release without waiting for its jitter.
+    let scheduleWithheldEventsRelease: (TimeInterval, @escaping () -> Void) -> Void
 
     /// A factory function that creates `ViewEndedMetricController` for each new view started.
     let viewEndedMetricFactory: () -> ViewEndedController
@@ -113,7 +119,11 @@ internal struct RUMScopeDependencies {
         remoteConfigurationEnabled: Bool = false,
         customEndpoint: URL? = nil,
         remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
-        beforeSampling: BeforeSamplingCallback? = nil
+        beforeSampling: BeforeSamplingCallback? = nil,
+        sessionOnError: Bool = false,
+        scheduleWithheldEventsRelease: @escaping (TimeInterval, @escaping () -> Void) -> Void = { delay, release in
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay, execute: release)
+        }
     ) {
         self.featureScope = featureScope
         self.rumApplicationID = rumApplicationID
@@ -144,6 +154,8 @@ internal struct RUMScopeDependencies {
         self.customEndpoint = customEndpoint
         self.remoteSamplingRates = remoteSamplingRates
         self.beforeSampling = beforeSampling
+        self.sessionOnError = sessionOnError
+        self.scheduleWithheldEventsRelease = scheduleWithheldEventsRelease
         self.networkSettledMetricFactory = networkSettledMetricFactory
         self.interactionToNextViewMetricFactory = interactionToNextViewMetricFactory
 

@@ -510,6 +510,15 @@ public class objc_RUMConfiguration: NSObject {
         get { swiftConfig.trackMemoryWarnings }
     }
 
+    /// FLASHCAT FORK - keeps the sessions `sessionSampleRate` does not collect in case they report
+    /// an error, uploading the minute before it. See `RUM.Configuration.sessionOnError`.
+    ///
+    /// Default: `NO`.
+    public var sessionOnError: Bool {
+        set { swiftConfig.sessionOnError = newValue }
+        get { swiftConfig.sessionOnError }
+    }
+
     /// FLASHCAT FORK - enables the remote configuration of sampling rates from the console.
     ///
     /// Default: `NO` — no extra requests are made and behaviour is unchanged.
@@ -594,7 +603,8 @@ public class objc_RUMMonitor: NSObject {
     /// A session that was not being collected ends and a collected one starts in its place; a
     /// session already being collected keeps running, because RUM cannot retro-collect what a
     /// running session already dropped. Session Replay follows the same rule: every session drawn
-    /// after this call is recorded, one already under way is not re-decided. The forced state lasts
+    /// after this call is recorded, one already under way is not re-decided. A session or a replay
+    /// kept only in case the session reports an error is released at once. The forced state lasts
     /// for the process lifetime, so decide on each app start whether to call again.
     public func setForcedSession() {
         swiftRUMMonitor.setForcedSession()

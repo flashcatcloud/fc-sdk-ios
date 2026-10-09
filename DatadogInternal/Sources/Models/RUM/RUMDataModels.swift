@@ -5507,6 +5507,15 @@ public struct RUMViewEvent: RUMDataModel {
         /// Whether this session is currently active. Set to false to manually stop a session
         public let isActive: Bool?
 
+        // FLASHCAT FORK: `sampled_for_error` and `sampled_for_error_replay` are FlashCat additions
+        // on top of the shared schema, patched in by hand like `rc_version`; reapplying
+        // `make rum-models-generate` drops them and this patch must be restored.
+        /// Whether this session is collected only because it reported an error (`sessionOnError`)
+        public let sampledForError: Bool?
+
+        /// Whether the replay of this session is collected only because it reported an error (`sessionReplayOnError`, or a replay withheld with a session kept by `sessionOnError`)
+        public let sampledForErrorReplay: Bool?
+
         /// Whether this session has been sampled for replay
         public let sampledForReplay: Bool?
 
@@ -5517,6 +5526,9 @@ public struct RUMViewEvent: RUMDataModel {
             case hasReplay = "has_replay"
             case id = "id"
             case isActive = "is_active"
+            // FLASHCAT FORK: see `sampledForError` above.
+            case sampledForError = "sampled_for_error"
+            case sampledForErrorReplay = "sampled_for_error_replay"
             case sampledForReplay = "sampled_for_replay"
             case type = "type"
         }
@@ -5527,18 +5539,24 @@ public struct RUMViewEvent: RUMDataModel {
         ///   - hasReplay: Whether this session has a replay
         ///   - id: UUID of the session
         ///   - isActive: Whether this session is currently active. Set to false to manually stop a session
+        ///   - sampledForError: Whether this session is collected only because it reported an error
+        ///   - sampledForErrorReplay: Whether the replay of this session is collected only because it reported an error
         ///   - sampledForReplay: Whether this session has been sampled for replay
         ///   - type: Type of the session
         public init(
             hasReplay: Bool? = nil,
             id: String,
             isActive: Bool? = nil,
+            sampledForError: Bool? = nil,
+            sampledForErrorReplay: Bool? = nil,
             sampledForReplay: Bool? = nil,
             type: RUMSessionType
         ) {
             self.hasReplay = hasReplay
             self.id = id
             self.isActive = isActive
+            self.sampledForError = sampledForError
+            self.sampledForErrorReplay = sampledForErrorReplay
             self.sampledForReplay = sampledForReplay
             self.type = type
         }

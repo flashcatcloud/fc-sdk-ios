@@ -30,5 +30,10 @@ extension UIImageResource: Resource {
     func calculateData() -> Data {
         image.dd.pngData(tintColor: tintColor) ?? Data()
     }
+
+    /// The decoded bitmap, four bytes a pixel, which is what holding the image keeps alive.
+    var estimatedRetainedBytes: Int {
+        Int(image.size.width * image.scale) * Int(image.size.height * image.scale) * 4
+    }
 }
 #endif

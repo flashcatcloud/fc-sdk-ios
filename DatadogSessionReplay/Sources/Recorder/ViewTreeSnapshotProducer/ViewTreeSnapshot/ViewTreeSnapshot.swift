@@ -64,6 +64,14 @@ public protocol SessionReplayResource {
     /// Calculates the data of the resource.
     /// This function is not thread safe and needs to be synchronized by the caller.
     func calculateData() -> Data
+    /// FLASHCAT FORK - an estimate of the memory the resource retains until its data is
+    /// calculated, in bytes. A replay withheld until its session errors keeps its resources in
+    /// memory and budgets them by it.
+    var estimatedRetainedBytes: Int { get }
+}
+
+extension SessionReplayResource {
+    public var estimatedRetainedBytes: Int { 0 }
 }
 
 /// This alias enables us to have a more unique name exposed through public-internal access level

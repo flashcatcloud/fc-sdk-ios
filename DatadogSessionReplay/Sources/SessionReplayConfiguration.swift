@@ -21,12 +21,33 @@ extension SessionReplay {
         /// The sampling rate for Session Replay. It is applied in addition to the RUM session sample rate.
         ///
         /// It must be a number between 0.0 and 100.0, where 0 means no replays will be recorded
-        /// and 100 means all RUM sessions will contain replay.
+        /// and 100 means all RUM sessions will contain replay. With `sessionReplayOnError`, the
+        /// replays the rate leaves out are still recorded, and uploaded if the session reports an
+        /// error.
         ///
         /// Note: This sample rate is applied in addition to the RUM sample rate. For example, if RUM uses a sample rate of 80%
         /// and Session Replay uses a sample rate of 20%, it means that out of all user sessions, 80% will be included in RUM,
         /// and within those sessions, only 20% will have replays.
         public var replaySampleRate: Float
+
+        /// Records the replays `replaySampleRate` does not collect in case their session reports an
+        /// error.
+        ///
+        /// Such a replay is recorded but nothing is uploaded until the session reports an error: the
+        /// replay of the current view is kept, at most the last minute of it, and thrown away when
+        /// the session ends without one. A view change, or the segment outgrowing its budget, throws
+        /// the kept segment away and recording starts over from a full snapshot, so what survives is
+        /// the current view's replay. When the error comes, what is kept is uploaded and the rest of
+        /// the replay is collected normally. When RUM's remote configuration is enabled, the
+        /// console's `sessionReplayOnError` takes precedence.
+        ///
+        /// The console's switch can only act on a Session Replay that is running: with
+        /// `replaySampleRate` at 0 and this value `false`, Session Replay is not enabled at all, and
+        /// the console turning the switch on changes nothing. Set a non-zero rate or this value to
+        /// let the console decide.
+        ///
+        /// Default: `false`.
+        public var sessionReplayOnError: Bool
 
         /// Defines the way text and input (e.g. textfields, checkboxes) should be masked.
         ///
@@ -72,6 +93,7 @@ extension SessionReplay {
         ///   - touchPrivacyLevel: The way user touches (e.g. tap) should be masked. Default: `.hide`.
         ///   - startRecordingImmediately: If the recording should start automatically. When `true`, the recording starts automatically; when `false` it doesn't, and the recording will need to be started manually. Default: `true`.
         ///   - customEndpoint: Custom server url for sending replay data. Default: `nil`.
+        ///   - sessionReplayOnError: Records the replays `replaySampleRate` does not collect in case their session reports an error. Default: `false`.
         ///   - featureFlags: Experimental feature flags.
         public init(
             replaySampleRate: SampleRate = .maxSampleRate,
@@ -80,9 +102,11 @@ extension SessionReplay {
             touchPrivacyLevel: TouchPrivacyLevel = .hide,
             startRecordingImmediately: Bool = true,
             customEndpoint: URL? = nil,
+            sessionReplayOnError: Bool = false,
             featureFlags: FeatureFlags = .defaults
         ) {
             self.replaySampleRate = replaySampleRate
+            self.sessionReplayOnError = sessionReplayOnError
             self.textAndInputPrivacyLevel = textAndInputPrivacyLevel
             self.imagePrivacyLevel = imagePrivacyLevel
             self.touchPrivacyLevel = touchPrivacyLevel
