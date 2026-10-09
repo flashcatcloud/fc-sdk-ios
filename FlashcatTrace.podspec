@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "FlashcatTrace"
   s.module_name  = "DatadogTrace"
-  s.version      = "0.6.2"
+  s.version      = "0.7.0"
   s.summary      = "Flashcat iOS SDK - Distributed Tracing module."
 
   s.homepage     = "https://github.com/flashcatcloud/fc-sdk-ios"

@@ -11,6 +11,21 @@
 
 ---
 
+## [0.7.0] - 2026-10-09
+
+**Based on Datadog iOS SDK 3.6.0** (same upstream as 0.6.0, no upstream sync)
+
+### Added
+
+- `RUM.Configuration(sessionOnError:)`: a session the sample rate leaves out is still collected in memory, keeping about the last minute of events. If it reports an error, those events are sent (views first, then errors, then the rest) and the session continues as an ordinary one; if it ends without an error, everything is thrown away and the backend never hears of it. The switch can also be set from the console through remote configuration (`rum.sessionOnError`) when `remoteConfigurationEnabled` is on, and the console value wins.
+  - Events of such a session carry `session_sample_rate = 0`, and its views carry `session.sampled_for_error = true`.
+  - `setForcedSession()` and a crash release a held session at once; going to the background sends a release already queued.
+  - Until its events are released, `currentSessionID` returns `nil` and `onSessionStart` reports the session as discarded.
+  - Withdrawing tracking consent throws the held events away; they never follow a later error out.
+- `sessionReplayOnError` does the same for Session Replay. The Session Replay module is not published to CocoaPods.
+
+---
+
 ## [0.6.2] - 2026-09-14
 
 **Based on Datadog iOS SDK 3.6.0** (same upstream as 0.6.0, no upstream sync)
