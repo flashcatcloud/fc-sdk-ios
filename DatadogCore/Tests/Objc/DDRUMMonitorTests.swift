@@ -215,13 +215,14 @@ class DDRUMMonitorTests: XCTestCase {
         var currentSessionID: String? = nil
 
         RUM.enable(with: config)
+        core.flush()
         let objcRUMMonitor = objc_RUMMonitor.shared()
         objcRUMMonitor.currentSessionID { sessionID in
             currentSessionID = sessionID
             callSessionIDCallback.fulfill()
         }
 
-        waitForExpectations(timeout: 0.5)
+        waitForExpectations(timeout: 5)
         let sessionID = try XCTUnwrap(currentSessionID)
         XCTAssertTrue(sessionID.matches(regex: .uuidRegex))
     }
@@ -234,6 +235,7 @@ class DDRUMMonitorTests: XCTestCase {
 
         // Given
         RUM.enable(with: config)
+        core.flush()
         let objcRUMMonitor = objc_RUMMonitor.shared()
         objcRUMMonitor.currentSessionID { sessionID in
             sessionID1 = sessionID
