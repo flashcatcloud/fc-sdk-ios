@@ -178,7 +178,7 @@ jobs:
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         run: |
-          bundle exec pod trunk push FlashcatInternal.podspec --allow-warnings --synchronous
+          ./tools/release/trunk-push-if-missing.sh FlashcatInternal.podspec
 
   publish-cocoapods-core:
     name: Publish CocoaPods (Core)
@@ -204,7 +204,7 @@ jobs:
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         run: |
-          bundle exec pod trunk push FlashcatCore.podspec --allow-warnings --synchronous
+          ./tools/release/trunk-push-if-missing.sh FlashcatCore.podspec
 
   publish-cocoapods-modules:
     name: Publish CocoaPods (Modules)
@@ -241,7 +241,7 @@ jobs:
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         run: |
-          bundle exec pod trunk push ${{ matrix.module }}.podspec --allow-warnings --synchronous
+          ./tools/release/trunk-push-if-missing.sh ${{ matrix.module }}.podspec
 
   summary:
     name: Release Summary
