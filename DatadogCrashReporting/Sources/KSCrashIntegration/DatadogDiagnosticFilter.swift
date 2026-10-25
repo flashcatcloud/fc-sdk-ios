@@ -28,7 +28,11 @@ internal import KSCrashRecording
 ///    - Extracts exception name and reason
 ///    - Format: `"Terminating app due to uncaught exception 'ExceptionName', reason: 'detailed reason'."`
 ///
-/// 2. **Signal-based Crashes**: Low-level crashes caused by Unix signals
+/// 2. **Uncaught C++ Exceptions**: C++ exceptions that reached `std::terminate`
+///    - Extracts exception type name and `what()` reason
+///    - Format: `"Terminating app due to uncaught C++ exception 'std::runtime_error', reason: 'detailed reason'."`
+///
+/// 3. **Signal-based Crashes**: Low-level crashes caused by Unix signals
 ///    - Maps signal names to human-readable descriptions (SIGSEGV → Segmentation fault, etc.)
 ///    - Format: `"Application crash: SIGSEGV (Segmentation fault)"`
 ///
@@ -136,8 +140,9 @@ internal final class DatadogDiagnosticFilter: NSObject, CrashReportFilter {
     /// an appropriate diagnostic message. It follows a prioritized analysis:
     ///
     /// 1. **Exception-based crashes**: Checks for uncaught NSException
-    /// 2. **Signal-based crashes**: Checks for Unix signals with known descriptions
-    /// 3. **Unknown crashes**: Returns a generic message for unrecognized crash types
+    /// 2. **C++ exception crashes**: Checks for uncaught C++ exception
+    /// 3. **Signal-based crashes**: Checks for Unix signals with known descriptions
+    /// 4. **Unknown crashes**: Returns a generic message for unrecognized crash types
     ///
     /// - Parameter dict: The crash report dictionary containing crash information
     /// - Returns: A diagnostic message describing the crash, or `nil` if no crash data is found
@@ -154,6 +159,14 @@ internal final class DatadogDiagnosticFilter: NSObject, CrashReportFilter {
             let name: String = try exception.valueIfPresent(forKey: .name) ?? unknown // e.g. `NSInvalidArgumentException`
             let reason = try dict.valueIfPresent(forKey: .error, .reason) ?? unknown // e.g. `-[NSObject objectForKey:]: unrecognized selector sent to instance 0x...`
             return "Terminating app due to uncaught exception '\(name)', reason: '\(reason)'."
+        }
+
+        // Check for uncaught C++ exception
+        if let exception: CrashFieldDictionary = try dict.valueIfPresent(forKey: .error, .cppException) {
+            // `name` is `null` when `std::terminate()` is called with no active exception
+            let name = (try? exception.valueIfPresent(String.self, forKey: .name)) ?? unknown // e.g. `std::runtime_error`
+            let reason = try dict.valueIfPresent(forKey: .error, .reason) ?? unknown // e.g. the value of `what()`
+            return "Terminating app due to uncaught C++ exception '\(name)', reason: '\(reason)'."
         }
 
         // Check for signal-based crash with known description

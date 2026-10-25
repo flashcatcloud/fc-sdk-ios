@@ -36,6 +36,83 @@ class DatadogDiagnosticFilterTests: XCTestCase {
         )
     }
 
+    func testDiagnose_AddsMessageForUncaughtCppException() throws {
+        // Given
+        let json = """
+        {
+            "error": {
+                "type": "cpp_exception",
+                "cpp_exception": {
+                    "name": "std::runtime_error"
+                },
+                "reason": "something went wrong",
+                "signal": {
+                    "name": "SIGABRT"
+                }
+            }
+        }
+        """.data(using: .utf8)!
+
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: json) as? [String: Any])
+        let report = CrashFieldDictionary(from: dict)
+        let filter = DatadogDiagnosticFilter()
+
+        // When
+        let diagnosis = try filter.diagnose(crash: report)
+
+        // Then
+        XCTAssertEqual(
+            diagnosis,
+            "Terminating app due to uncaught C++ exception 'std::runtime_error', reason: 'something went wrong'."
+        )
+    }
+
+    func testDiagnose_HandlesCppExceptionWithoutReason() throws {
+        // Given
+        let json = """
+        {
+            "error": {
+                "cpp_exception": {
+                    "name": "MyException"
+                }
+            }
+        }
+        """.data(using: .utf8)!
+
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: json) as? [String: Any])
+        let report = CrashFieldDictionary(from: dict)
+        let filter = DatadogDiagnosticFilter()
+
+        // When
+        let diagnosis = try filter.diagnose(crash: report)
+
+        // Then
+        XCTAssertEqual(diagnosis, "Terminating app due to uncaught C++ exception 'MyException', reason: '<unknown>'.")
+    }
+
+    func testDiagnose_HandlesCppTerminateWithoutActiveException() throws {
+        // Given
+        let json = """
+        {
+            "error": {
+                "cpp_exception": {
+                    "name": null
+                }
+            }
+        }
+        """.data(using: .utf8)!
+
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: json) as? [String: Any])
+        let report = CrashFieldDictionary(from: dict)
+        let filter = DatadogDiagnosticFilter()
+
+        // When
+        let diagnosis = try filter.diagnose(crash: report)
+
+        // Then
+        XCTAssertEqual(diagnosis, "Terminating app due to uncaught C++ exception '<unknown>', reason: '<unknown>'.")
+    }
+
     func testDiagnose_AddsMessageForSignalCrash() throws {
         // Given
         let json = """

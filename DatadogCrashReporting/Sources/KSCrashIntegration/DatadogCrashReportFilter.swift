@@ -151,11 +151,20 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
 
         var wasTruncated = false
 
+        // For uncaught NSException and C++ exceptions, KSCrash records the exception handler's stack on the
+        // crashed thread and the stack where the exception originated (the throw site) separately.
+        // The origin stack is the one that explains the crash, so it replaces the crashed thread's backtrace.
+        let exceptionBacktrace: CrashFieldDictionary? = try crash.valueIfPresent(forKey: .lastExceptionBacktrace)
+
         // Transform thread information with stack traces
         // Each thread contains a backtrace showing the call stack at crash time
         let threads: [DDThread] = try crash.value([CrashFieldDictionary].self, forKey: .threads).map { thread in
+            let crashed: Bool = try thread.value(forKey: .crashed)
+            let threadBacktrace: CrashFieldDictionary = try thread.value(forKey: .backtrace)
+            let backtraceDict = crashed ? exceptionBacktrace ?? threadBacktrace : threadBacktrace
+
             // Format each stack frame: "index objectName instructionAddr objectAddr + offset"
-            let backtrace: [String] = try thread.value([CrashFieldDictionary].self, forKey: .backtrace, .contents).enumerated().compactMap { index, frame in
+            let backtrace: [String] = try backtraceDict.value([CrashFieldDictionary].self, forKey: .contents).enumerated().compactMap { index, frame in
                 let instructionAddr: Int64 = try frame.value(forKey: .instructionAddr)
 
                 guard
@@ -190,12 +199,12 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
             }
 
             let index: Int64 = try thread.value(forKey: .index)
-            wasTruncated = try wasTruncated || thread.valueIfPresent(forKey: .backtrace, .truncated) ?? false
+            wasTruncated = try wasTruncated || backtraceDict.valueIfPresent(forKey: .truncated) ?? false
 
-            return try DDThread(
+            return DDThread(
                 name: "Thread \(index)",
                 stack: backtrace.joined(separator: "\n"),
-                crashed: thread.value(forKey: .crashed),
+                crashed: crashed,
                 state: nil // TODO: RUMM-1462 Send registers state for crashed thread
             )
         }
