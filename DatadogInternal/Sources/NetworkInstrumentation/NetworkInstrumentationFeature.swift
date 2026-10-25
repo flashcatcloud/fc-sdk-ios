@@ -92,7 +92,11 @@ internal final class NetworkInstrumentationFeature: DatadogFeature {
 
                 if let currentRequest = task.currentRequest {
                     let (request, traceContexts) = self.intercept(request: currentRequest, additionalFirstPartyHosts: configuredFirstPartyHosts)
-                    task.dd.override(currentRequest: request)
+                    // Overriding writes the task's internal request through KVC, so only do it when
+                    // the request was actually modified (e.g. tracing headers were injected).
+                    if request != currentRequest {
+                        task.dd.override(currentRequest: request)
+                    }
                     injectedTraceContexts = traceContexts
                 }
 
@@ -283,13 +287,18 @@ extension NetworkInstrumentationFeature {
     ///   - task: The task that has finished transferring data.
     ///   - error: If an error occurred, an error object indicating how the transfer failed, otherwise NULL.
     func task(_ task: URLSessionTask, didCompleteWithError error: Error?) {
+        // Read the response on the caller thread, while the task is still completing. Once the
+        // completion callback returns, the system may tear down the task's response, so it must
+        // not be read later from the instrumentation queue.
+        let response = task.response
+
         queue.async { [weak self] in
             guard let self = self, let interception = self.interceptions[task] else {
                 return
             }
 
             interception.register(
-                response: task.response,
+                response: response,
                 error: error
             )
 
