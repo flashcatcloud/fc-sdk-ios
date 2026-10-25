@@ -16,7 +16,6 @@
 ### Changed
 
 - KSCrash is updated from 2.5.0 to 2.5.1, a bug-fix release (memory safety fixes, including a crash in the C++ exception handler for throws on background threads). Swift Package Manager now resolves KSCrash within 2.5.x only.
-- KSCrash no longer rebinds `__cxa_throw` in every loaded image (`enableSwapCxaThrow = false`, same as Datadog iOS SDK 3.6.1). With the rebinding, a C++ exception that the app catches could still terminate the process. As a consequence, the throw site of an uncaught C++ exception is only captured when the throw goes through KSCrash's own `__cxa_throw`; otherwise the crash is reported without a stack.
 
 ---
 
