@@ -125,6 +125,43 @@ class DatadogMinifyFilterTests: XCTestCase {
         try XCTAssertTrue(threads[0].value(forKey: .backtrace, .truncated))
     }
 
+    func testMinify_LimitsLastExceptionBacktraceAndKeepsItsBinaryImages() throws {
+        // Given
+        let filter = DatadogMinifyFilter(stackFramesLimit: 2)
+        let json = """
+        {
+            "crash": {
+                "threads": [{
+                    "backtrace": {
+                        "contents": [{"object_addr": 100}]
+                    }
+                }],
+                "last_exception_backtrace": {
+                    "contents": [{"object_addr": 200}, {"object_addr": 300}, {"object_addr": 400}]
+                }
+            },
+            "binary_images": [
+                {"image_addr": 100}, {"image_addr": 200}, {"image_addr": 400}, {"image_addr": 500}
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: json) as? [String: Any])
+        let report = CrashFieldDictionary(from: dict)
+
+        // When
+        let minified = try filter.minify(report: report)
+
+        // Then
+        let backtrace: [CrashFieldDictionary] = try minified.value(forKey: .crash, .lastExceptionBacktrace, .contents)
+        XCTAssertEqual(backtrace.count, 2)
+        try XCTAssertTrue(minified.value(forKey: .crash, .lastExceptionBacktrace, .truncated))
+
+        let images: [CrashFieldDictionary] = try minified.value(forKey: .binaryImages)
+        let addresses: [Int64] = try images.map { try $0.value(forKey: .imageAddress) }
+        XCTAssertEqual(addresses, [100, 200, 400])
+    }
+
     func testMinify_DoesNotLimitStackFramesWhenBelowLimit() throws {
         // Given
         let filter = DatadogMinifyFilter(stackFramesLimit: 10)

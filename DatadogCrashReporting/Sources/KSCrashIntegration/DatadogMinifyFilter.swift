@@ -83,6 +83,16 @@ internal final class DatadogMinifyFilter: NSObject, CrashReportFilter {
             minifiedReport.setValue(forKey: .recrashReport, .crash, .threads, value: threads)
         }
 
+        if let backtrace: CrashFieldDictionary = try report.valueIfPresent(forKey: .crash, .lastExceptionBacktrace) {
+            let backtrace = try minify(backtrace: backtrace, objectAddresses: &objectAddresses)
+            minifiedReport.setValue(forKey: .crash, .lastExceptionBacktrace, value: backtrace)
+        }
+
+        if let backtrace: CrashFieldDictionary = try report.valueIfPresent(forKey: .recrashReport, .crash, .lastExceptionBacktrace) {
+            let backtrace = try minify(backtrace: backtrace, objectAddresses: &objectAddresses)
+            minifiedReport.setValue(forKey: .recrashReport, .crash, .lastExceptionBacktrace, value: backtrace)
+        }
+
         // Filter binary images to keep only those referenced in backtraces
         let binaryImages: [CrashFieldDictionary] = try report.value(forKey: .binaryImages)
         minifiedReport[.binaryImages] = try binaryImages.filter { image in
@@ -93,21 +103,31 @@ internal final class DatadogMinifyFilter: NSObject, CrashReportFilter {
     }
 
     private func minify(thread: CrashFieldDictionary, objectAddresses: inout Set<Int64>) throws -> CrashFieldDictionary {
-        guard var backtrace: [CrashFieldDictionary] = try thread.valueIfPresent(forKey: .backtrace, .contents) else {
-            return thread
-        }
-
-        let truncated = limit(backtrace: &backtrace)
-        try objectAddresses.formUnion(backtrace.compactMap { try $0.valueIfPresent(forKey: .objectAddr) })
-
-        guard truncated else {
+        guard let backtrace: CrashFieldDictionary = try thread.valueIfPresent(forKey: .backtrace) else {
             return thread
         }
 
         var thread = thread
-        thread.setValue(forKey: .backtrace, .contents, value: backtrace)
-        thread.setValue(forKey: .backtrace, .truncated, value: true)
+        thread[.backtrace] = try minify(backtrace: backtrace, objectAddresses: &objectAddresses)
         return thread
+    }
+
+    private func minify(backtrace: CrashFieldDictionary, objectAddresses: inout Set<Int64>) throws -> CrashFieldDictionary {
+        guard var frames: [CrashFieldDictionary] = try backtrace.valueIfPresent(forKey: .contents) else {
+            return backtrace
+        }
+
+        let truncated = limit(backtrace: &frames)
+        try objectAddresses.formUnion(frames.compactMap { try $0.valueIfPresent(forKey: .objectAddr) })
+
+        guard truncated else {
+            return backtrace
+        }
+
+        var backtrace = backtrace
+        backtrace[.contents] = frames
+        backtrace[.truncated] = true
+        return backtrace
     }
 
     /// Removes less important stack frames to ensure that their count is equal or below `stackFramesLimit`.

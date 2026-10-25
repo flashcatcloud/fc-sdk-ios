@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Uncaught C++ exception crashes carry the exception type and `what()` reason in the crash message (`Terminating app due to uncaught C++ exception '<type>', reason: '<what>'.`). The error type stays `SIGABRT (#0)`, as for uncaught `NSException`.
+- Uncaught C++ exception crashes keep the throw site in the stack even when the throw is not routed through KSCrash's `__cxa_throw` (for example when another crash reporter linked into the app defines its own `__cxa_throw`). Previously the crash was reported with an empty stack.
+- A C++ exception that the app catches can no longer terminate the process: KSCrash no longer rebinds `__cxa_throw` in every loaded image (same change as Datadog iOS SDK 3.6.1).
+
+### Changed
+
+- KSCrash dependency updated from 2.5.0 to 2.6.0. For uncaught `NSException` and C++ exceptions, the crashed thread's stack is now the stack where the exception was thrown, without the crash handler frames on top.
+
 ---
 
 ## [0.7.0] - 2026-10-09

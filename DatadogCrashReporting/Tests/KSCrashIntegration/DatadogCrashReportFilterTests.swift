@@ -290,6 +290,93 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertEqual(ddReport.threads[1].stack, ddReport.stack, "Crashed thread stack should match main stack")
     }
 
+    func testFilterReports_UsesLastExceptionBacktraceForCrashedThread() throws {
+        // Given
+        let json = """
+        {
+            "report": {
+                "timestamp": "2025-10-22T14:14:12Z",
+                "id": "incident-cpp"
+            },
+            "system": {
+                "cpu_arch": "arm64"
+            },
+            "crash": {
+                "error": {
+                    "type": "cpp_exception",
+                    "signal": {
+                        "name": "SIGABRT"
+                    }
+                },
+                "threads": [
+                    {
+                        "index": 0,
+                        "crashed": true,
+                        "backtrace": {
+                            "contents": [
+                                {
+                                    "instruction_addr": 3000,
+                                    "object_addr": 2900,
+                                    "object_name": "CrashHandler"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "index": 1,
+                        "crashed": false,
+                        "backtrace": {
+                            "contents": [
+                                {
+                                    "instruction_addr": 1000,
+                                    "object_addr": 900,
+                                    "object_name": "libsystem"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "last_exception_backtrace": {
+                    "contents": [
+                        {
+                            "instruction_addr": 5000,
+                            "object_addr": 4900,
+                            "object_name": "MyFramework"
+                        },
+                        {
+                            "instruction_addr": 5120,
+                            "object_addr": 4900,
+                            "object_name": "MyFramework"
+                        }
+                    ],
+                    "truncated": true
+                }
+            },
+            "binary_images": []
+        }
+        """.data(using: .utf8)!
+
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: json) as? [String: Any])
+        let report = AnyCrashReport(CrashFieldDictionary(from: dict))
+        let filter = DatadogCrashReportFilter()
+        var capturedReports: [CrashReport]?
+
+        // When
+        filter.filterReports([report]) { reports, error in
+            capturedReports = reports
+        }
+
+        // Then
+        let ddReport = try XCTUnwrap(capturedReports?.first?.untypedValue as? DDCrashReport)
+        let stackLines = ddReport.stack.split(separator: "\n")
+        XCTAssertEqual(stackLines.count, 2, "Stack should come from the exception backtrace")
+        XCTAssertTrue(stackLines.allSatisfy { $0.contains("MyFramework") })
+        XCTAssertFalse(ddReport.stack.contains("CrashHandler"), "Stack should not contain the exception handler frames")
+        XCTAssertEqual(ddReport.threads[0].stack, ddReport.stack, "Crashed thread stack should match main stack")
+        XCTAssertTrue(ddReport.threads[1].stack.contains("libsystem"), "Other threads should keep their own backtrace")
+        XCTAssertTrue(ddReport.wasTruncated)
+    }
+
     func testFilterReports_DetectsSystemVsUserBinaryImages() throws {
         // Given
         let contextData = Data("test".utf8).base64EncodedString()
