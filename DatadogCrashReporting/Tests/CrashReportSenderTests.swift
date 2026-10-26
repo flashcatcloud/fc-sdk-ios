@@ -45,7 +45,7 @@ class CrashReportSenderTests: XCTestCase {
         XCTAssertNil(receiver.receivedCrash)
     }
 
-    func testItDoesNotSendCrashReportWhenTrackingConsentIsPending() {
+    func testItSendsCrashReportWhenTrackingConsentIsPending() {
         // Given
         let receiver = CrashReceiverMock()
         let core = PassthroughCoreMock(messageReceiver: receiver)
@@ -57,7 +57,7 @@ class CrashReportSenderTests: XCTestCase {
         sender.send(report: crashReport, with: crashContext)
 
         // Then
-        XCTAssertNil(receiver.receivedCrash)
+        XCTAssertEqual(receiver.receivedCrash?.context.trackingConsent, .pending, "RUM writes it under the current consent")
     }
 
     func testItSendsCrashReportWithCorrectContext() {
