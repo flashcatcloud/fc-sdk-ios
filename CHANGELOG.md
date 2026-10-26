@@ -9,6 +9,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Network instrumentation reads a task's response in the completion callback instead of later on its own queue. Reading it after the callback returned could touch an object the system (or a custom `URLProtocol`) had already released, and crash.
+- Network instrumentation replaces a task's `currentRequest` only when it actually changed the request (tracing headers injected). Requests it leaves untouched are no longer written back into the task.
+- Crash reporting passes the crash context to KSCrash as a NUL-terminated string. The raw bytes had no terminator, so KSCrash could read past the end of the buffer while copying it.
+
 ---
 
 ## [0.7.0] - 2026-10-09
