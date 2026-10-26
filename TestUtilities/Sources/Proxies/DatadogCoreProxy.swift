@@ -84,6 +84,10 @@ public final class DatadogCoreProxy: DatadogCoreProtocol {
         return core.feature(named: name, type: type)
     }
 
+    public func currentContext() -> DatadogContext? {
+        core.currentContext()
+    }
+
     public func scope<T>(for featureType: T.Type) -> FeatureScope where T: DatadogFeature {
         if featureScopeInterceptors[T.name] == nil {
             featureScopeInterceptors[T.name] = FeatureScopeInterceptor()
