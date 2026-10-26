@@ -44,10 +44,10 @@ public protocol DatadogCoreProtocol: AnyObject, MessageSending, AdditionalContex
     /// Features receive the context asynchronously through the message bus. This is for the rare case that needs
     /// it before that first delivery, e.g. to prepare crash data at the moment a Feature is enabled.
     ///
-    /// **Warning:** it blocks the caller thread until the context can be read, and must not be called from the
-    /// core's context queue (e.g. from a context receiver callback), which it waits on.
+    /// **Warning:** it blocks the caller thread for a short, bounded time while the context is read, and must not
+    /// be called from the core's context queue (e.g. from a context receiver callback).
     ///
-    /// - Returns: The current context, or `nil` if this core does not provide one.
+    /// - Returns: The current context, or `nil` if this core does not provide one or it could not be read in time.
     func currentContext() -> DatadogContext?
 
     /// Retrieves a Feature Scope for given feature type.

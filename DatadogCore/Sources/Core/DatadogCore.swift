@@ -439,8 +439,22 @@ extension DatadogCore: DatadogCoreProtocol {
     }
 
     func currentContext() -> DatadogContext? {
-        contextProvider.read()
+        // Read asynchronously and wait a bounded time instead of `queue.sync`: the context queue runs closures
+        // passed by Features (`set(context:)`), and one that waits on the caller's thread would deadlock it.
+        let box = ReadWriteLock<DatadogContext?>(wrappedValue: nil)
+        let read = DispatchSemaphore(value: 0)
+        contextProvider.read { context in
+            box.wrappedValue = context
+            read.signal()
+        }
+        guard read.wait(timeout: .now() + Self.currentContextTimeout) == .success else {
+            return nil
+        }
+        return box.wrappedValue
     }
+
+    /// How long `currentContext()` waits for the context queue.
+    static let currentContextTimeout: TimeInterval = 0.1
 
     func scope<Feature>(for featureType: Feature.Type) -> FeatureScope where Feature: DatadogFeature {
         return CoreFeatureScope<Feature>(in: self)

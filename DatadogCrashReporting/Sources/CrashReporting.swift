@@ -87,8 +87,9 @@ public final class CrashReporting {
 
         // The crash context otherwise reaches the crash reporter through several asynchronous hops after the
         // Feature is registered, which can take seconds at launch: a crash in between was recorded without it and
-        // then dropped. Write the first one now, before registering, so later updates always replace it.
-        if let context = core.currentContext() {
+        // then dropped. Write the first one now, before registering, so later updates always replace it. Skipped
+        // when crash reporting is already enabled: this call fails to register and must not replace the live context.
+        if core.get(feature: CrashReportingFeature.self) == nil, let context = core.currentContext() {
             reporter.inject(initialCrashContext: CrashContext(
                 context,
                 lastRUMViewEvent: nil,

@@ -90,4 +90,16 @@ class SendingCrashReportTests: XCTestCase {
         XCTAssertEqual(crashContext.trackingConsent, coreContext.trackingConsent)
         XCTAssertNil(crashContext.lastRUMViewEvent)
     }
+
+    func testWhenCrashReportingIsEnabledTwice_theSecondCallDoesNotWriteACrashContext() throws {
+        // Given
+        CrashReporting.enable(with: CrashReporterMock(), in: core)
+        let secondPlugin = CrashReporterMock()
+
+        // When
+        CrashReporting.enable(with: secondPlugin, in: core)
+
+        // Then (the second call fails to register and must not replace the live crash context)
+        XCTAssertNil(secondPlugin.injectedContext)
+    }
 }
