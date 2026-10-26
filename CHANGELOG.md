@@ -9,24 +9,27 @@
 
 ## [Unreleased]
 
+---
+
+## [0.8.0] - 2026-10-26
+
+**Based on Datadog iOS SDK 3.6.0** (same upstream as 0.7.1, no upstream sync)
+
 ### Added
 
 - `CrashReporting.Configuration(handlesMachExceptions:)` (default `false`): also catch crashes through a Mach exception handler. The kernel delivers hardware exceptions (segmentation faults, bus errors, Swift runtime traps) to Mach exception handlers before turning them into signals, so these crashes are recorded first even when another library has installed its own signal handler on top of the SDK's and does not pass the signal on. Crashes the process raises itself (`abort()`, uncaught `NSException` or C++ exception) are unchanged. Not active while a debugger is attached. Also available to Objective-C as `+[DDCrashReporter enableWithSymbolicateInProcess:handlesMachExceptions:]`.
+  - On ARM, a crash caught this way reports the same type as when it is caught by the signal handler: the kernel gives `SIGSEGV`, `SIGBUS` and `SIGILL` a fixed code (`SEGV_ACCERR`, `BUS_ADRALN`, `ILL_ILLTRP`), which the report uses instead of KSCrash's `*_NOOP`. Other architectures keep KSCrash's code.
   - Do not enable it in an app that recovers from hardware exceptions at runtime (for example a Go core built with gomobile, or Mono / .NET, which turn invalid memory accesses into catchable errors): such an exception is recorded as a crash although the app keeps running, and crash reporting stops for the rest of the process.
-  - On ARM, a crash caught this way reports the same type as when it is caught by the signal handler: the kernel gives `SIGSEGV`, `SIGBUS` and `SIGILL` a fixed code (`SEGV_ACCERR`, `BUS_ADRALN`, `ILL_ILLTRP`), which the report uses instead of KSCrash's `*_NOOP`.
+
 ### Fixed
 
+- A crash in the first seconds after `CrashReporting.enable()` is no longer dropped. The crash context reached the crash reporter only after several asynchronous hops, which can take seconds at launch; a crash in between was recorded without it and discarded at the next launch. The context known at `enable()` is now written before `enable()` returns (waiting at most 100 ms for it).
 - Crash reporting keeps up to 5 crash reports and sends every pending one at the next launch, oldest first, each with the context of the process that crashed. Previously only one report was kept, so when the app crashed again before the previous crash was sent (for example a crash loop at launch), the earlier crashes were lost. A report that cannot be read is dropped without affecting the others.
-
-### Changed
-
-- `CrashReportingPlugin.readPendingCrashReport(completion:)` is replaced by `readPendingCrashReports(completion:)`, which passes every pending report at once, oldest first (an empty array when there is none). Custom plugins must implement the new requirement.
-### Changed
-
 - A crash recorded while tracking consent was `.pending` is no longer discarded. It is processed at the next launch and written under the consent in force at that point, like any other event collected while consent is pending: uploaded if the user grants consent during that launch, discarded if they decline or if consent is still pending when the app is next started (pending data does not outlive the launch that collected it). Nothing is sent before consent is granted. A crash recorded with `.notGranted` consent is still discarded.
-### Fixed
 
-- A crash in the first seconds after `CrashReporting.enable()` is no longer dropped. The crash context reached the crash reporter only after several asynchronous hops, which can take seconds at launch; a crash in between was recorded without it and discarded at the next launch. The context known at `enable()` is now written before `enable()` returns.
+### Breaking Changes
+
+- `CrashReportingPlugin.readPendingCrashReport(completion:)` is replaced by `readPendingCrashReports(completion:)`, which passes every pending report at once, oldest first (an empty array when there is none). Custom `CrashReportingPlugin` implementations must adopt the new requirement; apps using the built-in crash reporting are unaffected.
 
 ---
 
