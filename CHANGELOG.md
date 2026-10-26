@@ -12,7 +12,7 @@
 ### Added
 
 - `CrashReporting.Configuration(handlesMachExceptions:)` (default `false`): also catch crashes through a Mach exception handler. The kernel delivers hardware exceptions (segmentation faults, bus errors, Swift runtime traps) to Mach exception handlers before turning them into signals, so these crashes are recorded first even when another library has installed its own signal handler on top of the SDK's and does not pass the signal on. Crashes the process raises itself (`abort()`, uncaught `NSException` or C++ exception) are unchanged. Not active while a debugger is attached.
-  - A segmentation fault caught this way reports the same type as when it is caught by the signal handler (`SIGSEGV (SEGV_MAPERR)` / `SIGSEGV (SEGV_ACCERR)`), derived from the Mach exception code.
+  - On ARM, a crash caught this way reports the same type as when it is caught by the signal handler: the kernel gives `SIGSEGV`, `SIGBUS` and `SIGILL` a fixed code (`SEGV_ACCERR`, `BUS_ADRALN`, `ILL_ILLTRP`), which the report uses instead of KSCrash's `*_NOOP`.
 
 ---
 

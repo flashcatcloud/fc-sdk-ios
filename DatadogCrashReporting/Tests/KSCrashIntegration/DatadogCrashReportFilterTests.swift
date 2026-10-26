@@ -187,19 +187,19 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertEqual(ddReport.stack, "???")
     }
 
-    func testFilterReports_DerivesSignalCodeOfSegfaultCaughtByMachExceptionHandler() throws {
-        let cases: [(machCodeName: String, expectedType: String)] = [
-            ("KERN_INVALID_ADDRESS", "SIGSEGV (SEGV_MAPERR)"),
-            ("KERN_PROTECTION_FAILURE", "SIGSEGV (SEGV_ACCERR)"),
-            ("KERN_FAILURE", "SIGSEGV (SEGV_NOOP)"),
+    func testFilterReports_ReportsTheKernelSignalCodeOfCrashCaughtByMachExceptionHandlerOnARM() throws {
+        let cases: [(signal: String, noopCode: String, expectedType: String)] = [
+            ("SIGSEGV", "SEGV_NOOP", "SIGSEGV (SEGV_ACCERR)"),
+            ("SIGBUS", "BUS_NOOP", "SIGBUS (BUS_ADRALN)"),
+            ("SIGILL", "ILL_NOOP", "SIGILL (ILL_ILLTRP)"),
         ]
 
-        for (machCodeName, expectedType) in cases {
+        for (signal, noopCode, expectedType) in cases {
             // Given
-            let report = try crashReport(error: """
+            let report = try crashReport(cpuArch: "arm64", error: """
             {
-                "mach": { "exception": 1, "exception_name": "EXC_BAD_ACCESS", "code_name": "\(machCodeName)" },
-                "signal": { "signal": 11, "name": "SIGSEGV", "code": 0, "code_name": "SEGV_NOOP" },
+                "mach": { "exception": 1, "exception_name": "EXC_BAD_ACCESS", "code_name": "KERN_INVALID_ADDRESS" },
+                "signal": { "name": "\(signal)", "code": 0, "code_name": "\(noopCode)" },
                 "type": "mach"
             }
             """)
@@ -208,14 +208,30 @@ class DatadogCrashReportFilterTests: XCTestCase {
             let ddReport = try filter(report)
 
             // Then
-            XCTAssertEqual(ddReport.type, expectedType, "for \(machCodeName)")
-            XCTAssertEqual(ddReport.meta.exceptionCodes, String(expectedType.dropFirst("SIGSEGV (".count).dropLast()))
+            XCTAssertEqual(ddReport.type, expectedType)
         }
+    }
+
+    func testFilterReports_KeepsSignalCodeOfCrashCaughtByMachExceptionHandlerOnOtherArchitectures() throws {
+        // Given
+        let report = try crashReport(cpuArch: "x86_64", error: """
+        {
+            "mach": { "exception": 1, "exception_name": "EXC_BAD_ACCESS", "code_name": "KERN_INVALID_ADDRESS" },
+            "signal": { "name": "SIGSEGV", "code": 0, "code_name": "SEGV_NOOP" },
+            "type": "mach"
+        }
+        """)
+
+        // When
+        let ddReport = try filter(report)
+
+        // Then
+        XCTAssertEqual(ddReport.type, "SIGSEGV (SEGV_NOOP)")
     }
 
     func testFilterReports_KeepsSignalCodeOfCrashCaughtBySignalHandler() throws {
         // Given
-        let report = try crashReport(error: """
+        let report = try crashReport(cpuArch: "arm64", error: """
         {
             "signal": { "signal": 11, "name": "SIGSEGV", "code": 2, "code_name": "SEGV_ACCERR" },
             "type": "signal"
@@ -229,11 +245,11 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertEqual(ddReport.type, "SIGSEGV (SEGV_ACCERR)")
     }
 
-    private func crashReport(error: String) throws -> AnyCrashReport {
+    private func crashReport(cpuArch: String, error: String) throws -> AnyCrashReport {
         let json = """
         {
             "report": { "timestamp": "2025-10-22T14:14:12.007Z", "id": "incident-mach" },
-            "system": { "cpu_arch": "arm64" },
+            "system": { "cpu_arch": "\(cpuArch)" },
             "crash": { "error": \(error), "threads": [] },
             "binary_images": []
         }
