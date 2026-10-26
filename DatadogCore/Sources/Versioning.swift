@@ -1,3 +1,3 @@
 // GENERATED FILE: Do not edit directly
 
-internal let __sdkVersion = "0.7.1"
+internal let __sdkVersion = "0.8.0"
