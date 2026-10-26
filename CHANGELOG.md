@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A crash in the first seconds after `CrashReporting.enable()` is no longer dropped. The crash context reached the crash reporter only after several asynchronous hops, which can take seconds at launch; a crash in between was recorded without it and discarded at the next launch. The context known at `enable()` is now written before `enable()` returns.
+
 ---
 
 ## [0.7.1] - 2026-10-25
