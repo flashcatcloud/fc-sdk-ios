@@ -20,5 +20,14 @@ class KSCrashPluginTests: XCTestCase {
         XCTAssertEqual(config.reportStoreConfiguration.maxReportCount, 1)
         XCTAssertEqual(config.reportStoreConfiguration.reportCleanupPolicy, .never)
         XCTAssertTrue(config.enableSwapCxaThrow)
+        XCTAssertEqual(config.monitors, [.signal, .cppException, .nsException, .system])
+    }
+
+    func testConfigurationWithMachExceptionHandling() throws {
+        // When
+        let config: KSCrashConfiguration = try .datadog(handlesMachExceptions: true)
+
+        // Then
+        XCTAssertEqual(config.monitors, [.signal, .cppException, .nsException, .system, .machException])
     }
 }

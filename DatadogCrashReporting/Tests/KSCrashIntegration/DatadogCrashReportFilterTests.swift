@@ -187,6 +187,70 @@ class DatadogCrashReportFilterTests: XCTestCase {
         XCTAssertEqual(ddReport.stack, "???")
     }
 
+    func testFilterReports_DerivesSignalCodeOfSegfaultCaughtByMachExceptionHandler() throws {
+        let cases: [(machCodeName: String, expectedType: String)] = [
+            ("KERN_INVALID_ADDRESS", "SIGSEGV (SEGV_MAPERR)"),
+            ("KERN_PROTECTION_FAILURE", "SIGSEGV (SEGV_ACCERR)"),
+            ("KERN_FAILURE", "SIGSEGV (SEGV_NOOP)"),
+        ]
+
+        for (machCodeName, expectedType) in cases {
+            // Given
+            let report = try crashReport(error: """
+            {
+                "mach": { "exception": 1, "exception_name": "EXC_BAD_ACCESS", "code_name": "\(machCodeName)" },
+                "signal": { "signal": 11, "name": "SIGSEGV", "code": 0, "code_name": "SEGV_NOOP" },
+                "type": "mach"
+            }
+            """)
+
+            // When
+            let ddReport = try filter(report)
+
+            // Then
+            XCTAssertEqual(ddReport.type, expectedType, "for \(machCodeName)")
+            XCTAssertEqual(ddReport.meta.exceptionCodes, String(expectedType.dropFirst("SIGSEGV (".count).dropLast()))
+        }
+    }
+
+    func testFilterReports_KeepsSignalCodeOfCrashCaughtBySignalHandler() throws {
+        // Given
+        let report = try crashReport(error: """
+        {
+            "signal": { "signal": 11, "name": "SIGSEGV", "code": 2, "code_name": "SEGV_ACCERR" },
+            "type": "signal"
+        }
+        """)
+
+        // When
+        let ddReport = try filter(report)
+
+        // Then
+        XCTAssertEqual(ddReport.type, "SIGSEGV (SEGV_ACCERR)")
+    }
+
+    private func crashReport(error: String) throws -> AnyCrashReport {
+        let json = """
+        {
+            "report": { "timestamp": "2025-10-22T14:14:12.007Z", "id": "incident-mach" },
+            "system": { "cpu_arch": "arm64" },
+            "crash": { "error": \(error), "threads": [] },
+            "binary_images": []
+        }
+        """.data(using: .utf8)!
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: json) as? [String: Any])
+        return AnyCrashReport(CrashFieldDictionary(from: dict))
+    }
+
+    private func filter(_ report: AnyCrashReport) throws -> DDCrashReport {
+        var capturedReports: [CrashReport]?
+        DatadogCrashReportFilter().filterReports([report]) { reports, error in
+            XCTAssertNil(error)
+            capturedReports = reports
+        }
+        return try XCTUnwrap(capturedReports?.first?.untypedValue as? DDCrashReport)
+    }
+
     func testFilterReports_ExtractsCrashedThreadStack() throws {
         // Given
         let contextData = Data("test".utf8).base64EncodedString()

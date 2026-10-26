@@ -26,9 +26,14 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     private let store: CrashReportStore
     private let telemetry: Telemetry
 
-    init(_ kscrash: KSCrash = .shared, telemetry: Telemetry = NOPTelemetry(), symbolicateInProcess: Bool = true) throws {
+    init(
+        _ kscrash: KSCrash = .shared,
+        telemetry: Telemetry = NOPTelemetry(),
+        symbolicateInProcess: Bool = true,
+        handlesMachExceptions: Bool = false
+    ) throws {
         do {
-            try kscrash.install(with: .datadog())
+            try kscrash.install(with: .datadog(handlesMachExceptions: handlesMachExceptions))
             kscrash.reportStore?.sink = CrashReportFilterPipeline(
                 filters: [
                     DatadogTypeSafeFilter(),
@@ -96,7 +101,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
 }
 
 extension KSCrashConfiguration {
-    static func datadog() throws -> KSCrashConfiguration {
+    static func datadog(handlesMachExceptions: Bool = false) throws -> KSCrashConfiguration {
         let version = "v2"
 
         guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
@@ -107,9 +112,12 @@ extension KSCrashConfiguration {
 
         let config = KSCrashConfiguration()
         config.installPath = directory.path
-        // Disable `.mackException` monitor. The choice of `.BSD` (.signal) over `.mach` is well discussed here:
+        // `.machException` is opt-in. The choice of `.BSD` (.signal) over `.mach` is well discussed here:
         // https://github.com/microsoft/PLCrashReporter/blob/7f27b272d5ff0d6650fc41317127bb2378ed6e88/Source/CrashReporter.h#L238-L363
         config.monitors = [.signal, .cppException, .nsException, .system]
+        if handlesMachExceptions {
+            config.monitors.insert(.machException)
+        }
         // Keep rebinding `__cxa_throw` (the KSCrash default), which records the throw site of C++ exceptions.
         // dd-sdk-ios 3.6.1 disables it, but with KSCrash 2.5.x an uncaught C++ exception on the thread that
         // installed crash reporting is then reported with an empty stack.

@@ -104,7 +104,7 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
         // Build crash type string from signal information
         // Format: "SIGNAL_NAME (SIGNAL_CODE)" e.g., "SIGSEGV (SEGV_MAPERR)"
         let signalName: String = try crash.valueIfPresent(forKey: .error, .signal, .name) ?? "<unknown>"
-        let signalCodeName: String = try crash.valueIfPresent(forKey: .error, .signal, .codeName) ?? "#0" // PLCrashReporter defaults to #0
+        let signalCodeName: String = try signalCodeName(of: crash, signalName: signalName)
         let type = "\(signalName) (\(signalCodeName))"
 
         // Build metadata with process information
@@ -297,6 +297,28 @@ internal enum SymbolDemangler {
             }
             defer { free(demangled) }
             return String(cString: demangled)
+        }
+    }
+}
+
+extension DatadogCrashReportFilter {
+    /// Returns the signal code name for the crash type, e.g. `SEGV_MAPERR`.
+    ///
+    /// A crash caught by the Mach exception handler is recorded before the kernel turns the exception into a
+    /// signal, so KSCrash has no signal code for it yet (`SEGV_NOOP`). The kernel derives the code of a
+    /// segmentation fault from the Mach exception code, so derive it the same way: the type then matches the one
+    /// of the same crash caught by the signal handler.
+    private func signalCodeName(of crash: CrashFieldDictionary, signalName: String) throws -> String {
+        let codeName: String = try crash.valueIfPresent(forKey: .error, .signal, .codeName) ?? "#0" // PLCrashReporter defaults to #0
+
+        guard signalName == "SIGSEGV", codeName == "SEGV_NOOP" else {
+            return codeName
+        }
+
+        switch try crash.valueIfPresent(String.self, forKey: .error, .mach, .codeName) {
+        case "KERN_INVALID_ADDRESS": return "SEGV_MAPERR"
+        case "KERN_PROTECTION_FAILURE": return "SEGV_ACCERR"
+        default: return codeName
         }
     }
 }

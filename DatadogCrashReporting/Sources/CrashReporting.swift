@@ -29,10 +29,24 @@ public final class CrashReporting {
         /// server-side symbolication with an uploaded dSYM.
         public var symbolicateInProcess: Bool
 
+        /// Also catch crashes through a Mach exception handler (`EXC_BAD_ACCESS`, `EXC_BAD_INSTRUCTION`,
+        /// `EXC_BREAKPOINT`, ...), in addition to the signal handler.
+        ///
+        /// The kernel delivers a hardware exception to Mach exception handlers before it turns it into a signal,
+        /// so crashes like segmentation faults and Swift runtime traps are recorded first, whichever signal handler
+        /// another library (or crash reporter) has installed. Crashes raised as signals by the process itself
+        /// (`abort()`, uncaught `NSException`, uncaught C++ exception) are not Mach exceptions and are unaffected.
+        ///
+        /// Disabled by default. Mach exception handling is not active while a debugger is attached.
+        public var handlesMachExceptions: Bool
+
         /// Creates a Crash Reporting configuration.
-        /// - Parameter symbolicateInProcess: see ``symbolicateInProcess``. Defaults to `true`.
-        public init(symbolicateInProcess: Bool = true) {
+        /// - Parameters:
+        ///   - symbolicateInProcess: see ``symbolicateInProcess``. Defaults to `true`.
+        ///   - handlesMachExceptions: see ``handlesMachExceptions``. Defaults to `false`.
+        public init(symbolicateInProcess: Bool = true, handlesMachExceptions: Bool = false) {
             self.symbolicateInProcess = symbolicateInProcess
+            self.handlesMachExceptions = handlesMachExceptions
         }
     }
 
@@ -45,7 +59,11 @@ public final class CrashReporting {
         in core: DatadogCoreProtocol = CoreRegistry.default
     ) {
         enable(
-            with: try KSCrashPlugin(telemetry: core.telemetry, symbolicateInProcess: configuration.symbolicateInProcess),
+            with: try KSCrashPlugin(
+                telemetry: core.telemetry,
+                symbolicateInProcess: configuration.symbolicateInProcess,
+                handlesMachExceptions: configuration.handlesMachExceptions
+            ),
             in: core
         )
     }
