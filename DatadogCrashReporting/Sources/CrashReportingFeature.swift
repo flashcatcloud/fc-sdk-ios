@@ -56,29 +56,42 @@ internal final class CrashReportingFeature: DatadogFeature {
 
     func sendCrashReportIfFound() {
         queue.async {
-            self.plugin.readPendingCrashReport { [weak self] crashReport in
+            self.plugin.readPendingCrashReports { [weak self] crashReports in
                 guard let self = self else {
                     return false
                 }
 
-                guard let availableCrashReport = crashReport else {
+                guard !crashReports.isEmpty else {
                     DD.logger.debug("No pending Crash found")
                     self.sender.send(launch: .init(didCrash: false))
                     return false
                 }
 
-                DD.logger.debug("Loaded pending crash report")
+                DD.logger.debug("Loaded \(crashReports.count) pending crash report(s)")
 
-                guard let crashContext = availableCrashReport.context.flatMap({ self.decode(crashContextData: $0) }) else {
-                    // `CrashContext` is malformed and and cannot be read. Return `true` to let the crash reporter
-                    // purge this crash report as we are not able to process it respectively.
-                    self.sender.send(launch: .init(didCrash: true))
-                    return true
+                // Each report carries the `CrashContext` of the process that crashed, so each one is sent with its own.
+                for crashReport in crashReports {
+                    // A report whose `CrashContext` is malformed cannot be processed. It is skipped and purged
+                    // along with the others.
+                    if let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) {
+                        self.sender.send(report: crashReport, with: crashContext)
+                    }
                 }
 
-                self.sender.send(report: availableCrashReport, with: crashContext)
                 self.sender.send(launch: .init(didCrash: true))
                 return true
+            }
+        }
+    }
+
+    /// Writes the crash context before returning, on the Feature queue (the plugin is always called from it).
+    ///
+    /// Only for the context known when the Feature is enabled, before it is registered: every later context is
+    /// written asynchronously on the Feature queue, after this one.
+    func inject(initialCrashContext: CrashContext) {
+        queue.sync {
+            if let crashContextData = self.encode(crashContext: initialCrashContext) {
+                self.plugin.inject(context: crashContextData)
             }
         }
     }

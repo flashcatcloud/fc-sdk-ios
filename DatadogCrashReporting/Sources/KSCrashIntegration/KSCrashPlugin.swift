@@ -26,7 +26,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     private let store: CrashReportStore
     private let telemetry: Telemetry
 
-    init(
+    convenience init(
         _ kscrash: KSCrash = .shared,
         telemetry: Telemetry = NOPTelemetry(),
         symbolicateInProcess: Bool = true,
@@ -54,6 +54,11 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
             throw CrashReportException(description: "[KSCrash] Report store should exist after installation")
         }
 
+        self.init(store: store, telemetry: telemetry)
+    }
+
+    /// - Parameter store: the report store to read reports from; its `sink` converts a KSCrash report into `DDCrashReport`.
+    init(store: CrashReportStore, telemetry: Telemetry) {
         self.telemetry = telemetry
         self.store = store
         super.init()
@@ -61,30 +66,61 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
 
     // MARK: - CrashReportingPlugin
 
-    func readPendingCrashReport(completion: @escaping (DDCrashReport?) -> Bool) {
-        self.store.sendAllReports { reports, error in
-            do {
-                if let error {
-                    throw error
-                }
+    func readPendingCrashReports(completion: @escaping ([DDCrashReport]) -> Bool) {
+        let reportIDs = store.reportIDs.map { $0.int64Value } // sorted by ID, which grows with time: oldest first
+        loadReports(with: reportIDs[...], loaded: []) { loaded in
+            if completion(loaded.map { $0.report }) {
+                loaded.forEach { self.store.deleteReport(with: $0.id) }
+            }
+        }
+    }
 
-                guard let report = reports?.first else {
-                    _ = completion(nil)
-                    return
-                }
+    /// Loads the reports one at a time, so a report that cannot be loaded is purged without affecting the others.
+    private func loadReports(
+        with ids: ArraySlice<Int64>,
+        loaded: [(id: Int64, report: DDCrashReport)],
+        completion: @escaping ([(id: Int64, report: DDCrashReport)]) -> Void
+    ) {
+        guard let id = ids.first else {
+            completion(loaded)
+            return
+        }
 
-                guard let report = report.untypedValue as? DDCrashReport else {
-                    throw CrashReportException(description: "Report is not of type DDCrashReport")
-                }
+        loadReport(with: id) { report in
+            self.loadReports(
+                with: ids.dropFirst(),
+                loaded: loaded + (report.map { [(id, $0)] } ?? []),
+                completion: completion
+            )
+        }
+    }
 
-                if completion(report) {
-                    self.store.deleteAllReports()
-                }
-            } catch {
-                _ = completion(nil)
-                self.store.deleteAllReports()
-                consolePrint("🔥 DatadogCrashReporting error: failed to load crash report: \(error)", .error)
-                self.telemetry.error("[KSCrash] Fails to load crash report", error: error)
+    /// Reads the report with given ID and converts it through the store's `sink`.
+    /// Calls `completion` with `nil` after purging the report if it cannot be read or converted.
+    private func loadReport(with id: Int64, completion: @escaping (DDCrashReport?) -> Void) {
+        let purge = { (error: Error) in
+            self.store.deleteReport(with: id)
+            consolePrint("🔥 DatadogCrashReporting error: failed to load crash report: \(error)", .error)
+            self.telemetry.error("[KSCrash] Fails to load crash report", error: error)
+            completion(nil)
+        }
+
+        guard let sink = store.sink else {
+            purge(CrashReportException(description: "Report store has no sink"))
+            return
+        }
+        guard let report = store.report(for: id) else {
+            purge(CrashReportException(description: "Report cannot be read"))
+            return
+        }
+
+        sink.filterReports([report]) { reports, error in
+            if let error {
+                purge(error)
+            } else if let report = reports?.first?.untypedValue as? DDCrashReport {
+                completion(report)
+            } else {
+                purge(CrashReportException(description: "Report is not of type DDCrashReport"))
             }
         }
     }
@@ -122,7 +158,10 @@ extension KSCrashConfiguration {
         // dd-sdk-ios 3.6.1 disables it, but with KSCrash 2.5.x an uncaught C++ exception on the thread that
         // installed crash reporting is then reported with an empty stack.
         config.enableSwapCxaThrow = true
-        config.reportStoreConfiguration.maxReportCount = 1
+        // Keep several reports, so crashes recorded before the previous ones were sent (e.g. a crash loop at launch) are
+        // not lost. KSCrash keeps the most recent ones. The value matches the KSCrash default: it bounds disk use and
+        // what a crash loop sends, as the reports it produces are mostly identical.
+        config.reportStoreConfiguration.maxReportCount = 5
         config.reportStoreConfiguration.reportCleanupPolicy = .never
         return config
     }

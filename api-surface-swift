@@ -568,7 +568,7 @@ public static func enable()
 public static func enable(symbolicateInProcess: Bool)
 public static func enable(symbolicateInProcess: Bool, handlesMachExceptions: Bool)
 public protocol CrashReportingPlugin: AnyObject
-    func readPendingCrashReport(completion: @escaping (DDCrashReport?) -> Bool)
+    func readPendingCrashReports(completion: @escaping ([DDCrashReport]) -> Bool)
     func inject(context: Data)
     var backtraceReporter: BacktraceReporting?
 

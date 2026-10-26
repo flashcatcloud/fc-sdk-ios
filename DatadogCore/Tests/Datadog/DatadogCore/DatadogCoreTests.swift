@@ -191,6 +191,59 @@ class DatadogCoreTests: XCTestCase {
         XCTAssertEqual(requestBuilderSpy.requestParameters.count, 1, "It should send only one request")
     }
 
+    func testCurrentContext_returnsTheCurrentContext() throws {
+        // Given
+        let contextProvider: DatadogContextProvider = .mockWith(context: .mockWith(service: "current-context-service"))
+        let core = DatadogCore(
+            directory: temporaryCoreDirectory,
+            dateProvider: SystemDateProvider(),
+            initialConsent: .mockRandom(),
+            performance: .mockRandom(),
+            httpClient: HTTPClientMock(),
+            encryption: nil,
+            contextProvider: contextProvider,
+            applicationVersion: .mockAny(),
+            maxBatchesPerUpload: .mockRandom(min: 1, max: 100),
+            backgroundTasksEnabled: .mockAny()
+        )
+        defer { core.flushAndTearDown() }
+
+        // Then
+        XCTAssertEqual(core.currentContext()?.service, "current-context-service")
+    }
+
+    func testCurrentContext_whenContextQueueIsBlocked_itReturnsNilInsteadOfWaitingForIt() throws {
+        // Given
+        let contextProvider: DatadogContextProvider = .mockAny()
+        let core = DatadogCore(
+            directory: temporaryCoreDirectory,
+            dateProvider: SystemDateProvider(),
+            initialConsent: .mockRandom(),
+            performance: .mockRandom(),
+            httpClient: HTTPClientMock(),
+            encryption: nil,
+            contextProvider: contextProvider,
+            applicationVersion: .mockAny(),
+            maxBatchesPerUpload: .mockRandom(min: 1, max: 100),
+            backgroundTasksEnabled: .mockAny()
+        )
+        defer { core.flushAndTearDown() }
+
+        // The context queue runs work that waits on the caller (e.g. a context closure syncing to the main thread).
+        let unblock = DispatchSemaphore(value: 0)
+        contextProvider.write { _ in unblock.wait() }
+
+        // When
+        let start = Date()
+        let context = core.currentContext()
+        let waited = Date().timeIntervalSince(start)
+        unblock.signal()
+
+        // Then
+        XCTAssertNil(context)
+        XCTAssertLessThan(waited, 1, "It must give up after a bounded time instead of waiting for the queue")
+    }
+
     func testWhenFeatureAdditionalContextIsUpdated_thenNewValueIsImmediatellyAvailable() throws {
         // Given
         let core = DatadogCore(
