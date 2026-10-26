@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- A crash recorded while tracking consent was `.pending` is no longer discarded. It is reported at the next launch under the consent in force at that point, like any other event collected while consent is pending: uploaded once the user grants consent, discarded if they decline. Nothing is sent before consent is granted. A crash recorded with `.notGranted` consent is still discarded.
+
 ---
 
 ## [0.7.1] - 2026-10-25

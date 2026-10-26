@@ -89,6 +89,87 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(featureScope.eventsWritten(ofType: RUMViewEvent.self).count, 1)
     }
 
+    // MARK: - Tracking Consent At Crash Time
+
+    func testGivenCrashRecordedWithGrantedConsent_whenSending_itBypassesCurrentConsent() throws {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashReport: DDCrashReport = .mockWith(date: currentDate.secondsAgo(60))
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            lastRUMViewEvent: .mockRandomWith(crashCount: 0)
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        XCTAssertTrue(receiver.receive(message: .payload(Crash(report: crashReport, context: crashContext)), from: NOPDatadogCore()))
+
+        // Then
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self, withBypassConsent: true).count, 1)
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMViewEvent.self, withBypassConsent: true).count, 1)
+    }
+
+    func testGivenCrashRecordedWithPendingConsent_whenSendingToLastView_itWritesUnderCurrentConsent() throws {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashReport: DDCrashReport = .mockWith(date: currentDate.secondsAgo(60))
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .pending,
+            lastRUMViewEvent: .mockRandomWith(crashCount: 0)
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        XCTAssertTrue(receiver.receive(message: .payload(Crash(report: crashReport, context: crashContext)), from: NOPDatadogCore()))
+
+        // Then
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self, withBypassConsent: false).count, 1)
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMViewEvent.self, withBypassConsent: false).count, 1)
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self, withBypassConsent: true).count + featureScope.eventsWritten(ofType: RUMViewEvent.self, withBypassConsent: true).count, 0, "A pending crash must not bypass the current consent")
+    }
+
+    func testGivenCrashRecordedWithPendingConsent_whenLastViewIsStale_itWritesErrorUnderCurrentConsent() throws {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashReport: DDCrashReport = .mockWith(date: currentDate.secondsAgo(5 * 60 * 60))
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .pending,
+            lastRUMViewEvent: .mockRandomWith(crashCount: 0)
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        XCTAssertTrue(receiver.receive(message: .payload(Crash(report: crashReport, context: crashContext)), from: NOPDatadogCore()))
+
+        // Then
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self, withBypassConsent: false).count, 1)
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self, withBypassConsent: true).count + featureScope.eventsWritten(ofType: RUMViewEvent.self, withBypassConsent: true).count, 0, "A pending crash must not bypass the current consent")
+    }
+
+    func testGivenCrashRecordedWithPendingConsent_whenThereWasNoSession_itWritesUnderCurrentConsent() throws {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashReport: DDCrashReport = .mockWith(date: currentDate.secondsAgo(60))
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .pending,
+            lastRUMViewEvent: nil,
+            lastRUMSessionState: nil,
+            lastIsAppInForeground: true
+        )
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: currentDate),
+            sessionSampler: .mockKeepAll()
+        )
+
+        // When
+        XCTAssertTrue(receiver.receive(message: .payload(Crash(report: crashReport, context: crashContext)), from: NOPDatadogCore()))
+
+        // Then
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self, withBypassConsent: false).count, 1)
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self, withBypassConsent: true).count + featureScope.eventsWritten(ofType: RUMViewEvent.self, withBypassConsent: true).count, 0, "A pending crash must not bypass the current consent")
+    }
+
     func testGivenCrashDuringRUMSessionWithActiveViewCollectedLessThan4HoursAgoWithPreviousCrash_whenSending_itSendsNothing() throws {
         let secondsIn4Hours: TimeInterval = 4 * 60 * 60
 
