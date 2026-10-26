@@ -11,7 +11,7 @@
 
 ### Changed
 
-- A crash recorded while tracking consent was `.pending` is no longer discarded. It is reported at the next launch under the consent in force at that point, like any other event collected while consent is pending: uploaded once the user grants consent, discarded if they decline. Nothing is sent before consent is granted. A crash recorded with `.notGranted` consent is still discarded.
+- A crash recorded while tracking consent was `.pending` is no longer discarded. It is processed at the next launch and written under the consent in force at that point, like any other event collected while consent is pending: uploaded if the user grants consent during that launch, discarded if they decline or if consent is still pending when the app is next started (pending data does not outlive the launch that collected it). Nothing is sent before consent is granted. A crash recorded with `.notGranted` consent is still discarded.
 
 ---
 
