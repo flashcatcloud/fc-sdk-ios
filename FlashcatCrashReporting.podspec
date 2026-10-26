@@ -18,8 +18,8 @@ Pod::Spec.new do |s|
 
   s.source_files = "DatadogCrashReporting/Sources/**/*.swift"
   s.dependency 'FlashcatInternal', s.version.to_s
-  s.dependency 'KSCrash/Recording', '2.5.0'
-  s.dependency 'KSCrash/Filters', '2.5.0'
+  s.dependency 'KSCrash/Recording', '2.5.1'
+  s.dependency 'KSCrash/Filters', '2.5.1'
 
   s.resource_bundle = {
     "DatadogCrashReporting" => "DatadogCrashReporting/Resources/PrivacyInfo.xcprivacy"

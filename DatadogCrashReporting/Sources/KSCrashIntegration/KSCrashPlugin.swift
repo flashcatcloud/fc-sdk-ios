@@ -110,6 +110,10 @@ extension KSCrashConfiguration {
         // Disable `.mackException` monitor. The choice of `.BSD` (.signal) over `.mach` is well discussed here:
         // https://github.com/microsoft/PLCrashReporter/blob/7f27b272d5ff0d6650fc41317127bb2378ed6e88/Source/CrashReporter.h#L238-L363
         config.monitors = [.signal, .cppException, .nsException, .system]
+        // Keep rebinding `__cxa_throw` (the KSCrash default), which records the throw site of C++ exceptions.
+        // dd-sdk-ios 3.6.1 disables it, but with KSCrash 2.5.x an uncaught C++ exception on the thread that
+        // installed crash reporting is then reported with an empty stack.
+        config.enableSwapCxaThrow = true
         config.reportStoreConfiguration.maxReportCount = 1
         config.reportStoreConfiguration.reportCleanupPolicy = .never
         return config

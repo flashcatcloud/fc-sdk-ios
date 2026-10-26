@@ -19,5 +19,6 @@ class KSCrashPluginTests: XCTestCase {
         XCTAssertTrue(config.installPath?.contains("/Library/Caches/com.datadoghq.crash-reporting/v2") ?? false)
         XCTAssertEqual(config.reportStoreConfiguration.maxReportCount, 1)
         XCTAssertEqual(config.reportStoreConfiguration.reportCleanupPolicy, .never)
+        XCTAssertTrue(config.enableSwapCxaThrow)
     }
 }
