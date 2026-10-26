@@ -9,6 +9,12 @@
 
 ## [Unreleased]
 
+---
+
+## [0.7.1] - 2026-10-25
+
+**Based on Datadog iOS SDK 3.6.0** (same upstream as 0.7.0, no upstream sync)
+
 ### Fixed
 
 - Network instrumentation reads a task's response in the completion callback instead of later on its own queue. Reading it after the callback returned could touch an object the system (or a custom `URLProtocol`) had already released, and crash.
