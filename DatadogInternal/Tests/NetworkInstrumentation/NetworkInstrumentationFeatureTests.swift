@@ -760,6 +760,67 @@ class NetworkInstrumentationFeatureTests: XCTestCase {
         XCTAssertEqual(interception.trace, traceContexts.first, "It should register first injected Trace Context")
     }
 
+    func testWhenTaskCompletes_itRegistersTheResponseReadAtCompletionTime() throws {
+        let feature = try XCTUnwrap(core.get(feature: NetworkInstrumentationFeature.self))
+        let response: HTTPURLResponse = .mockResponseWith(statusCode: 200)
+        let task = ResettableResponseTaskMock(request: .mockAny(), response: response)
+
+        // Hold the instrumentation queue so the completion is processed only after the response is gone.
+        let releaseQueue = DispatchSemaphore(value: 0)
+        handler.onInterceptionDidStart = { _ in _ = releaseQueue.wait(timeout: .now() + 5) }
+
+        // When
+        feature.intercept(task: task, with: [], additionalFirstPartyHosts: nil)
+        feature.task(task, didCompleteWithError: nil)
+        task.resetResponse() // the system may tear down the response once the completion callback returns
+        releaseQueue.signal()
+        feature.flush()
+
+        // Then
+        let interception = try XCTUnwrap(handler.interceptions.first?.value)
+        XCTAssertEqual(interception.completion?.httpResponse, response, "It should register the response read when the task completed")
+    }
+
+    func testGivenRequestThatIsNotModified_whenTaskResumes_itDoesNotOverrideTheCurrentRequest() throws {
+        let server = ServerMock(delivery: .success(response: .mockResponseWith(statusCode: 200), data: .mock(ofSize: 10)))
+        try URLSessionInstrumentation.enableOrThrow(with: .init(delegateClass: SessionDataDelegateMock.self), in: core)
+        let session = server.getInterceptedURLSession(delegate: SessionDataDelegateMock())
+
+        // Given
+        let task = session.dataTask(with: URLRequest(url: URL(string: "https://third-party.com")!))
+        let observer = CurrentRequestObserver(task: task)
+
+        // When
+        observer.recordingOverrides { task.resume() }
+        _ = server.waitAndReturnRequests(count: 1)
+
+        // Then
+        XCTAssertFalse(observer.didOverride, "It should not override the request when no header is injected")
+    }
+
+    func testGivenRequestThatIsModified_whenTaskResumes_itOverridesTheCurrentRequest() throws {
+        let server = ServerMock(delivery: .success(response: .mockResponseWith(statusCode: 200), data: .mock(ofSize: 10)))
+        let firstPartyHosts: URLSessionInstrumentation.FirstPartyHostsTracing = .traceWithHeaders(hostsWithHeaders: ["test.com": [.datadog]])
+        try URLSessionInstrumentation.enableOrThrow(with: .init(delegateClass: SessionDataDelegateMock.self, firstPartyHostsTracing: firstPartyHosts), in: core)
+        let session = server.getInterceptedURLSession(delegate: SessionDataDelegateMock())
+
+        // Given
+        var modifiedRequest = URLRequest(url: URL(string: "https://test.com")!)
+        modifiedRequest.setValue("injected", forHTTPHeaderField: "x-injected")
+        handler.modifiedRequest = modifiedRequest
+
+        let task = session.dataTask(with: URLRequest(url: URL(string: "https://test.com")!))
+        let observer = CurrentRequestObserver(task: task)
+
+        // When
+        observer.recordingOverrides { task.resume() }
+        let requests = server.waitAndReturnRequests(count: 1)
+
+        // Then
+        XCTAssertTrue(observer.didOverride, "It should override the request when headers are injected")
+        XCTAssertEqual(requests.first?.value(forHTTPHeaderField: "x-injected"), "injected")
+    }
+
     // MARK: - First Party Hosts
 
     func testGivenHandler_whenInterceptingRequests_itDetectFirstPartyHost() throws {
@@ -923,5 +984,58 @@ class NetworkInstrumentationFeatureTests: XCTestCase {
     }
 
     class MockDelegate2: NSObject, URLSessionDataDelegate {
+    }
+}
+
+private final class ResettableResponseTaskMock: URLSessionDataTask, @unchecked Sendable {
+    private let _request: URLRequest
+    override var originalRequest: URLRequest? { _request }
+    override var currentRequest: URLRequest? { _request }
+
+    @ReadWriteLock
+    private var _response: URLResponse?
+    override var response: URLResponse? { _response }
+
+    init(request: URLRequest, response: URLResponse) {
+        self._request = request
+        self._response = response
+    }
+
+    func resetResponse() {
+        _response = nil
+    }
+}
+
+/// Records whether the task's `currentRequest` was set on the calling thread while resuming it.
+///
+/// The instrumentation overrides the request synchronously in the swizzled `resume`. The system also
+/// updates `currentRequest` later on its own threads, so changes from other threads are ignored.
+private final class CurrentRequestObserver: NSObject {
+    private let task: URLSessionTask
+    @ReadWriteLock
+    private var recordingThread: Thread?
+    @ReadWriteLock
+    private(set) var didOverride = false
+
+    init(task: URLSessionTask) {
+        self.task = task
+        super.init()
+        task.addObserver(self, forKeyPath: "currentRequest", options: [.new], context: nil)
+    }
+
+    deinit {
+        task.removeObserver(self, forKeyPath: "currentRequest")
+    }
+
+    func recordingOverrides(_ block: () -> Void) {
+        recordingThread = Thread.current
+        block()
+        recordingThread = nil
+    }
+
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
+        if recordingThread === Thread.current {
+            didOverride = true
+        }
     }
 }

@@ -85,9 +85,10 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     }
 
     func inject(context: Data) {
-        context.withUnsafeBytes {
-            let c_char = $0.bindMemory(to: CChar.self).baseAddress
-            kscrash_setUserInfoJSON(c_char)
+        // `kscrash_setUserInfoJSON` expects a NUL-terminated C string, which raw `Data` bytes are not.
+        let contextString = String(decoding: context, as: UTF8.self)
+        contextString.withCString {
+            kscrash_setUserInfoJSON($0)
         }
     }
 
