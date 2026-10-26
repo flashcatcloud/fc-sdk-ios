@@ -104,7 +104,7 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
         // Build crash type string from signal information
         // Format: "SIGNAL_NAME (SIGNAL_CODE)" e.g., "SIGSEGV (SEGV_MAPERR)"
         let signalName: String = try crash.valueIfPresent(forKey: .error, .signal, .name) ?? "<unknown>"
-        let signalCodeName: String = try crash.valueIfPresent(forKey: .error, .signal, .codeName) ?? "#0" // PLCrashReporter defaults to #0
+        let signalCodeName: String = try signalCodeName(of: crash, signalName: signalName, cpuArch: system.valueIfPresent(forKey: .cpuArch))
         let type = "\(signalName) (\(signalCodeName))"
 
         // Build metadata with process information
@@ -297,6 +297,29 @@ internal enum SymbolDemangler {
             }
             defer { free(demangled) }
             return String(cString: demangled)
+        }
+    }
+}
+
+extension DatadogCrashReportFilter {
+    /// Returns the signal code name for the crash type, e.g. `SEGV_ACCERR`.
+    ///
+    /// A crash caught by the Mach exception handler is recorded before the kernel turns the exception into a
+    /// signal, so KSCrash has no signal code for it yet (`*_NOOP`). On ARM the kernel gives these signals a fixed
+    /// code when it delivers them (xnu `bsd/dev/arm/unix_signal.c`, `sendsig`), so report that code: the type then
+    /// matches the one of the same crash caught by the signal handler.
+    private func signalCodeName(of crash: CrashFieldDictionary, signalName: String, cpuArch: String?) throws -> String {
+        let codeName: String = try crash.valueIfPresent(forKey: .error, .signal, .codeName) ?? "#0" // PLCrashReporter defaults to #0
+
+        guard codeName.hasSuffix("_NOOP"), cpuArch?.hasPrefix("arm") == true else {
+            return codeName
+        }
+
+        switch signalName {
+        case "SIGSEGV": return "SEGV_ACCERR"
+        case "SIGBUS": return "BUS_ADRALN"
+        case "SIGILL": return "ILL_ILLTRP"
+        default: return codeName
         }
     }
 }

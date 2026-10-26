@@ -66,6 +66,7 @@
 
 - (void)testDatadogCrashReporterAPI {
     [DDCrashReporter enable];
+    XCTAssertTrue([DDCrashReporter respondsToSelector:@selector(enableWithSymbolicateInProcess:handlesMachExceptions:)]);
 }
 
 #pragma clang diagnostic pop
