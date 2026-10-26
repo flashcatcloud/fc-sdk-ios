@@ -16,6 +16,12 @@
 ### Changed
 
 - `CrashReportingPlugin.readPendingCrashReport(completion:)` is replaced by `readPendingCrashReports(completion:)`, which passes every pending report at once, oldest first (an empty array when there is none). Custom plugins must implement the new requirement.
+### Changed
+
+- A crash recorded while tracking consent was `.pending` is no longer discarded. It is processed at the next launch and written under the consent in force at that point, like any other event collected while consent is pending: uploaded if the user grants consent during that launch, discarded if they decline or if consent is still pending when the app is next started (pending data does not outlive the launch that collected it). Nothing is sent before consent is granted. A crash recorded with `.notGranted` consent is still discarded.
+### Fixed
+
+- A crash in the first seconds after `CrashReporting.enable()` is no longer dropped. The crash context reached the crash reporter only after several asynchronous hops, which can take seconds at launch; a crash in between was recorded without it and discarded at the next launch. The context known at `enable()` is now written before `enable()` returns.
 
 ---
 

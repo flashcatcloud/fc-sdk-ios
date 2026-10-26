@@ -84,6 +84,18 @@ internal final class CrashReportingFeature: DatadogFeature {
         }
     }
 
+    /// Writes the crash context before returning, on the Feature queue (the plugin is always called from it).
+    ///
+    /// Only for the context known when the Feature is enabled, before it is registered: every later context is
+    /// written asynchronously on the Feature queue, after this one.
+    func inject(initialCrashContext: CrashContext) {
+        queue.sync {
+            if let crashContextData = self.encode(crashContext: initialCrashContext) {
+                self.plugin.inject(context: crashContextData)
+            }
+        }
+    }
+
     private func inject(currentCrashContext: CrashContext) {
         queue.async {
             if let crashContextData = self.encode(crashContext: currentCrashContext) {

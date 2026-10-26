@@ -126,7 +126,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 sendCrashReportLinkedToLastViewInPreviousSession(
                     report,
                     lastRUMViewEventInPreviousSession: lastRUMViewEvent,
-                    using: adjustedCrashTimings
+                    using: adjustedCrashTimings,
+                    bypassConsent: canBypassConsent(context)
                 )
             } else {
                 DD.logger.debug("There was a crash in previous session, but it is ignored due to another crash already present in the last view.")
@@ -155,15 +156,16 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     private func sendCrashReportLinkedToLastViewInPreviousSession(
         _ crashReport: DDCrashReport,
         lastRUMViewEventInPreviousSession lastRUMViewEvent: RUMViewEvent,
-        using crashTimings: AdjustedCrashTimings
+        using crashTimings: AdjustedCrashTimings,
+        bypassConsent: Bool
     ) {
         if FatalErrorBuilder.canSendView(lastRUMViewEvent, errorDate: crashTimings.realCrashDate, now: crashTimings.realDateNow) {
-            send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings)
+            send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings, bypassConsent: bypassConsent)
         } else {
             // We know it is too late for sending RUM view to previous RUM session as it is now stale on backend.
             // To avoid inconsistency, we only send the RUM error.
             DD.logger.debug("Sending crash as RUM error.")
-            featureScope.eventWriteContext(bypassConsent: true) { context, writer in
+            featureScope.eventWriteContext(bypassConsent: bypassConsent) { context, writer in
                 let builder = createFatalErrorBuilder(context: context, crash: crashReport, crashDate: crashTimings.realCrashDate, timeSinceAppStart: crashTimings.timeSinceAppStart)
                 let rumError = builder.createRUMError(with: lastRUMViewEvent)
 
@@ -231,7 +233,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         }
 
         if let newRUMView = newRUMView {
-            send(crashReport: crashReport, to: newRUMView, using: crashTimings)
+            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext))
         }
     }
 
@@ -289,17 +291,15 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         }
 
         if let newRUMView = newRUMView {
-            send(crashReport: crashReport, to: newRUMView, using: crashTimings)
+            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext))
         }
     }
 
     /// Sends given `CrashReport` by linking it to given `rumView` and updating view counts accordingly.
-    private func send(crashReport: DDCrashReport, to rumView: RUMViewEvent, using crashTimings: AdjustedCrashTimings) {
+    private func send(crashReport: DDCrashReport, to rumView: RUMViewEvent, using crashTimings: AdjustedCrashTimings, bypassConsent: Bool) {
         DD.logger.debug("Updating RUM view with crash report.")
 
-        // crash reporting is considering the user consent from previous session, if an event reached
-        // the message bus it means that consent was granted and we can safely bypass current consent.
-        featureScope.eventWriteContext(bypassConsent: true) { context, writer in
+        featureScope.eventWriteContext(bypassConsent: bypassConsent) { context, writer in
             let builder = createFatalErrorBuilder(context: context, crash: crashReport, crashDate: crashTimings.realCrashDate, timeSinceAppStart: crashTimings.timeSinceAppStart)
             let updatedRUMView = builder.updateRUMViewWithError(rumView)
             let rumError = builder.createRUMError(with: updatedRUMView)
@@ -317,6 +317,13 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     }
 
     // MARK: - Building RUM events
+
+    /// A crash recorded with `.granted` consent is written regardless of the current consent. A crash recorded
+    /// with `.pending` consent is written under the current consent, so it is uploaded only once the user grants it
+    /// and is discarded if they decline, like any other event collected while consent is pending.
+    private func canBypassConsent(_ crashContext: CrashContext) -> Bool {
+        crashContext.trackingConsent == .granted
+    }
 
     private func createFatalErrorBuilder(context: DatadogContext, crash: DDCrashReport, crashDate: Date, timeSinceAppStart: TimeInterval?) -> FatalErrorBuilder {
         return FatalErrorBuilder(
