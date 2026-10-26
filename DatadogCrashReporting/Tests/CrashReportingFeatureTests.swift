@@ -49,16 +49,16 @@ class CrashReportingFeatureTests: XCTestCase {
     func testItSendsLaunchReportWhenNoPendingCrash() {
         // Given
         let plugin = CrashReportingPluginMock()
-        plugin.pendingCrashReport = nil
+        plugin.pendingCrashReports = []
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReport")
+        let expectation = self.expectation(description: "didReadPendingCrashReports")
 
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
             crashReportingPlugin: plugin
         )
 
-        plugin.didReadPendingCrashReport = {
+        plugin.didReadPendingCrashReports = {
             expectation.fulfill()
         }
 
@@ -69,7 +69,8 @@ class CrashReportingFeatureTests: XCTestCase {
         waitForExpectations(timeout: 1.0)
         XCTAssertNil(sender.sentCrashReport)
         XCTAssertNil(sender.sentCrashContext)
-        XCTAssertEqual(plugin.hasPurgedCrashReport, false)
+        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [false])
+        XCTAssertEqual(plugin.hasPurgedCrashReports, false)
     }
 
     func testItSendsCrashReportWithValidContext() {
@@ -81,10 +82,10 @@ class CrashReportingFeatureTests: XCTestCase {
             version: "1.0.0"
         )
         let crashReport: DDCrashReport = .mockRandomWith(context: crashContext)
-        plugin.pendingCrashReport = crashReport
+        plugin.pendingCrashReports = [crashReport]
 
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReport")
+        let expectation = self.expectation(description: "didReadPendingCrashReports")
 
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
@@ -92,7 +93,7 @@ class CrashReportingFeatureTests: XCTestCase {
         )
 
         // Fulfilled once the plugin has recorded the purge decision, which happens after the report is sent.
-        plugin.didReadPendingCrashReport = {
+        plugin.didReadPendingCrashReports = {
             expectation.fulfill()
         }
 
@@ -106,7 +107,68 @@ class CrashReportingFeatureTests: XCTestCase {
         XCTAssertEqual(sender.sentCrashContext?.service, "test-service")
         XCTAssertEqual(sender.sentCrashContext?.env, "test-env")
         XCTAssertEqual(sender.sentCrashContext?.version, "1.0.0")
-        XCTAssertEqual(plugin.hasPurgedCrashReport, true)
+        XCTAssertEqual(plugin.hasPurgedCrashReports, true)
+    }
+
+    func testItSendsEveryPendingCrashReportInOrderWithItsOwnContext() {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        let crashReports: [DDCrashReport] = ["first", "second", "third"].map { service in
+            .mockRandomWith(context: .mockWith(service: service))
+        }
+        plugin.pendingCrashReports = crashReports
+
+        let sender = CrashReportSenderMock()
+        let expectation = self.expectation(description: "didReadPendingCrashReports")
+
+        let feature = CrashReportingFeature.mockWith(
+            integration: sender,
+            crashReportingPlugin: plugin
+        )
+
+        plugin.didReadPendingCrashReports = {
+            expectation.fulfill()
+        }
+
+        // When
+        feature.sendCrashReportIfFound()
+
+        // Then
+        waitForExpectations(timeout: 1.0)
+        XCTAssertEqual(sender.sentCrashReports.map { $0.report.message }, crashReports.map { $0.message })
+        XCTAssertEqual(sender.sentCrashReports.map { $0.context.service }, ["first", "second", "third"])
+        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [true], "It should send one launch report")
+        XCTAssertEqual(plugin.hasPurgedCrashReports, true)
+    }
+
+    func testItSendsValidCrashReportsWhenOneHasMalformedContext() {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        let first: DDCrashReport = .mockRandomWith(context: .mockWith(service: "first"))
+        let malformed: DDCrashReport = .mockWith(context: "not a valid context".data(using: .utf8)!)
+        let last: DDCrashReport = .mockRandomWith(context: .mockWith(service: "last"))
+        plugin.pendingCrashReports = [first, malformed, last]
+
+        let sender = CrashReportSenderMock()
+        let expectation = self.expectation(description: "didReadPendingCrashReports")
+
+        let feature = CrashReportingFeature.mockWith(
+            integration: sender,
+            crashReportingPlugin: plugin
+        )
+
+        plugin.didReadPendingCrashReports = {
+            expectation.fulfill()
+        }
+
+        // When
+        feature.sendCrashReportIfFound()
+
+        // Then
+        waitForExpectations(timeout: 1.0)
+        XCTAssertEqual(sender.sentCrashReports.map { $0.context.service }, ["first", "last"])
+        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [true])
+        XCTAssertEqual(plugin.hasPurgedCrashReports, true, "It should purge all reports, including the malformed one")
     }
 
     func testItPurgesCrashReportWithMalformedContext() {
@@ -114,17 +176,17 @@ class CrashReportingFeatureTests: XCTestCase {
         let plugin = CrashReportingPluginMock()
         let malformedData = "not a valid context".data(using: .utf8)!
         let crashReport: DDCrashReport = .mockWith(context: malformedData)
-        plugin.pendingCrashReport = crashReport
+        plugin.pendingCrashReports = [crashReport]
 
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReport")
+        let expectation = self.expectation(description: "didReadPendingCrashReports")
 
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
             crashReportingPlugin: plugin
         )
 
-        plugin.didReadPendingCrashReport = {
+        plugin.didReadPendingCrashReports = {
             expectation.fulfill()
         }
 
@@ -135,7 +197,8 @@ class CrashReportingFeatureTests: XCTestCase {
         waitForExpectations(timeout: 1.0)
         XCTAssertNil(sender.sentCrashReport)
         XCTAssertNil(sender.sentCrashContext)
-        XCTAssertEqual(plugin.hasPurgedCrashReport, true)
+        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [true])
+        XCTAssertEqual(plugin.hasPurgedCrashReports, true)
     }
 
     // MARK: - Crash Context Injection Tests
@@ -177,11 +240,11 @@ class CrashReportingFeatureTests: XCTestCase {
         let plugin = CrashReportingPluginMock()
         let malformedData = "not valid JSON".data(using: .utf8)!
         let crashReport: DDCrashReport = .mockWith(context: malformedData)
-        plugin.pendingCrashReport = crashReport
+        plugin.pendingCrashReports = [crashReport]
 
         let sender = CrashReportSenderMock()
         let telemetry = TelemetryMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReport")
+        let expectation = self.expectation(description: "didReadPendingCrashReports")
 
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
@@ -189,7 +252,7 @@ class CrashReportingFeatureTests: XCTestCase {
             telemetry: telemetry
         )
 
-        plugin.didReadPendingCrashReport = {
+        plugin.didReadPendingCrashReports = {
             expectation.fulfill()
         }
 

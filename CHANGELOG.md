@@ -9,6 +9,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Crash reporting keeps up to 5 crash reports and sends every pending one at the next launch, oldest first, each with the context of the process that crashed. Previously only one report was kept, so when the app crashed again before the previous crash was sent (for example a crash loop at launch), the earlier crashes were lost. A report that cannot be read is dropped without affecting the others.
+
+### Changed
+
+- `CrashReportingPlugin.readPendingCrashReport(completion:)` is replaced by `readPendingCrashReports(completion:)`, which passes every pending report at once, oldest first (an empty array when there is none). Custom plugins must implement the new requirement.
 ### Changed
 
 - A crash recorded while tracking consent was `.pending` is no longer discarded. It is processed at the next launch and written under the consent in force at that point, like any other event collected while consent is pending: uploaded if the user grants consent during that launch, discarded if they decline or if consent is still pending when the app is next started (pending data does not outlive the launch that collected it). Nothing is sent before consent is granted. A crash recorded with `.notGranted` consent is still discarded.
