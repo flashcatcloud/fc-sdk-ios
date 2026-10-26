@@ -39,6 +39,16 @@ public protocol DatadogCoreProtocol: AnyObject, MessageSending, AdditionalContex
     /// - Returns: The Feature if any.
     func feature<T>(named name: String, type: T.Type) -> T?
 
+    /// Reads the current core context synchronously.
+    ///
+    /// Features receive the context asynchronously through the message bus. This is for the rare case that needs
+    /// it before that first delivery, e.g. to prepare crash data at the moment a Feature is enabled.
+    ///
+    /// **Warning:** it blocks the caller thread until the context can be read.
+    ///
+    /// - Returns: The current context, or `nil` if this core does not provide one.
+    func currentContext() -> DatadogContext?
+
     /// Retrieves a Feature Scope for given feature type.
     ///
     /// The scope manages the underlying core's reference in safe way, guaranteeing no reference leaks.
@@ -54,6 +64,9 @@ public protocol DatadogCoreProtocol: AnyObject, MessageSending, AdditionalContex
 }
 
 extension DatadogCoreProtocol {
+    /// Default: no context available synchronously.
+    public func currentContext() -> DatadogContext? { nil }
+
     /// Returns a `DatadogFeature` conforming type from the
     /// Feature registry.
     ///

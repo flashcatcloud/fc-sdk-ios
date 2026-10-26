@@ -85,6 +85,19 @@ public final class CrashReporting {
             telemetry: core.telemetry
         )
 
+        // The crash context otherwise reaches the crash reporter through several asynchronous hops after the
+        // Feature is registered, which can take seconds at launch: a crash in between was recorded without it and
+        // then dropped. Write the first one now, before registering, so later updates always replace it.
+        if let context = core.currentContext() {
+            reporter.inject(initialCrashContext: CrashContext(
+                context,
+                lastRUMViewEvent: nil,
+                lastRUMSessionState: nil,
+                lastRUMAttributes: nil,
+                lastLogAttributes: nil
+            ))
+        }
+
         try core.register(feature: reporter)
 
         if let backtraceReporter = plugin.backtraceReporter {

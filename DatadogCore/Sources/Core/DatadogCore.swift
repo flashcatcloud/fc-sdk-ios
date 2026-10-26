@@ -438,6 +438,10 @@ extension DatadogCore: DatadogCoreProtocol {
         features[name] as? T
     }
 
+    func currentContext() -> DatadogContext? {
+        contextProvider.read()
+    }
+
     func scope<Feature>(for featureType: Feature.Type) -> FeatureScope where Feature: DatadogFeature {
         return CoreFeatureScope<Feature>(in: self)
     }

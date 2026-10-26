@@ -74,4 +74,20 @@ class SendingCrashReportTests: XCTestCase {
         let lastRUMAttributes = try XCTUnwrap(crashContext.lastRUMAttributes?.contextInfo)
         DDAssertJSONEqual(contextAttributes, lastRUMAttributes.merging(crashReportAttributes) { $1 })
     }
+
+    func testWhenCrashReportingIsEnabled_itWritesTheCrashContextBeforeReturning() throws {
+        // Given
+        let plugin = CrashReporterMock()
+
+        // When
+        CrashReporting.enable(with: plugin, in: core)
+
+        // Then (no waiting: a crash right after `enable()` must already find a crash context)
+        let crashContextData = try XCTUnwrap(plugin.injectedContext, "The crash context must be written before `enable()` returns")
+        let crashContext = try CrashReportingFeature.crashContextDecoder.decode(CrashContext.self, from: crashContextData)
+        let coreContext = try XCTUnwrap(core.currentContext())
+        XCTAssertEqual(crashContext.service, coreContext.service)
+        XCTAssertEqual(crashContext.trackingConsent, coreContext.trackingConsent)
+        XCTAssertNil(crashContext.lastRUMViewEvent)
+    }
 }
