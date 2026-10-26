@@ -22,7 +22,7 @@ class CrashReporterTests: XCTestCase {
         let plugin = CrashReportingPluginMock()
 
         // Given
-        plugin.pendingCrashReport = crashReport
+        plugin.pendingCrashReports = [crashReport]
         plugin.injectedContextData = crashContext.data
 
         // When
@@ -38,7 +38,7 @@ class CrashReporterTests: XCTestCase {
         // Then
         // Wait for the read to return, not for the send: the send happens inside the completion,
         // and the purge decision is only recorded once that completion has returned.
-        plugin.didReadPendingCrashReport = { expectation.fulfill() }
+        plugin.didReadPendingCrashReports = { expectation.fulfill() }
         feature.sendCrashReportIfFound()
 
         waitForExpectations(timeout: 5, handler: nil)
@@ -50,7 +50,7 @@ class CrashReporterTests: XCTestCase {
             "It should send the crash context retrieved from the `plugin`"
         )
 
-        XCTAssertTrue(plugin.hasPurgedCrashReport == true, "It should ask to purge the crash report")
+        XCTAssertTrue(plugin.hasPurgedCrashReports == true, "It should ask to purge the crash report")
     }
 
     func testWhenPendingCrashReportIsFound_itIsSentMessageBus() throws {
@@ -64,7 +64,7 @@ class CrashReporterTests: XCTestCase {
         let plugin = CrashReportingPluginMock()
 
         // Given
-        plugin.pendingCrashReport = crashReport
+        plugin.pendingCrashReports = [crashReport]
         plugin.injectedContextData = crashContext.data
 
         // When
@@ -77,7 +77,7 @@ class CrashReporterTests: XCTestCase {
         )
 
         //Then
-        plugin.didReadPendingCrashReport = { expectation.fulfill() }
+        plugin.didReadPendingCrashReports = { expectation.fulfill() }
         feature.sendCrashReportIfFound()
 
         waitForExpectations(timeout: 5, handler: nil)
@@ -90,7 +90,7 @@ class CrashReporterTests: XCTestCase {
         let plugin = CrashReportingPluginMock()
 
         // Given
-        plugin.pendingCrashReport = nil
+        plugin.pendingCrashReports = []
         plugin.injectedContextData = nil
 
         // When
@@ -104,13 +104,13 @@ class CrashReporterTests: XCTestCase {
         )
 
         // Then
-        plugin.didReadPendingCrashReport = { expectation.fulfill() }
+        plugin.didReadPendingCrashReports = { expectation.fulfill() }
         feature.sendCrashReportIfFound()
 
         waitForExpectations(timeout: 5, handler: nil)
         XCTAssertNil(sender.sentCrashReport, "It should not send the crash report")
         XCTAssertNil(sender.sentCrashContext, "It should not send the crash context")
-        XCTAssertTrue(plugin.hasPurgedCrashReport == false, "It should not purge the crash report")
+        XCTAssertTrue(plugin.hasPurgedCrashReports == false, "It should not purge the crash report")
     }
 
     func testWhenPendingCrashReportIsFoundButItHasUnavailableCrashContext_itPurgesTheCrashReportWithNoSending() {
@@ -119,7 +119,7 @@ class CrashReporterTests: XCTestCase {
         let plugin = CrashReportingPluginMock()
 
         // Given
-        plugin.pendingCrashReport = .mockWith(context: nil)
+        plugin.pendingCrashReports = [.mockWith(context: nil)]
         plugin.injectedContextData = nil
 
         // When
@@ -138,7 +138,7 @@ class CrashReporterTests: XCTestCase {
 
         waitForExpectations(timeout: 5, handler: nil)
         XCTAssertTrue(
-            plugin.hasPurgedCrashReport == true,
+            plugin.hasPurgedCrashReports == true,
             "It should ask to purge the crash report as the crash context is unavailable"
         )
     }
@@ -214,8 +214,8 @@ class CrashReporterTests: XCTestCase {
         )
 
         let plugin = CrashReportingPluginMock()
-        plugin.pendingCrashReport = crashReport
-        plugin.didReadPendingCrashReport = { expectation.fulfill() }
+        plugin.pendingCrashReports = [crashReport]
+        plugin.didReadPendingCrashReports = { expectation.fulfill() }
 
         let feature = CrashReportingFeature(
             crashReportingPlugin: plugin,
@@ -282,11 +282,11 @@ class CrashReporterTests: XCTestCase {
 
         let core = PassthroughCoreMock()
         let plugin = CrashReportingPluginMock()
-        plugin.pendingCrashReport = .mockWith(
-            context: CrashContext.mockAny().data
-        )
+        plugin.pendingCrashReports = [
+            .mockWith(context: CrashContext.mockAny().data)
+        ]
 
-        plugin.didReadPendingCrashReport = { expectation.fulfill() }
+        plugin.didReadPendingCrashReports = { expectation.fulfill() }
 
         // When
         let feature = CrashReportingFeature(

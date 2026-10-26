@@ -11,14 +11,15 @@ import DatadogInternal
 ///
 /// The SDK calls each API on a background thread and succeeding calls are synchronized.
 public protocol CrashReportingPlugin: AnyObject {
-    /// Reads unprocessed crash report if available.
-    /// - Parameter completion: the completion block called with the value of `DDCrashReport` if a crash report is available
-    /// or with `nil` otherwise. The value returned by the receiver should indicate if the crash report was processed correctly (`true`)
-    /// or something went wrong (`false)`. Depending on the returned value, the crash report will be purged or preserved for future read.
+    /// Reads all unprocessed crash reports.
+    /// - Parameter completion: the completion block called once with every available crash report, ordered from the oldest
+    /// to the most recent, or with an empty array if there is none. The value returned by the receiver should indicate if the
+    /// crash reports were processed correctly (`true`) or something went wrong (`false)`. Depending on the returned value,
+    /// the crash reports will be purged or preserved for future read.
     ///
     /// The SDK calls this method on a background thread. The implementation is free to choice any thread
     /// for executing the  `completion`.
-    func readPendingCrashReport(completion: @escaping (DDCrashReport?) -> Bool)
+    func readPendingCrashReports(completion: @escaping ([DDCrashReport]) -> Bool)
 
     /// Injects custom data for describing the application state in the crash report.
     /// This data will be attached to produced crash report and will be available in `DDCrashReport`.

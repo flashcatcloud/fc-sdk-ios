@@ -42,11 +42,11 @@ extension CrashReportingFeature {
 }
 
 public class CrashReportingPluginMock: CrashReportingPlugin {
-    /// The crash report loaded by this plugin.
-    public var pendingCrashReport: DDCrashReport?
-    /// If the plugin was asked to delete the crash report.
+    /// The crash reports loaded by this plugin.
+    public var pendingCrashReports: [DDCrashReport] = []
+    /// If the plugin was asked to delete the crash reports.
     @ReadWriteLock
-    public var hasPurgedCrashReport: Bool?
+    public var hasPurgedCrashReports: Bool?
     /// Custom app state data injected to the plugin.
     public var injectedContextData: Data?
     /// Custom backtrace reporter injected to the plugin.
@@ -54,13 +54,13 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
 
     public init() {}
 
-    public func readPendingCrashReport(completion: (DDCrashReport?) -> Bool) {
-        hasPurgedCrashReport = completion(pendingCrashReport)
-        didReadPendingCrashReport?()
+    public func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) {
+        hasPurgedCrashReports = completion(pendingCrashReports)
+        didReadPendingCrashReports?()
     }
 
-    /// Notifies the `readPendingCrashReport(completion:)` return.
-    public var didReadPendingCrashReport: (() -> Void)?
+    /// Notifies the `readPendingCrashReports(completion:)` return.
+    public var didReadPendingCrashReports: (() -> Void)?
 
     public func inject(context: Data) {
         injectedContextData = context
@@ -74,7 +74,7 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
 }
 
 public class NOPCrashReportingPlugin: CrashReportingPlugin {
-    public func readPendingCrashReport(completion: (DDCrashReport?) -> Bool) {}
+    public func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) {}
     public func inject(context: Data) {}
     public var backtraceReporter: BacktraceReporting? { nil }
 
@@ -92,20 +92,27 @@ public class CrashContextProviderMock: CrashContextProvider {
 }
 
 public class CrashReportSenderMock: CrashReportSender {
-    public var sentCrashReport: DDCrashReport?
-    public var sentCrashContext: CrashContext?
+    /// All crash reports sent, in order.
+    public private(set) var sentCrashReports: [(report: DDCrashReport, context: CrashContext)] = []
+    /// The last crash report sent.
+    public var sentCrashReport: DDCrashReport? { sentCrashReports.last?.report }
+    /// The context of the last crash report sent.
+    public var sentCrashContext: CrashContext? { sentCrashReports.last?.context }
+    /// All launch reports sent, in order.
+    public private(set) var sentLaunchReports: [LaunchReport] = []
 
     public init() {}
 
     public func send(report: DDCrashReport, with context: CrashContext) {
-        sentCrashReport = report
-        sentCrashContext = context
+        sentCrashReports.append((report, context))
         didSendCrashReport?()
     }
 
     public var didSendCrashReport: (() -> Void)?
 
-    public func send(launch: DatadogInternal.LaunchReport) {}
+    public func send(launch: DatadogInternal.LaunchReport) {
+        sentLaunchReports.append(launch)
+    }
 }
 
 public class CrashReceiverMock: FeatureMessageReceiver {

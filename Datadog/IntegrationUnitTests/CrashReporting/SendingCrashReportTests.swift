@@ -26,7 +26,7 @@ private class CrashReporterMock: CrashReportingPlugin {
         self.pendingCrashReport = pendingCrashReport
     }
 
-    func readPendingCrashReport(completion: (DDCrashReport?) -> Bool) { _ = completion(pendingCrashReport) }
+    func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) { _ = completion(pendingCrashReport.map { [$0] } ?? []) }
     func inject(context: Data) { injectedContext = context }
     var backtraceReporter: BacktraceReporting? { injectedBacktraceReporter }
 }

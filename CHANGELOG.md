@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Crash reporting keeps up to 5 crash reports and sends every pending one at the next launch, oldest first, each with the context of the process that crashed. Previously only one report was kept, so when the app crashed again before the previous crash was sent (for example a crash loop at launch), the earlier crashes were lost. A report that cannot be read is dropped without affecting the others.
+
+### Changed
+
+- `CrashReportingPlugin.readPendingCrashReport(completion:)` is replaced by `readPendingCrashReports(completion:)`, which passes every pending report at once, oldest first (an empty array when there is none). Custom plugins must implement the new requirement.
+
 ---
 
 ## [0.7.1] - 2026-10-25

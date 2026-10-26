@@ -121,6 +121,36 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(featureScope.eventsWritten.count, 0, "It must send no message")
     }
 
+    func testGivenCrashesFromSeveralProcesses_whenSendingThemInSequence_eachIsLinkedToItsOwnView() throws {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let firstView: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let secondView: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let crashes = [firstView, secondView].map { view in
+            Crash(
+                report: .mockWith(date: currentDate.secondsAgo(60)),
+                context: .mockWith(trackingConsent: .granted, lastRUMViewEvent: view)
+            )
+        }
+
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: currentDate)
+        )
+
+        // When
+        for crash in crashes {
+            XCTAssertTrue(receiver.receive(message: .payload(crash), from: NOPDatadogCore()))
+        }
+
+        // Then
+        let errors = featureScope.eventsWritten(ofType: RUMErrorEvent.self)
+        let views = featureScope.eventsWritten(ofType: RUMViewEvent.self)
+        XCTAssertEqual(errors.map { $0.view.id }, [firstView.view.id, secondView.view.id])
+        XCTAssertEqual(views.map { $0.view.id }, [firstView.view.id, secondView.view.id])
+        XCTAssertEqual(views.map { $0.view.crash?.count }, [1, 1], "Each view should count only its own crash")
+    }
+
     func testGivenCrashDuringRUMSessionWithActiveViewCollectedMoreThan4HoursAgo_whenSending_itSendsOnlyRUMError() throws {
         let secondsIn4Hours: TimeInterval = 4 * 60 * 60
 
