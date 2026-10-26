@@ -38,6 +38,12 @@ public final class CrashReporting {
         /// (`abort()`, uncaught `NSException`, uncaught C++ exception) are not Mach exceptions and are unaffected.
         ///
         /// Disabled by default. Mach exception handling is not active while a debugger is attached.
+        ///
+        /// - Important: do not enable it in an app that recovers from hardware exceptions at runtime, for example
+        ///   through a language runtime that turns invalid memory accesses into catchable errors (such as a Go core
+        ///   built with gomobile, or Mono / .NET). The Mach handler sees such an exception before the runtime does:
+        ///   it is recorded as a crash although the app keeps running, and crash reporting is turned off for the rest
+        ///   of the process, so a later real crash is not recorded.
         public var handlesMachExceptions: Bool
 
         /// Creates a Crash Reporting configuration.
@@ -141,5 +147,16 @@ public final class objc_CrashReporting: NSObject {
     @objc
     public static func enable(symbolicateInProcess: Bool) {
         CrashReporting.enable(with: .init(symbolicateInProcess: symbolicateInProcess))
+    }
+
+    /// Initializes the Datadog Crash Reporter.
+    /// - Parameters:
+    ///   - symbolicateInProcess: resolve stack frames to function names on-device,
+    ///     at crash time, without requiring a dSYM upload.
+    ///   - handlesMachExceptions: also catch crashes through a Mach exception handler,
+    ///     see `CrashReporting.Configuration.handlesMachExceptions`.
+    @objc
+    public static func enable(symbolicateInProcess: Bool, handlesMachExceptions: Bool) {
+        CrashReporting.enable(with: .init(symbolicateInProcess: symbolicateInProcess, handlesMachExceptions: handlesMachExceptions))
     }
 }

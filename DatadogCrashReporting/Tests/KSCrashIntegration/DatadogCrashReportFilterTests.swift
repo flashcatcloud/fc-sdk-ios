@@ -248,7 +248,7 @@ class DatadogCrashReportFilterTests: XCTestCase {
     private func crashReport(cpuArch: String, error: String) throws -> AnyCrashReport {
         let json = """
         {
-            "report": { "timestamp": "2025-10-22T14:14:12.007Z", "id": "incident-mach" },
+            "report": { "timestamp": "2025-10-22T14:14:12.007Z", "id": "incident-789" },
             "system": { "cpu_arch": "\(cpuArch)" },
             "crash": { "error": \(error), "threads": [] },
             "binary_images": []
