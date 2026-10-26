@@ -11,14 +11,14 @@
 
 ### Fixed
 
+- Network instrumentation reads a task's response in the completion callback instead of later on its own queue. Reading it after the callback returned could touch an object the system (or a custom `URLProtocol`) had already released, and crash.
+- Network instrumentation replaces a task's `currentRequest` only when it actually changed the request (tracing headers injected). Requests it leaves untouched are no longer written back into the task.
+- Crash reporting passes the crash context to KSCrash as a NUL-terminated string. The raw bytes had no terminator, so KSCrash could read past the end of the buffer while copying it.
 - Uncaught C++ exception crashes now carry the exception type and its `what()` reason: `Terminating app due to uncaught C++ exception '<type>', reason: '<reason>'.` They were previously reported only as `Application crash: SIGABRT (Abort trap)`. The error type stays `SIGABRT (#0)`, as for `NSException`.
 
 ### Changed
 
 - KSCrash is updated from 2.5.0 to 2.5.1, a bug-fix release (memory safety fixes, including a crash in the C++ exception handler for throws on background threads). Swift Package Manager now resolves KSCrash within 2.5.x only.
-- Network instrumentation reads a task's response in the completion callback instead of later on its own queue. Reading it after the callback returned could touch an object the system (or a custom `URLProtocol`) had already released, and crash.
-- Network instrumentation replaces a task's `currentRequest` only when it actually changed the request (tracing headers injected). Requests it leaves untouched are no longer written back into the task.
-- Crash reporting passes the crash context to KSCrash as a NUL-terminated string. The raw bytes had no terminator, so KSCrash could read past the end of the buffer while copying it.
 
 ---
 
