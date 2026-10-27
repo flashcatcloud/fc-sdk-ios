@@ -9,6 +9,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A crash is no longer dropped because no RUM view was active when it happened.
+  - In foreground, a crash after the last tracked view stopped (for example while a view controller that the views predicate does not track is presented over it) is linked to that view, the last screen the user saw. Previously it was dropped. Fatal App Hangs in this situation are linked to that view as well.
+  - In background, a crash with no active view is reported in a "Background" view of its session whether or not `trackBackgroundEvents` is enabled. Previously it was dropped when `trackBackgroundEvents` was disabled. The option still applies to every other background event.
+  - Crashes in a session that was not sampled are still not reported, and a crash is never linked to a view of an earlier session. A crash after `stopSession()` and before the next session starts is still not reported in foreground.
+
 ---
 
 ## [0.8.0] - 2026-10-26

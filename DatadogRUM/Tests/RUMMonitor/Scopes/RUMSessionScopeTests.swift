@@ -410,7 +410,7 @@ class RUMSessionScopeTests: XCTestCase {
         XCTAssertEqual(actualSessionState, expectedSessionState)
     }
 
-    func testWhenSessionScopeHasNoActiveView_itUpdatesFatalErrorContextWithView() throws {
+    func testWhenTheLastViewStops_itStaysInFatalErrorContextAsTheLastViewSeen() throws {
         let featureScope = FeatureScopeMock()
         let fatalErrorContext = FatalErrorContextNotifierMock()
 
@@ -433,10 +433,34 @@ class RUMSessionScopeTests: XCTestCase {
         XCTAssertEqual(fatalErrorContext.view?.view.name, "ActiveView")
 
         // When
+        // e.g. an untracked view controller is presented on top of it
         _ = scope.process(command: RUMStopViewCommand.mockWith(time: sessionStartTime.addingTimeInterval(1), identity: .mockViewIdentifier()), context: context, writer: writer)
+        _ = scope.process(command: RUMAddUserActionCommand.mockWith(time: sessionStartTime.addingTimeInterval(2)), context: context, writer: writer)
 
         // Then
-        XCTAssertNil(fatalErrorContext.view)
+        let lastView = try XCTUnwrap(fatalErrorContext.view, "A crash in this session must still find the last view the user saw")
+        XCTAssertEqual(lastView.view.name, "ActiveView")
+        XCTAssertEqual(lastView.view.isActive, false)
+    }
+
+    func testWhenSessionStarts_itClearsTheViewOfThePreviousSessionFromFatalErrorContext() throws {
+        for sessionSampler in [Sampler.mockKeepAll(), .mockRejectAll()] {
+            let fatalErrorContext = FatalErrorContextNotifierMock()
+
+            // Given
+            fatalErrorContext.view = .mockRandom() // the last view of the previous session
+
+            // When
+            let scope: RUMSessionScope = .mockWith(
+                parent: parent,
+                startTime: Date(),
+                dependencies: .mockWith(sessionSampler: sessionSampler, fatalErrorContext: fatalErrorContext)
+            )
+
+            // Then
+            XCTAssertNil(fatalErrorContext.view, "A crash in a new session must never be linked to a view of another session")
+            XCTAssertEqual(fatalErrorContext.sessionState?.sessionUUID, scope.sessionUUID.rawValue)
+        }
     }
 
     func testWhenSessionEnds_itUpdatesFatalErrorContextWithView() throws {

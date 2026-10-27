@@ -125,6 +125,53 @@ class AppHangsMonitorTests: XCTestCase {
         )
     }
 
+    func testGivenTheLastViewStoppedWhileTheAppIsInForeground_whenAppHangStarts_itSavesPendingAppHangLinkedToThatView() throws {
+        // Given
+        featureScope.contextMock.applicationStateHistory = .mockAppInForeground()
+        monitor.start()
+        defer { monitor.stop() }
+        let lastView: RUMViewEvent = .mockRandomWith(viewIsActive: false) // e.g. an untracked screen was presented on top
+        fatalErrorContext.view = lastView
+
+        // When
+        watchdogThread.delegate?.hangStarted(.mockRandom())
+
+        // Then
+        guard case let .value(data, _) = featureScope.dataStoreMock.value(forKey: RUMDataStore.Key.fatalAppHangKey.rawValue) else {
+            return XCTFail("It must save a pending fatal App Hang")
+        }
+        let fatalHang = try JSONDecoder().decode(FatalAppHang.self, from: data)
+        XCTAssertEqual(fatalHang.lastRUMView.view.id, lastView.view.id)
+    }
+
+    func testGivenTheLastViewStoppedWhileTheAppIsInBackground_whenAppHangStarts_itIsNotConsideredFatal() throws {
+        // Given
+        featureScope.contextMock.applicationStateHistory = .mockAppInBackground()
+        monitor.start()
+        defer { monitor.stop() }
+        fatalErrorContext.view = .mockRandomWith(viewIsActive: false) // the user left that screen
+
+        // When
+        watchdogThread.delegate?.hangStarted(.mockRandom())
+
+        // Then
+        XCTAssertNil(featureScope.dataStoreMock.value(forKey: RUMDataStore.Key.fatalAppHangKey.rawValue))
+    }
+
+    func testControl_givenAnActiveViewWhileTheAppIsInBackground_whenAppHangStarts_itSavesPendingAppHang() throws {
+        // Given
+        featureScope.contextMock.applicationStateHistory = .mockAppInBackground()
+        monitor.start()
+        defer { monitor.stop() }
+        fatalErrorContext.view = .mockRandomWith(viewIsActive: true) // e.g. the "Background" view
+
+        // When
+        watchdogThread.delegate?.hangStarted(.mockRandom())
+
+        // Then
+        XCTAssertNotNil(featureScope.dataStoreMock.value(forKey: RUMDataStore.Key.fatalAppHangKey.rawValue))
+    }
+
     func testWhenAppHangGetsCancelled_itDeletesPendingAppHangInDataStore() throws {
         // Given
         monitor.start()
