@@ -6,10 +6,27 @@
 
 import Foundation
 
-/// Defines types that are sent by RUM on the message-bus.
-public enum RUMPayloadMessages {
-    /// Message to send when RUM view is reset.
-    public static let viewReset = "rum-view-reset"
+/// The RUM state a crash is reported with: RUM shares it in the core context, so a crash reporter enabled at
+/// any point, before or after RUM, reads the current value (a message would only reach the receivers already
+/// registered when it is sent).
+///
+/// It is immutable and RUM sets a new instance on every change: compare instances by identity (`!==`) to
+/// detect a change, as `RUMViewEvent` and `RUMEventAttributes` are not `Equatable`.
+public final class RUMFatalErrorContext: AdditionalContext {
+    /// The key in core additional context.
+    public static let key = "rum-fatal-error-context"
+    /// The state of the current RUM session, `nil` until the first session starts.
+    public let sessionState: RUMSessionState?
+    /// The active RUM view, `nil` when there is none.
+    public let view: RUMViewEvent?
+    /// The global RUM attributes, `nil` until they are first changed.
+    public let globalAttributes: RUMEventAttributes?
+
+    public init(sessionState: RUMSessionState?, view: RUMViewEvent?, globalAttributes: RUMEventAttributes?) {
+        self.sessionState = sessionState
+        self.view = view
+        self.globalAttributes = globalAttributes
+    }
 }
 
 /// Lightweight representation of current RUM session state, used to compute `RUMOffViewEventsHandlingRule`.

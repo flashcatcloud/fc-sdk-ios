@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A crash is attributed to the RUM session and view it happened in when `CrashReporting.enable()` is called after `RUM.enable()`. RUM passed its session state, last view and global attributes to crash reporting as one-off messages, which a crash reporter enabled later never received: the crash context lacked the session state until the next session started (and the view until the next view update), so a crash in between was reported in a new session, after a new sampling draw, even when the session it happened in was sampled out. RUM now shares this state through the SDK context, which crash reporting reads whenever it is enabled; it is also included in the crash context written before `enable()` returns. The order in which the two features are enabled no longer matters. Crash reports written by earlier versions are read as before.
+
 ---
 
 ## [0.8.0] - 2026-10-26

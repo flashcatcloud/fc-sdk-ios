@@ -21,43 +21,50 @@ internal protocol FatalErrorContextNotifying: AnyObject {
 }
 
 /// Manages RUM information necessary for building context of fatal errors such as Crashes or Fatal App Hangs.
-/// It tracks value changes and notifies updates on message bus.
+/// It shares every change in the core context as `RUMFatalErrorContext`, read by Crash Reporting.
 internal final class FatalErrorContextNotifier: FatalErrorContextNotifying {
-    /// Message bus interface to send context updates to Crash Reporting.
-    private let messageBus: MessageSending
+    /// The scope to share the fatal error context through.
+    private let featureScope: FeatureScope
 
-    init(messageBus: MessageSending) {
-        self.messageBus = messageBus
+    /// The current value, replaced by a new instance on every change.
+    @ReadWriteLock
+    private var context = RUMFatalErrorContext(sessionState: nil, view: nil, globalAttributes: nil)
+
+    init(featureScope: FeatureScope) {
+        self.featureScope = featureScope
     }
 
     /// The state of the current RUM session.
     /// Can be `nil` if no session was yet started. Never gets `nil` after starting first session.
-    @ReadWriteLock
     var sessionState: RUMSessionState? {
-        didSet {
-            if let sessionState {
-                messageBus.send(message: .payload(sessionState))
-            }
-        }
+        get { context.sessionState }
+        set { update { RUMFatalErrorContext(sessionState: newValue, view: $0.view, globalAttributes: $0.globalAttributes) } }
     }
 
     /// The active RUM view in current session.
     /// Can be `nil` if no view is yet started. Will become `nil` if view was stopped without starting the new one.
-    @ReadWriteLock
     var view: RUMViewEvent? {
-        didSet {
-            if let view {
-                messageBus.send(message: .payload(view))
-            } else {
-                messageBus.send(message: .payload(RUMPayloadMessages.viewReset))
+        get { context.view }
+        set { update { RUMFatalErrorContext(sessionState: $0.sessionState, view: newValue, globalAttributes: $0.globalAttributes) } }
+    }
+
+    var globalAttributes: [String: Encodable] {
+        get { context.globalAttributes?.contextInfo ?? [:] }
+        set {
+            update {
+                RUMFatalErrorContext(
+                    sessionState: $0.sessionState,
+                    view: $0.view,
+                    globalAttributes: RUMEventAttributes(contextInfo: newValue)
+                )
             }
         }
     }
 
-    @ReadWriteLock
-    var globalAttributes: [String: Encodable] = [:] {
-        didSet {
-            messageBus.send(message: .payload(RUMEventAttributes(contextInfo: globalAttributes)))
-        }
+    private func update(_ change: (RUMFatalErrorContext) -> RUMFatalErrorContext) {
+        _context.mutate { $0 = change($0) }
+        // The value is read when the core context is written, on its queue: whatever order the writes
+        // requested from different threads run in, the last one sets the latest value.
+        featureScope.set(context: { [weak self] in self?.context })
     }
 }
