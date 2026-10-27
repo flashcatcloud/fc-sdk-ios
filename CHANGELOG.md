@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- A crash at launch while pending crash reports were being read no longer hangs the app. Reading a report takes a libc lock that KSCrash's crash handler also needs, so a crash at that moment made the handler wait forever: the app froze until the system killed it, and that crash was lost. Pending crash reports are now read 5 seconds after `CrashReporting.enable()`, outside the window in which a crash loop at launch crashes. Whether the previous launch crashed is still known right away, from the report IDs and without reading any report, so Watchdog Termination tracking is unaffected; a report kept from an earlier launch no longer counts as a crash of the last launch.
+- A crash during the sending of pending crash reports no longer loses them. Reports were deleted as soon as they were handed to RUM, before RUM had written them. Each report is now read, sent and deleted one at a time, and deleted only once RUM has written its events to disk; a report whose write is not confirmed within 10 seconds is kept and sent again at the next launch.
+- A crash recorded while tracking consent was `.pending` is kept until consent is resolved, instead of being written under the consent of the next launch (and discarded if consent was still pending when the app was next started). It is sent as soon as consent is granted, in that launch or a later one, and deleted if consent is declined. Nothing is sent before consent is granted. Such reports count towards the 5 kept reports; KSCrash drops the oldest ones. Crashes recorded with `.granted` or `.notGranted` consent are handled as before.
+
+### Breaking Changes
+
+- `CrashReportingPlugin` requires `crashedLastLaunch` (whether the previous run of the app crashed, answered without reading crash reports), and `readPendingCrashReports(completion:)` is replaced by `readPendingCrashReports(process:)`, which passes the pending reports one at a time, oldest first: the plugin deletes a report once `process` returns `true` and keeps it when it returns `false`. Custom `CrashReportingPlugin` implementations must adopt both; apps using the built-in crash reporting are unaffected.
+
 ---
 
 ## [0.8.0] - 2026-10-26

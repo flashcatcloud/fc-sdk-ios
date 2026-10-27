@@ -11,15 +11,23 @@ import DatadogInternal
 ///
 /// The SDK calls each API on a background thread and succeeding calls are synchronized.
 public protocol CrashReportingPlugin: AnyObject {
-    /// Reads all unprocessed crash reports.
-    /// - Parameter completion: the completion block called once with every available crash report, ordered from the oldest
-    /// to the most recent, or with an empty array if there is none. The value returned by the receiver should indicate if the
-    /// crash reports were processed correctly (`true`) or something went wrong (`false)`. Depending on the returned value,
-    /// the crash reports will be purged or preserved for future read.
+    /// Whether the previous run of the app ended with a crash.
     ///
-    /// The SDK calls this method on a background thread. The implementation is free to choice any thread
-    /// for executing the  `completion`.
-    func readPendingCrashReports(completion: @escaping ([DDCrashReport]) -> Bool)
+    /// The SDK reads it once, as soon as crash reporting is enabled and before reading any report, to let other features
+    /// know whether the previous process crashed (e.g. RUM, which otherwise reports an unexplained termination as a
+    /// Watchdog Termination). It must not read crash reports: a crash while a report is being read can deadlock the
+    /// crash handler, so reports are read only once the app has settled. Reports kept from earlier launches (see
+    /// `readPendingCrashReports(process:)`) do not count.
+    var crashedLastLaunch: Bool { get }
+
+    /// Reads the pending crash reports one at a time, oldest first.
+    /// - Parameter process: called with each report in turn. It returns `true` once the report is processed and can be
+    /// deleted, or `false` to keep it for a later read. The next report is read only after `process` returns. A report
+    /// that cannot be read is deleted without being passed to `process`.
+    ///
+    /// The SDK calls this method on a background thread. The implementation is free to choose any thread
+    /// for executing `process`.
+    func readPendingCrashReports(process: @escaping (DDCrashReport) -> Bool)
 
     /// Injects custom data for describing the application state in the crash report.
     /// This data will be attached to produced crash report and will be available in `DDCrashReport`.

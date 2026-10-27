@@ -87,10 +87,12 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             return false
         }
 
-        return send(report: crash.report, with: crash.context)
+        return send(report: crash.report, with: crash.context, completion: crash.completion)
     }
 
-    private func send(report: DDCrashReport, with context: CrashContext) -> Bool {
+    /// - Parameter completion: called once the crash events are written, or once it is decided not to write any,
+    ///   unless `false` is returned.
+    private func send(report: DDCrashReport, with context: CrashContext, completion: @escaping () -> Void) -> Bool {
         // The `crashReport.crashDate` uses system `Date` collected at the moment of crash, so we need to adjust it
         // to the server time before processing. Following use of the current correction is not ideal (it's not the correction
         // from the moment of crash), but this is the best approximation we can get.
@@ -127,7 +129,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                     report,
                     lastRUMViewEventInPreviousSession: lastRUMViewEvent,
                     using: adjustedCrashTimings,
-                    bypassConsent: canBypassConsent(context)
+                    bypassConsent: canBypassConsent(context),
+                    completion: completion
                 )
             } else {
                 DD.logger.debug("There was a crash in previous session, but it is ignored due to another crash already present in the last view.")
@@ -139,10 +142,11 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 crashContext: context,
                 lastRUMSessionStateInPreviousSession: lastRUMSessionState,
                 using: adjustedCrashTimings,
-                under: remoteRates
+                under: remoteRates,
+                completion: completion
             )
         } else if Sampler(samplingRate: drawnSessionSampleRate(under: remoteRates)).sample() { // before producing a new RUM session, we must consider sampling
-            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates)
+            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates, completion: completion)
         } else {
             DD.logger.debug("There was a crash in previous session, but it is ignored due to sampling.")
             return false
@@ -157,10 +161,11 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         _ crashReport: DDCrashReport,
         lastRUMViewEventInPreviousSession lastRUMViewEvent: RUMViewEvent,
         using crashTimings: AdjustedCrashTimings,
-        bypassConsent: Bool
+        bypassConsent: Bool,
+        completion: @escaping () -> Void
     ) {
         if FatalErrorBuilder.canSendView(lastRUMViewEvent, errorDate: crashTimings.realCrashDate, now: crashTimings.realDateNow) {
-            send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings, bypassConsent: bypassConsent)
+            send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings, bypassConsent: bypassConsent, completion: completion)
         } else {
             // We know it is too late for sending RUM view to previous RUM session as it is now stale on backend.
             // To avoid inconsistency, we only send the RUM error.
@@ -170,10 +175,10 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 let rumError = builder.createRUMError(with: lastRUMViewEvent)
 
                 if let mappedError = self.eventsMapper.map(event: rumError) {
-                    writer.write(value: mappedError)
+                    writer.write(value: mappedError, completion: completion)
                 } else {
                     DD.logger.warn("errorEventMapper returned 'nil' for a crash. Discarding crashes is not supported. The unmodified event will be sent.")
-                    writer.write(value: rumError)
+                    writer.write(value: rumError, completion: completion)
                 }
             }
         }
@@ -187,7 +192,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         crashContext: CrashContext,
         lastRUMSessionStateInPreviousSession lastRUMSessionState: RUMSessionState,
         using crashTimings: AdjustedCrashTimings,
-        under remoteRates: RemoteSamplingRates?
+        under remoteRates: RemoteSamplingRates?,
+        completion: @escaping () -> Void
     ) {
         let handlingRule = RUMOffViewEventsHandlingRule(
             applicationState: nil,
@@ -233,7 +239,9 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         }
 
         if let newRUMView = newRUMView {
-            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext))
+            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
+        } else {
+            completion()
         }
     }
 
@@ -243,7 +251,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         _ crashReport: DDCrashReport,
         crashContext: CrashContext,
         using crashTimings: AdjustedCrashTimings,
-        under remoteRates: RemoteSamplingRates?
+        under remoteRates: RemoteSamplingRates?,
+        completion: @escaping () -> Void
     ) {
         // We can ignore `sessionState` for building the rule as we can assume there was no session sent - otherwise,
         // the `lastRUMSessionState` would have been set in `CrashContext` and we could be sending the crash to previous session
@@ -291,12 +300,21 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         }
 
         if let newRUMView = newRUMView {
-            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext))
+            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
+        } else {
+            completion()
         }
     }
 
     /// Sends given `CrashReport` by linking it to given `rumView` and updating view counts accordingly.
-    private func send(crashReport: DDCrashReport, to rumView: RUMViewEvent, using crashTimings: AdjustedCrashTimings, bypassConsent: Bool) {
+    /// - Parameter completion: called once the events are written.
+    private func send(
+        crashReport: DDCrashReport,
+        to rumView: RUMViewEvent,
+        using crashTimings: AdjustedCrashTimings,
+        bypassConsent: Bool,
+        completion: @escaping () -> Void
+    ) {
         DD.logger.debug("Updating RUM view with crash report.")
 
         featureScope.eventWriteContext(bypassConsent: bypassConsent) { context, writer in
@@ -304,14 +322,19 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             let updatedRUMView = builder.updateRUMViewWithError(rumView)
             let rumError = builder.createRUMError(with: updatedRUMView)
 
+            let errorToWrite: RUMErrorEvent
             if let mappedError = self.eventsMapper.map(event: rumError) {
-                writer.write(value: mappedError)
+                errorToWrite = mappedError
             } else {
                 DD.logger.warn("errorEventMapper returned 'nil' for a crash. Discarding crashes is not supported. The unmodified event will be sent.")
-                writer.write(value: rumError)
+                errorToWrite = rumError
             }
+            // Writes run in order, so `completion` goes with the last one.
             if let mappedView = self.eventsMapper.map(event: updatedRUMView) {
-                writer.write(value: self.eventsMapper.map(event: mappedView))
+                writer.write(value: errorToWrite)
+                writer.write(value: self.eventsMapper.map(event: mappedView), completion: completion)
+            } else {
+                writer.write(value: errorToWrite, completion: completion)
             }
         }
     }
@@ -319,8 +342,8 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     // MARK: - Building RUM events
 
     /// A crash recorded with `.granted` consent is written regardless of the current consent. A crash recorded
-    /// with `.pending` consent is written under the current consent, so it is uploaded only once the user grants it
-    /// and is discarded if they decline, like any other event collected while consent is pending.
+    /// with `.pending` consent is written under the current consent: Crash Reporting sends it only once consent is
+    /// granted.
     private func canBypassConsent(_ crashContext: CrashContext) -> Bool {
         crashContext.trackingConsent == .granted
     }

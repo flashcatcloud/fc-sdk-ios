@@ -25,6 +25,30 @@ internal import KSCrashFilters
 internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     private let store: CrashReportStore
     private let telemetry: Telemetry
+    /// Holds the ID of the most recent report found at the previous launch.
+    private let latestReportIDFile: URL
+
+    /// A report more recent than the most recent one found at the previous launch was written by the previous process.
+    ///
+    /// It is decided from the report IDs, which grow with time, and the ID recorded at the previous launch, without
+    /// reading any report (listing the IDs is what KSCrash already does when it is installed). The presence of reports
+    /// alone is not enough: a report can be kept across launches, e.g. until tracking consent is resolved. KSCrash's own
+    /// `crashedLastLaunch` needs its application state monitor, which this plugin does not install.
+    ///
+    /// Computed once, on first access (from the Feature queue), before any report is deleted.
+    private(set) lazy var crashedLastLaunch: Bool = {
+        let latestReportID = store.reportIDs.last?.int64Value ?? 0 // sorted by ID: the last one is the most recent
+        let knownReportID = (try? String(contentsOf: latestReportIDFile, encoding: .utf8)).flatMap { Int64($0) } ?? 0
+        guard latestReportID > knownReportID else {
+            return false
+        }
+        do {
+            try String(latestReportID).write(to: latestReportIDFile, atomically: true, encoding: .utf8)
+        } catch {
+            telemetry.error("[KSCrash] Fails to record the latest report ID", error: error)
+        }
+        return true
+    }()
 
     convenience init(
         _ kscrash: KSCrash = .shared,
@@ -32,8 +56,9 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         symbolicateInProcess: Bool = true,
         handlesMachExceptions: Bool = false
     ) throws {
+        let configuration = try KSCrashConfiguration.datadog(handlesMachExceptions: handlesMachExceptions)
         do {
-            try kscrash.install(with: .datadog(handlesMachExceptions: handlesMachExceptions))
+            try kscrash.install(with: configuration)
             kscrash.reportStore?.sink = CrashReportFilterPipeline(
                 filters: [
                     DatadogTypeSafeFilter(),
@@ -54,44 +79,46 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
             throw CrashReportException(description: "[KSCrash] Report store should exist after installation")
         }
 
-        self.init(store: store, telemetry: telemetry)
+        guard let installPath = configuration.installPath else {
+            throw CrashReportException(description: "[KSCrash] Install path should be set")
+        }
+
+        self.init(
+            store: store,
+            latestReportIDFile: URL(fileURLWithPath: installPath).appendingPathComponent("latest-report-id"),
+            telemetry: telemetry
+        )
     }
 
-    /// - Parameter store: the report store to read reports from; its `sink` converts a KSCrash report into `DDCrashReport`.
-    init(store: CrashReportStore, telemetry: Telemetry) {
+    /// - Parameters:
+    ///   - store: the report store to read reports from; its `sink` converts a KSCrash report into `DDCrashReport`.
+    ///   - latestReportIDFile: the file recording the most recent report ID found at launch, see `crashedLastLaunch`.
+    init(store: CrashReportStore, latestReportIDFile: URL, telemetry: Telemetry) {
         self.telemetry = telemetry
         self.store = store
+        self.latestReportIDFile = latestReportIDFile
         super.init()
     }
 
     // MARK: - CrashReportingPlugin
 
-    func readPendingCrashReports(completion: @escaping ([DDCrashReport]) -> Bool) {
+    func readPendingCrashReports(process: @escaping (DDCrashReport) -> Bool) {
         let reportIDs = store.reportIDs.map { $0.int64Value } // sorted by ID, which grows with time: oldest first
-        loadReports(with: reportIDs[...], loaded: []) { loaded in
-            if completion(loaded.map { $0.report }) {
-                loaded.forEach { self.store.deleteReport(with: $0.id) }
-            }
-        }
+        readReports(with: reportIDs[...], process: process)
     }
 
-    /// Loads the reports one at a time, so a report that cannot be loaded is purged without affecting the others.
-    private func loadReports(
-        with ids: ArraySlice<Int64>,
-        loaded: [(id: Int64, report: DDCrashReport)],
-        completion: @escaping ([(id: Int64, report: DDCrashReport)]) -> Void
-    ) {
+    /// Reads, processes and deletes the reports one at a time: a report is deleted only once it is processed, and a
+    /// report that cannot be loaded is purged without affecting the others.
+    private func readReports(with ids: ArraySlice<Int64>, process: @escaping (DDCrashReport) -> Bool) {
         guard let id = ids.first else {
-            completion(loaded)
             return
         }
 
         loadReport(with: id) { report in
-            self.loadReports(
-                with: ids.dropFirst(),
-                loaded: loaded + (report.map { [(id, $0)] } ?? []),
-                completion: completion
-            )
+            if let report = report, process(report) {
+                self.store.deleteReport(with: id)
+            }
+            self.readReports(with: ids.dropFirst(), process: process)
         }
     }
 

@@ -89,6 +89,115 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(featureScope.eventsWritten(ofType: RUMViewEvent.self).count, 1)
     }
 
+    // MARK: - Reporting The Crash Processed
+
+    /// Receives the crash and records how many events were written each time its completion is called.
+    private func receive(_ crashReport: DDCrashReport, with crashContext: CrashContext, by receiver: CrashReportReceiver) -> (handled: Bool, eventsWrittenAtCompletion: [Int]) {
+        var eventsWrittenAtCompletion: [Int] = []
+        let handled = receiver.receive(
+            message: .payload(Crash(report: crashReport, context: crashContext, completion: { eventsWrittenAtCompletion.append(self.featureScope.eventsWritten.count) })),
+            from: NOPDatadogCore()
+        )
+        return (handled, eventsWrittenAtCompletion)
+    }
+
+    func testWhenTheCrashIsWrittenWithItsView_itCompletesOnceBothEventsAreWritten() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(60)),
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: .mockRandomWith(crashCount: 0)),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertTrue(result.handled)
+        XCTAssertEqual(result.eventsWrittenAtCompletion, [2], "It must complete once, after the RUM error and the RUM view are written")
+    }
+
+    func testWhenOnlyTheErrorIsWritten_itCompletesOnceItIsWritten() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(5 * 60 * 60)), // the last view is stale: only the error is sent
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: .mockRandomWith(crashCount: 0)),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertTrue(result.handled)
+        XCTAssertEqual(result.eventsWrittenAtCompletion, [1])
+    }
+
+    func testWhenTheCrashIsWrittenToANewSession_itCompletesOnceBothEventsAreWritten() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: currentDate),
+            sessionSampler: .mockKeepAll()
+        )
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(60)),
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: nil, lastRUMSessionState: nil, lastIsAppInForeground: true),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertTrue(result.handled)
+        XCTAssertEqual(result.eventsWrittenAtCompletion, [2])
+    }
+
+    func testWhenTheCrashIsHandledWithoutWritingEvents_itCompletes() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: currentDate),
+            trackBackgroundEvents: false
+        )
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(60)),
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: nil, lastRUMSessionState: nil, lastIsAppInForeground: false),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertTrue(result.handled)
+        XCTAssertEqual(result.eventsWrittenAtCompletion, [0], "A crash in background with BET disabled is processed without events")
+    }
+
+    func testWhenTheCrashIsNotHandled_itDoesNotComplete() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: currentDate),
+            sessionSampler: .mockRejectAll()
+        )
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(60)),
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: nil, lastRUMSessionState: nil),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertFalse(result.handled)
+        XCTAssertEqual(result.eventsWrittenAtCompletion, [], "The sender completes a message no receiver handles")
+    }
+
     // MARK: - Tracking Consent At Crash Time
 
     func testGivenCrashRecordedWithGrantedConsent_whenSending_itBypassesCurrentConsent() throws {

@@ -12,6 +12,12 @@ internal final class CrashReportingFeature: DatadogFeature {
 
     let messageReceiver: FeatureMessageReceiver
 
+    /// How long after `start()` the pending crash reports are read. Reading a report formats numbers with `snprintf`,
+    /// which takes a libc lock; a crash in the meantime makes the crash handler wait on that lock forever, so the app
+    /// hangs and the crash is lost. A crash loop crashes in the first moments of a launch, so reports are read once
+    /// that window has passed.
+    static let defaultProcessingDelay: TimeInterval = 5
+
     /// Queue for synchronizing internal operations.
     private let queue: DispatchQueue
 
@@ -23,13 +29,21 @@ internal final class CrashReportingFeature: DatadogFeature {
     let sender: CrashReportSender
     /// Telemetry interface.
     let telemetry: Telemetry
+    /// See `defaultProcessingDelay`.
+    private let processingDelay: TimeInterval
+
+    /// The current tracking consent. Only accessed from `queue`.
+    private var trackingConsent: TrackingConsent?
+    /// Whether pending crash reports can be read (`processingDelay` has passed). Only accessed from `queue`.
+    private var canReadCrashReports = false
 
     init(
         crashReportingPlugin: CrashReportingPlugin,
         crashContextProvider: CrashContextProvider,
         sender: CrashReportSender,
         messageReceiver: FeatureMessageReceiver,
-        telemetry: Telemetry
+        telemetry: Telemetry,
+        processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay
     ) {
         self.queue = DispatchQueue(
             label: "com.datadoghq.crash-reporter",
@@ -40,47 +54,30 @@ internal final class CrashReportingFeature: DatadogFeature {
         self.crashContextProvider = crashContextProvider
         self.messageReceiver = messageReceiver
         self.telemetry = telemetry
+        self.processingDelay = processingDelay
 
         // Inject current `CrashContext`
         if let context = crashContextProvider.currentCrashContext {
-            inject(currentCrashContext: context)
+            update(currentCrashContext: context)
         }
 
         // Register for future `CrashContext` changes
         self.crashContextProvider.onCrashContextChange = { [weak self] in
-            self?.inject(currentCrashContext: $0)
+            self?.update(currentCrashContext: $0)
         }
     }
 
     // MARK: - Interaction with `DatadogCrashReporting` plugin
 
-    func sendCrashReportIfFound() {
+    /// Tells other features whether the previous process crashed, then sends the pending crash reports once
+    /// `processingDelay` has passed.
+    func start() {
         queue.async {
-            self.plugin.readPendingCrashReports { [weak self] crashReports in
-                guard let self = self else {
-                    return false
-                }
-
-                guard !crashReports.isEmpty else {
-                    DD.logger.debug("No pending Crash found")
-                    self.sender.send(launch: .init(didCrash: false))
-                    return false
-                }
-
-                DD.logger.debug("Loaded \(crashReports.count) pending crash report(s)")
-
-                // Each report carries the `CrashContext` of the process that crashed, so each one is sent with its own.
-                for crashReport in crashReports {
-                    // A report whose `CrashContext` is malformed cannot be processed. It is skipped and purged
-                    // along with the others.
-                    if let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) {
-                        self.sender.send(report: crashReport, with: crashContext)
-                    }
-                }
-
-                self.sender.send(launch: .init(didCrash: true))
-                return true
-            }
+            self.sender.send(launch: .init(didCrash: self.plugin.crashedLastLaunch))
+        }
+        queue.asyncAfter(deadline: .now() + processingDelay) { [weak self] in
+            self?.canReadCrashReports = true
+            self?.sendPendingCrashReports()
         }
     }
 
@@ -96,11 +93,49 @@ internal final class CrashReportingFeature: DatadogFeature {
         }
     }
 
-    private func inject(currentCrashContext: CrashContext) {
+    private func update(currentCrashContext: CrashContext) {
         queue.async {
             if let crashContextData = self.encode(crashContext: currentCrashContext) {
                 self.plugin.inject(context: crashContextData)
             }
+
+            // Crashes recorded while consent was pending are kept until it is granted or declined.
+            let consent = currentCrashContext.trackingConsent
+            let consentIsResolved = consent != self.trackingConsent && consent != .pending
+            self.trackingConsent = consent
+            if self.canReadCrashReports && consentIsResolved {
+                self.sendPendingCrashReports()
+            }
+        }
+    }
+
+    /// Reads the pending crash reports one at a time; each one is deleted only once it is processed. Called on `queue`.
+    private func sendPendingCrashReports() {
+        plugin.readPendingCrashReports { [weak self] crashReport in
+            self?.process(crashReport: crashReport) ?? false
+        }
+    }
+
+    /// Sends the crash report if its consent allows it.
+    /// - Returns: `true` if the crash report can be deleted, `false` to keep it for later.
+    private func process(crashReport: DDCrashReport) -> Bool {
+        // A report whose `CrashContext` is malformed cannot be processed: it is purged.
+        guard let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) else {
+            return true
+        }
+
+        switch (crashContext.trackingConsent, trackingConsent ?? .pending) {
+        case (.granted, _), (.pending, .granted):
+            // A crash recorded with `.pending` consent is written under the current consent, now `.granted`.
+            return sender.send(report: crashReport, with: crashContext)
+        case (.notGranted, _), (.pending, .notGranted):
+            DD.logger.debug("Deleted a crash report recorded with \(crashContext.trackingConsent) consent")
+            return true
+        case (.pending, .pending):
+            // Kept until consent is granted or declined. Pending data does not outlive a launch, so this crash cannot
+            // be written as pending data.
+            DD.logger.debug("Kept a crash report recorded with pending consent until consent is granted or declined")
+            return false
         }
     }
 
