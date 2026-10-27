@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- `CrashReporting.Configuration(takesOverCrashHandlers:)` (default `false`): keep the crash handlers in place once crash reporting is enabled. Other code in the app, such as another crash reporter that installs its handlers later or re-installs them periodically, can no longer replace or reset the crash signal handlers, the uncaught `NSException` handler or the C++ terminate handler: its calls to `sigaction`, `signal`, `NSSetUncaughtExceptionHandler` and `std::set_terminate` are recorded instead of applied, and it is told its handler is installed. Crashes raised by the process itself (`abort()`, uncaught `NSException` and C++ exceptions) are then always recorded first; together with `handlesMachExceptions`, hardware exceptions are too. Also available to Objective-C as `+[DDCrashReporter enableWithSymbolicateInProcess:handlesMachExceptions:takesOverCrashHandlers:]`.
+  - Each crash is still passed on, once recorded, to the handler installed before crash reporting was enabled or, for a crash signal, to the one another library installed since: another crash reporter still receives crashes, after this one. Uncaught `NSException`s and C++ exceptions are passed on to the handlers installed before crash reporting was enabled.
+  - Uncaught C++ exceptions are reported with the stack of their throw site when the crash reporter could not capture it at throw time (for example because another library linked into the app defines its own `__cxa_throw`). `std::terminate()` called without an exception is reported as an abort with its stack.
+  - `SIGPIPE` is not affected. Calls made by system frameworks are not affected.
+  - Do not enable it in an app that installs its own handler for crash signals after crash reporting is enabled and relies on it at runtime (for example a runtime that recovers from invalid memory accesses): that handler is no longer installed.
+
 ---
 
 ## [0.8.0] - 2026-10-26
