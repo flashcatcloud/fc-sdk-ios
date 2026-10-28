@@ -12,7 +12,7 @@ public enum WriteOutcome: Equatable {
     case written
     /// The value can never be written, e.g. it cannot be encoded or it is too large.
     case failedPermanently
-    /// The value could not be written now, e.g. as no file can be written to.
+    /// The value could not be written now, e.g. as no file can be written to or the app's encryption failed.
     case failedTransiently
 }
 

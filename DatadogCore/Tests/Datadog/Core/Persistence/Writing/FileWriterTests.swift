@@ -243,6 +243,32 @@ class FileWriterTests: XCTestCase {
         XCTAssertEqual(results, [.failedPermanently, .written])
     }
 
+    func testWhenTheEncryptionFails_itReportsThatTheWriteCanSucceedLater() {
+        var encryptionFails = true
+        let writer = FileWriter(
+            orchestrator: FilesOrchestrator(
+                directory: directory,
+                performance: PerformancePreset.mockAny(),
+                dateProvider: SystemDateProvider(),
+                telemetry: NOPTelemetry()
+            ),
+            encryption: DataEncryptionMock(encrypt: { data in
+                if encryptionFails {
+                    throw ErrorMock("encryption is not available yet")
+                }
+                return data
+            }),
+            telemetry: NOPTelemetry()
+        )
+        var results: [WriteOutcome] = []
+
+        writer.write(value: ["key": "value"], metadata: Data?.none, onResult: { results.append($0) })
+        encryptionFails = false
+        writer.write(value: ["key": "value"], metadata: Data?.none, onResult: { results.append($0) })
+
+        XCTAssertEqual(results, [.failedTransiently, .written])
+    }
+
     func testItReportsWhetherAFailedWriteCanSucceedLater() throws {
         let writer = FileWriter(
             orchestrator: FilesOrchestrator(

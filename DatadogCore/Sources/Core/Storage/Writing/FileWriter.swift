@@ -47,7 +47,7 @@ internal struct FileWriter: Writer {
 
     /// Encodes and appends the value and its metadata to the writable file.
     /// - Returns: what became of the value: a value that cannot be encoded (including one too large) never will be,
-    ///   while a file that cannot be written to now may be later.
+    ///   while one the app's encryption fails for, or a file that cannot be written to now, may be later.
     private func persist<T: Encodable, M: Encodable>(value: T, metadata: M?) -> WriteOutcome {
         var encoded: Data = .init()
         if let metadata = metadata {
@@ -64,9 +64,10 @@ internal struct FileWriter: Writer {
             let encodedValue = try encode(value: value, blockType: .event)
             encoded.append(encodedValue)
         } catch {
-            DD.logger.error("(\(orchestrator.trackName)) Failed to encode value", error: error)
-            telemetry.error("(\(orchestrator.trackName)) Failed to encode value", error: error)
-            return .failedPermanently
+            let cause = (error as? EncryptionFailure)?.cause ?? error
+            DD.logger.error("(\(orchestrator.trackName)) Failed to encode value", error: cause)
+            telemetry.error("(\(orchestrator.trackName)) Failed to encode value", error: cause)
+            return error is EncryptionFailure ? .failedTransiently : .failedPermanently
         }
 
         // Make sure both event and event metadata are written to the same file.
@@ -130,6 +131,15 @@ internal struct FileWriter: Writer {
             return data
         }
 
-        return try encryption.encrypt(data: data)
+        do {
+            return try encryption.encrypt(data: data)
+        } catch {
+            throw EncryptionFailure(cause: error)
+        }
+    }
+
+    /// The app's encryption failed: unlike encoding, it may succeed later.
+    private struct EncryptionFailure: Error {
+        let cause: Error
     }
 }
