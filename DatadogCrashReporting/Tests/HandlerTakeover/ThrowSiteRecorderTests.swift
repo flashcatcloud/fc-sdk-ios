@@ -28,7 +28,7 @@ class ThrowSiteRecorderTests: XCTestCase {
 
     func testRecordedThrowSiteCanBeRead() throws {
         // Given
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString).json")
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: file) }
         ThrowSiteRecorder.prepare(file: file)
 
@@ -39,16 +39,42 @@ class ThrowSiteRecorderTests: XCTestCase {
         let throwSite = try XCTUnwrap(ThrowSiteRecorder.read(from: file))
         XCTAssertEqual(throwSite.processID, Int64(getpid()))
         XCTAssertLessThan(abs(throwSite.date.timeIntervalSinceNow), 10)
-        let frame = try XCTUnwrap(throwSite.frames.first)
-        XCTAssertNotNil(frame["instruction_addr"])
-        XCTAssertNotNil(frame["object_addr"])
-        XCTAssertNotNil(frame["object_name"])
+        XCTAssertGreaterThan(throwSite.addresses.count, 1)
+        var info = Dl_info()
+        let recordFrame = try XCTUnwrap(UnsafeRawPointer(bitPattern: UInt(throwSite.addresses[0])))
+        XCTAssertNotEqual(dladdr(recordFrame, &info), 0, "Raw return addresses of this process are recorded")
+    }
+
+    func testPreparingKeepsThePreviousRecordUntilANewOneIsWritten() throws {
+        // Given
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: file) }
+        ThrowSiteRecorder.prepare(file: file)
+        ThrowSiteRecorder.record()
+        let previous = try XCTUnwrap(ThrowSiteRecorder.read(from: file))
+
+        // When (the next launch)
+        ThrowSiteRecorder.prepare(file: file)
+
+        // Then
+        XCTAssertEqual(ThrowSiteRecorder.read(from: file)?.addresses, previous.addresses)
+    }
+
+    func testItDoesNotRecordObjectiveCExceptions() {
+        func typeInfo(named name: String) -> Bool {
+            name.withCString { name in
+                var typeInfo: (UnsafeRawPointer?, UnsafePointer<CChar>?) = (nil, name)
+                return withUnsafeBytes(of: &typeInfo) { ThrowSiteRecorder.shouldRecord(exceptionType: $0.baseAddress!) }
+            }
+        }
+        XCTAssertFalse(typeInfo(named: "NSException"))
+        XCTAssertTrue(typeInfo(named: "St13runtime_error"))
     }
 
     func testReadingAMissingOrInvalidFileGivesNothing() throws {
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString).json")
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
         XCTAssertNil(ThrowSiteRecorder.read(from: file))
-        try Data("not json".utf8).write(to: file)
+        try Data(repeating: 0xAB, count: ThrowSiteRecorder.recordSize).write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
         XCTAssertNil(ThrowSiteRecorder.read(from: file))
     }

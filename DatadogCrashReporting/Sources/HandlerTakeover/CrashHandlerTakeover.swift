@@ -495,13 +495,15 @@ private let terminateHandler: TerminateFunction = {
     let exceptionType = state.pointee.currentExceptionType.flatMap {
         unsafeBitCast($0, to: GetPointerFunction.self)()
     }
-    guard exceptionType != nil else {
+    guard let exceptionType else {
         // No exception: abort, so the crash is recorded with the current stack as any other abort.
         abort()
     }
     state.pointee.isHandlingCrash = 1
     // The exception was not caught, so the stack has not been unwound: the throw site is still on it.
-    ThrowSiteRecorder.record()
+    if ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType) {
+        ThrowSiteRecorder.record()
+    }
     if let crashReporterTerminate = state.pointee.crashReporterTerminate {
         unsafeBitCast(crashReporterTerminate, to: TerminateFunction.self)()
     }

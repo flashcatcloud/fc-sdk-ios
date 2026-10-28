@@ -5,6 +5,7 @@
  */
 
 import Foundation
+import MachO
 
 /// Records the stack of an uncaught C++ exception at its throw site, for the crash report of the next launch.
 ///
@@ -14,7 +15,9 @@ import Foundation
 /// still on the current stack there: the takeover's terminate handler records it with `record()`, and
 /// `DatadogCppThrowSiteFilter` puts it into the crash report when the report has no stack of its own.
 ///
-/// It runs in the terminate handler, on the crashing thread, outside of any signal handler: it may allocate.
+/// `record()` runs in the terminate handler, on a crashing thread that may hold any lock (e.g. the allocator's): it only
+/// writes raw return addresses, from preallocated memory, to a file opened beforehand. The addresses are symbolicated
+/// at the next launch, from the binary images of the crash report.
 internal enum ThrowSiteRecorder {
     /// A recorded throw site.
     struct ThrowSite {
@@ -22,49 +25,75 @@ internal enum ThrowSiteRecorder {
         let processID: Int64
         /// When it was recorded.
         let date: Date
-        /// The frames, from the throw site down, with KSCrash report frame keys.
-        let frames: [[String: Any]]
+        /// The return addresses of the stack at the terminate handler, innermost first.
+        let addresses: [UInt64]
     }
 
-    private static var file: URL?
+    /// The record layout: magic, frame count (`UInt32` each), process ID, time in microseconds since 1970 (`Int64`
+    /// each), then `maxFrames` addresses (`UInt64` each). Records have a fixed size, so a record overwrites the previous
+    /// one without truncating the file.
+    static let magic: UInt32 = 0x5354_4444 // "DDTS"
+    static let maxFrames = 128
+    static let headerSize = 24
+    static let recordSize = headerSize + maxFrames * MemoryLayout<UInt64>.size
 
-    /// Sets the file `record()` writes to.
+    private static var fileDescriptor: Int32 = -1
+    private static let buffer = UnsafeMutableRawPointer.allocate(byteCount: recordSize, alignment: MemoryLayout<UInt64>.alignment)
+
+    /// Opens the file `record()` writes to. The record of the previous process stays in it until `record()` runs.
     static func prepare(file: URL) {
-        self.file = file
+        if fileDescriptor >= 0 {
+            close(fileDescriptor)
+        }
+        // Globals are initialized on first access: here, not in the terminate handler.
+        _ = (buffer, magic, maxFrames, headerSize, recordSize)
+        fileDescriptor = open(file.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0o644)
     }
 
-    /// Records the current stack, from the first frame below the exception throwing machinery.
+    /// Whether `record()` applies to the exception being terminated on, given its `std::type_info`: not to an
+    /// Objective-C exception, which the uncaught exception handler reports with its own stack. The check is the crash
+    /// reporter's own (the type name), and it reads two pointers.
+    static func shouldRecord(exceptionType: UnsafeRawPointer) -> Bool {
+        // `std::type_info` is a vtable pointer followed by a pointer to the type name.
+        guard let name = exceptionType.load(fromByteOffset: MemoryLayout<UnsafeRawPointer>.size, as: UnsafePointer<CChar>?.self) else {
+            return true
+        }
+        return strcmp(name, "NSException") != 0
+    }
+
+    /// Records the current stack, from the terminate handler down. Allocation-free: see the type's documentation.
     static func record() {
-        guard let file else {
+        guard fileDescriptor >= 0 else {
             return
         }
-        let maxFrames: Int32 = 128
-        var addresses = [UnsafeMutableRawPointer?](repeating: nil, count: Int(maxFrames))
-        let count = Int(backtrace(&addresses, maxFrames))
-        let frames = addresses.prefix(count).compactMap { $0.map(frame(at:)) }
-
-        let json: [String: Any] = [
-            "pid": Int64(getpid()),
-            "time": Date().timeIntervalSince1970,
-            "frames": Array(frames.dropFirst(throwSiteIndex(in: frames)))
-        ]
-        if let data = try? JSONSerialization.data(withJSONObject: json) {
-            try? data.write(to: file, options: .atomic)
-        }
+        let addresses = (buffer + headerSize).assumingMemoryBound(to: UnsafeMutableRawPointer?.self)
+        let count = backtrace(addresses, Int32(maxFrames))
+        var time = timeval()
+        gettimeofday(&time, nil)
+        buffer.storeBytes(of: magic, as: UInt32.self)
+        buffer.storeBytes(of: UInt32(max(count, 0)), toByteOffset: 4, as: UInt32.self)
+        buffer.storeBytes(of: Int64(getpid()), toByteOffset: 8, as: Int64.self)
+        buffer.storeBytes(of: Int64(time.tv_sec) * 1_000_000 + Int64(time.tv_usec), toByteOffset: 16, as: Int64.self)
+        _ = pwrite(fileDescriptor, buffer, recordSize, 0)
     }
 
     /// Reads the throw site recorded in a file, if any.
     static func read(from file: URL) -> ThrowSite? {
-        guard
-            let data = try? Data(contentsOf: file),
-            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let processID = (json["pid"] as? NSNumber)?.int64Value,
-            let time = (json["time"] as? NSNumber)?.doubleValue,
-            let frames = json["frames"] as? [[String: Any]]
-        else {
+        guard let data = try? Data(contentsOf: file), data.count >= recordSize else {
             return nil
         }
-        return ThrowSite(processID: processID, date: Date(timeIntervalSince1970: time), frames: frames)
+        return data.withUnsafeBytes { bytes -> ThrowSite? in
+            let count = Int(bytes.loadUnaligned(fromByteOffset: 4, as: UInt32.self))
+            guard bytes.loadUnaligned(as: UInt32.self) == magic, count <= maxFrames else {
+                return nil
+            }
+            let microseconds = bytes.loadUnaligned(fromByteOffset: 16, as: Int64.self)
+            return ThrowSite(
+                processID: bytes.loadUnaligned(fromByteOffset: 8, as: Int64.self),
+                date: Date(timeIntervalSince1970: TimeInterval(microseconds) / 1_000_000),
+                addresses: (0..<count).map { bytes.loadUnaligned(fromByteOffset: headerSize + $0 * 8, as: UInt64.self) }
+            )
+        }
     }
 
     /// The index of the throw site: the first frame below the C++ runtime's frames (terminate, `__cxa_throw`) and any
@@ -90,25 +119,29 @@ internal enum ThrowSiteRecorder {
         return symbol.hasPrefix("__cxa_throw") || symbol.hasPrefix("__cxa_rethrow")
     }
 
-    private static func frame(at address: UnsafeMutableRawPointer) -> [String: Any] {
-        var frame: [String: Any] = ["instruction_addr": Int64(Int(bitPattern: address))]
-        var info = Dl_info()
-        // A return address points after the call: look up the call itself.
-        guard dladdr(address - 1, &info) != 0 else {
-            return frame
+    /// The images loaded in the current process, by UUID (as KSCrash reports write it), with their load address.
+    static func loadedImages() -> [String: UInt] {
+        var images: [String: UInt] = [:]
+        for index in 0..<_dyld_image_count() {
+            if let header = _dyld_get_image_header(index), let uuid = uuid(of: header) {
+                images[uuid] = UInt(bitPattern: header)
+            }
         }
-        if let base = info.dli_fbase {
-            frame["object_addr"] = Int64(Int(bitPattern: base))
+        return images
+    }
+
+    private static func uuid(of header: UnsafePointer<mach_header>) -> String? {
+        guard header.pointee.magic == MH_MAGIC_64 else {
+            return nil
         }
-        if let path = info.dli_fname {
-            frame["object_name"] = (String(cString: path) as NSString).lastPathComponent
+        var command = UnsafeRawPointer(header) + MemoryLayout<mach_header_64>.size
+        for _ in 0..<header.pointee.ncmds {
+            let loadCommand = command.load(as: load_command.self)
+            if loadCommand.cmd == UInt32(LC_UUID) {
+                return UUID(uuid: command.loadUnaligned(as: uuid_command.self).uuid).uuidString
+            }
+            command += Int(loadCommand.cmdsize)
         }
-        if let symbolAddress = info.dli_saddr {
-            frame["symbol_addr"] = Int64(Int(bitPattern: symbolAddress))
-        }
-        if let symbolName = info.dli_sname {
-            frame["symbol_name"] = String(cString: symbolName)
-        }
-        return frame
+        return nil
     }
 }
