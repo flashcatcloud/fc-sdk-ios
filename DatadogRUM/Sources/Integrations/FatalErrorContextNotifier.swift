@@ -23,12 +23,21 @@ internal protocol FatalErrorContextNotifying: AnyObject {
 /// Manages RUM information necessary for building context of fatal errors such as Crashes or Fatal App Hangs.
 /// It shares every change in the core context as `RUMFatalErrorContext`, read by Crash Reporting.
 internal final class FatalErrorContextNotifier: FatalErrorContextNotifying {
+    private struct State {
+        /// The current value, replaced by a new instance on every change.
+        var context = RUMFatalErrorContext(sessionState: nil, view: nil, globalAttributes: nil)
+        /// Whether a write to the core context is requested and has not read `context` yet: changes made meanwhile
+        /// are written by it, without requesting another.
+        var isWritePending = false
+    }
+
     /// The scope to share the fatal error context through.
     private let featureScope: FeatureScope
 
-    /// The current value, replaced by a new instance on every change.
     @ReadWriteLock
-    private var context = RUMFatalErrorContext(sessionState: nil, view: nil, globalAttributes: nil)
+    private var state = State()
+
+    private var context: RUMFatalErrorContext { state.context }
 
     init(featureScope: FeatureScope) {
         self.featureScope = featureScope
@@ -38,14 +47,22 @@ internal final class FatalErrorContextNotifier: FatalErrorContextNotifying {
     /// Can be `nil` if no session was yet started. Never gets `nil` after starting first session.
     var sessionState: RUMSessionState? {
         get { context.sessionState }
-        set { update { RUMFatalErrorContext(sessionState: newValue, view: $0.view, globalAttributes: $0.globalAttributes) } }
+        set {
+            update { current in
+                current.sessionState == newValue ? nil : RUMFatalErrorContext(sessionState: newValue, view: current.view, globalAttributes: current.globalAttributes)
+            }
+        }
     }
 
     /// The active RUM view in current session.
     /// Can be `nil` if no view is yet started. Will become `nil` if view was stopped without starting the new one.
     var view: RUMViewEvent? {
         get { context.view }
-        set { update { RUMFatalErrorContext(sessionState: $0.sessionState, view: newValue, globalAttributes: $0.globalAttributes) } }
+        set {
+            update { current in
+                newValue == nil && current.view == nil ? nil : RUMFatalErrorContext(sessionState: current.sessionState, view: newValue, globalAttributes: current.globalAttributes)
+            }
+        }
     }
 
     var globalAttributes: [String: Encodable] {
@@ -61,10 +78,29 @@ internal final class FatalErrorContextNotifier: FatalErrorContextNotifying {
         }
     }
 
-    private func update(_ change: (RUMFatalErrorContext) -> RUMFatalErrorContext) {
-        _context.mutate { $0 = change($0) }
-        // The value is read when the core context is written, on its queue: whatever order the writes
-        // requested from different threads run in, the last one sets the latest value.
-        featureScope.set(context: { [weak self] in self?.context })
+    /// - Parameter change: the new value, or `nil` if it would not change.
+    private func update(_ change: (RUMFatalErrorContext) -> RUMFatalErrorContext?) {
+        var requestsWrite = false
+        _state.mutate { state in
+            guard let changed = change(state.context) else {
+                return
+            }
+            state.context = changed
+            requestsWrite = !state.isWritePending
+            state.isWritePending = true
+        }
+        guard requestsWrite else {
+            return
+        }
+        // The value is read when the core context is written, on its queue: a change made before that is written
+        // by this write, and one made after requests the next.
+        featureScope.set(context: { [weak self] in
+            var context: RUMFatalErrorContext?
+            self?._state.mutate { state in
+                state.isWritePending = false
+                context = state.context
+            }
+            return context
+        })
     }
 }

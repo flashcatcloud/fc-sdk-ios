@@ -31,6 +31,49 @@ class FatalErrorContextNotifierTests: XCTestCase {
         XCTAssertEqual(fatalErrorContext.sessionState, newSessionState)
     }
 
+    func testWhenTheSessionStateDoesNotChange_itRequestsNoWrite() {
+        // Given
+        let fatalErrorContext = FatalErrorContextNotifier(featureScope: featureScope)
+        let sessionState: RUMSessionState = .mockRandom()
+        fatalErrorContext.sessionState = sessionState
+        let requests = featureScope.contextWriteRequests
+
+        // When
+        fatalErrorContext.sessionState = sessionState
+        fatalErrorContext.view = nil // there was no view
+
+        // Then
+        XCTAssertEqual(featureScope.contextWriteRequests, requests)
+    }
+
+    func testChangesMadeBeforeAPendingWriteRunsAreWrittenByIt() throws {
+        // Given
+        featureScope.defersContextWrites = true
+        let fatalErrorContext = FatalErrorContextNotifier(featureScope: featureScope)
+        let sessionState: RUMSessionState = .mockRandom()
+        let view: RUMViewEvent = .mockRandom()
+
+        // When
+        fatalErrorContext.sessionState = sessionState
+        fatalErrorContext.view = view
+        fatalErrorContext.globalAttributes = ["key": "value"]
+        featureScope.runPendingContextWrites()
+
+        // Then
+        XCTAssertEqual(featureScope.contextWriteRequests, 1, "Changes are coalesced into the pending write")
+        let shared = try XCTUnwrap(sharedContext)
+        XCTAssertEqual(shared.sessionState, sessionState)
+        DDAssertJSONEqual(try XCTUnwrap(shared.view), view)
+
+        // When (a change after the write ran)
+        fatalErrorContext.view = nil
+        featureScope.runPendingContextWrites()
+
+        // Then
+        XCTAssertEqual(featureScope.contextWriteRequests, 2)
+        XCTAssertNil(sharedContext?.view)
+    }
+
     // MARK: - Changing View State
 
     func testWhenViewIsSet_itSharesItInCoreContext() throws {
