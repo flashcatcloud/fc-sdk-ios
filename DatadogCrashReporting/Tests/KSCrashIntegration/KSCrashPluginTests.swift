@@ -56,7 +56,8 @@ class KSCrashPluginTests: XCTestCase {
         try contents.write(to: reportsDirectory.appendingPathComponent(fileName), atomically: true, encoding: .utf8)
     }
 
-    private var latestReportIDFile: URL { reportsDirectory.appendingPathComponent("latest-report-id") }
+    private var knownReportIDsFile: URL { reportsDirectory.appendingPathComponent("known-report-ids") }
+    private var legacyLatestReportIDFile: URL { reportsDirectory.appendingPathComponent("latest-report-id") }
 
     private func createPlugin() throws -> (KSCrashPlugin, CrashReportStore) {
         let configuration = CrashReportStoreConfiguration()
@@ -65,7 +66,7 @@ class KSCrashPluginTests: XCTestCase {
         configuration.reportCleanupPolicy = .never
         let store = try CrashReportStore(configuration: configuration)
         store.sink = MessageFieldFilter()
-        return (KSCrashPlugin(store: store, latestReportIDFile: latestReportIDFile, telemetry: NOPTelemetry()), store)
+        return (KSCrashPlugin(store: store, stateDirectory: reportsDirectory, telemetry: NOPTelemetry()), store)
     }
 
     func testItReadsEveryPendingReportOldestFirstAndDeletesEachOneOnceProcessed() throws {
@@ -160,7 +161,7 @@ class KSCrashPluginTests: XCTestCase {
 
         // Then
         XCTAssertTrue(plugin.crashedLastLaunch)
-        XCTAssertEqual(try String(contentsOf: latestReportIDFile, encoding: .utf8), "2", "It records the most recent report ID")
+        XCTAssertEqual(try String(contentsOf: knownReportIDsFile, encoding: .utf8), "1\n2", "It records every report ID")
     }
 
     func testWhenOnlyReportsFoundAtAnEarlierLaunchRemain_theLastLaunchDidNotCrash() throws {
@@ -180,6 +181,47 @@ class KSCrashPluginTests: XCTestCase {
         try writeReport(id: 1, contents: #"{"message": "kept"}"#)
         XCTAssertTrue(try createPlugin().0.crashedLastLaunch)
         try writeReport(id: 2, contents: #"{"message": "new"}"#)
+
+        // When
+        let (plugin, _) = try createPlugin()
+
+        // Then
+        XCTAssertTrue(plugin.crashedLastLaunch)
+    }
+
+    func testWhenANewReportHasALowerIDThanTheKnownOnes_theLastLaunchCrashed() throws {
+        // Given (the clock moved backwards between the two crashes)
+        try writeReport(id: 5, contents: #"{"message": "kept"}"#)
+        XCTAssertTrue(try createPlugin().0.crashedLastLaunch)
+        try writeReport(id: 3, contents: #"{"message": "new"}"#)
+
+        // When
+        let (plugin, _) = try createPlugin()
+
+        // Then
+        XCTAssertTrue(plugin.crashedLastLaunch)
+    }
+
+    func testGivenTheLatestReportIDOfAnEarlierVersion_itCountsReportsUpToItAsKnown() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "kept"}"#)
+        try writeReport(id: 2, contents: #"{"message": "kept"}"#)
+        try "2".write(to: legacyLatestReportIDFile, atomically: true, encoding: .utf8)
+
+        // When
+        let (plugin, _) = try createPlugin()
+
+        // Then
+        XCTAssertFalse(plugin.crashedLastLaunch)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacyLatestReportIDFile.path), "The earlier file is replaced")
+        XCTAssertEqual(try String(contentsOf: knownReportIDsFile, encoding: .utf8), "1\n2")
+    }
+
+    func testGivenTheLatestReportIDOfAnEarlierVersion_whenANewerReportIsFound_theLastLaunchCrashed() throws {
+        // Given
+        try writeReport(id: 2, contents: #"{"message": "kept"}"#)
+        try writeReport(id: 3, contents: #"{"message": "new"}"#)
+        try "2".write(to: legacyLatestReportIDFile, atomically: true, encoding: .utf8)
 
         // When
         let (plugin, _) = try createPlugin()

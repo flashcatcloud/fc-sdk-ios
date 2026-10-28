@@ -25,30 +25,44 @@ internal import KSCrashFilters
 internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     private let store: CrashReportStore
     private let telemetry: Telemetry
-    /// Holds the ID of the most recent report found at the previous launch.
-    private let latestReportIDFile: URL
+    /// Holds the IDs of the reports found at the previous launch, one per line.
+    private let knownReportIDsFile: URL
+    /// Held the ID of the most recent report found at the previous launch, before `knownReportIDsFile` replaced it.
+    private let legacyLatestReportIDFile: URL
 
-    /// A report more recent than the most recent one found at the previous launch was written by the previous process.
+    /// A report that was not there at the previous launch was written by the previous process.
     ///
-    /// It is decided from the report IDs, which grow with time, and the ID recorded at the previous launch, without
-    /// reading any report (listing the IDs is what KSCrash already does when it is installed). The presence of reports
-    /// alone is not enough: a report can be kept across launches, e.g. until tracking consent is resolved. KSCrash's own
+    /// It is decided by comparing the report IDs with the ones recorded at the previous launch, without reading any
+    /// report (listing the IDs is what KSCrash already does when it is installed). Report IDs derive from the clock,
+    /// which can move backwards, so they are compared as a set and not by order. The presence of reports alone is not
+    /// enough: a report can be kept across launches, e.g. until tracking consent is resolved. KSCrash's own
     /// `crashedLastLaunch` needs its application state monitor, which this plugin does not install.
     ///
     /// Computed once, on first access (from the Feature queue), before any report is deleted.
     private(set) lazy var crashedLastLaunch: Bool = {
-        let latestReportID = store.reportIDs.last?.int64Value ?? 0 // sorted by ID: the last one is the most recent
-        let knownReportID = (try? String(contentsOf: latestReportIDFile, encoding: .utf8)).flatMap { Int64($0) } ?? 0
-        guard latestReportID > knownReportID else {
-            return false
-        }
+        let reportIDs = Set(store.reportIDs.map { $0.int64Value })
+        let crashed = !reportIDs.subtracting(knownReportIDs(among: reportIDs)).isEmpty
         do {
-            try String(latestReportID).write(to: latestReportIDFile, atomically: true, encoding: .utf8)
+            let contents = reportIDs.sorted().map(String.init).joined(separator: "\n")
+            try contents.write(to: knownReportIDsFile, atomically: true, encoding: .utf8)
+            try? FileManager.default.removeItem(at: legacyLatestReportIDFile)
         } catch {
-            telemetry.error("[KSCrash] Fails to record the latest report ID", error: error)
+            telemetry.error("[KSCrash] Fails to record the known report IDs", error: error)
         }
-        return true
+        return crashed
     }()
+
+    /// The report IDs recorded at the previous launch. After an upgrade, only the most recent one was recorded: the
+    /// reports up to it count as known, this once.
+    private func knownReportIDs(among reportIDs: Set<Int64>) -> Set<Int64> {
+        if let contents = try? String(contentsOf: knownReportIDsFile, encoding: .utf8) {
+            return Set(contents.split(separator: "\n").compactMap { Int64($0) })
+        }
+        guard let latestReportID = (try? String(contentsOf: legacyLatestReportIDFile, encoding: .utf8)).flatMap({ Int64($0) }) else {
+            return []
+        }
+        return reportIDs.filter { $0 <= latestReportID }
+    }
 
     convenience init(
         _ kscrash: KSCrash = .shared,
@@ -91,20 +105,17 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
             throw CrashReportException(description: "[KSCrash] Install path should be set")
         }
 
-        self.init(
-            store: store,
-            latestReportIDFile: URL(fileURLWithPath: installPath).appendingPathComponent("latest-report-id"),
-            telemetry: telemetry
-        )
+        self.init(store: store, stateDirectory: URL(fileURLWithPath: installPath), telemetry: telemetry)
     }
 
     /// - Parameters:
     ///   - store: the report store to read reports from; its `sink` converts a KSCrash report into `DDCrashReport`.
-    ///   - latestReportIDFile: the file recording the most recent report ID found at launch, see `crashedLastLaunch`.
-    init(store: CrashReportStore, latestReportIDFile: URL, telemetry: Telemetry) {
+    ///   - stateDirectory: the directory of the files recording what was found at the previous launch, see `crashedLastLaunch`.
+    init(store: CrashReportStore, stateDirectory: URL, telemetry: Telemetry) {
         self.telemetry = telemetry
         self.store = store
-        self.latestReportIDFile = latestReportIDFile
+        self.knownReportIDsFile = stateDirectory.appendingPathComponent("known-report-ids")
+        self.legacyLatestReportIDFile = stateDirectory.appendingPathComponent("latest-report-id")
         super.init()
     }
 
