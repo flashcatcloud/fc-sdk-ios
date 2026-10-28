@@ -25,7 +25,7 @@ class CrashReportSenderTests: XCTestCase {
         let processed = sender.send(report: crashReport, with: crashContext)
 
         // Then
-        XCTAssertTrue(processed)
+        XCTAssertEqual(processed, .processed)
         XCTAssertNotNil(receiver.receivedCrash)
         XCTAssertEqual(receiver.receivedCrash?.report.type, crashReport.type)
         XCTAssertEqual(receiver.receivedCrash?.context.trackingConsent, .granted)
@@ -41,7 +41,7 @@ class CrashReportSenderTests: XCTestCase {
         let processed = withExtendedLifetime(core) { sender.send(report: .mockAny(), with: .mockAny()) }
 
         // Then
-        XCTAssertTrue(processed)
+        XCTAssertEqual(processed, .processed)
         XCTAssertTrue(receiver.hasCompleted, "It must return only once the receiver has processed the crash")
     }
 
@@ -55,7 +55,7 @@ class CrashReportSenderTests: XCTestCase {
         let processed = withExtendedLifetime(core) { sender.send(report: .mockAny(), with: .mockAny()) }
 
         // Then
-        XCTAssertFalse(processed, "The crash report must be kept when its processing is not confirmed")
+        XCTAssertEqual(processed, .kept, "The crash report must be kept when its processing is not confirmed")
     }
 
     func testWhenNoReceiverHandlesTheCrash_itReturnsFalse() {
@@ -67,13 +67,13 @@ class CrashReportSenderTests: XCTestCase {
         let processed = withExtendedLifetime(core) { sender.send(report: .mockAny(), with: .mockAny()) }
 
         // Then
-        XCTAssertFalse(processed, "A crash nothing received must be kept for a launch that enables RUM")
+        XCTAssertEqual(processed, .kept, "A crash nothing received must be kept for a launch that enables RUM")
     }
 
     func testWhenTheReceiverCannotWriteTheCrash_itReturnsFalse() {
         // Given
         let receiver = CrashReceiverMock()
-        receiver.processes = false
+        receiver.outcome = .writeFailed
         let core = PassthroughCoreMock(messageReceiver: receiver)
         let sender = MessageBusSender(core: core)
 
@@ -81,7 +81,7 @@ class CrashReportSenderTests: XCTestCase {
         let processed = sender.send(report: .mockAny(), with: .mockAny())
 
         // Then
-        XCTAssertFalse(processed, "A crash whose events could not be written must be kept")
+        XCTAssertEqual(processed, .writeFailed, "A crash whose events could not be written must be kept")
     }
 
     func testWhenCoreIsReleased_itReturnsFalse() {
@@ -92,7 +92,7 @@ class CrashReportSenderTests: XCTestCase {
         let processed = sender.send(report: .mockAny(), with: .mockAny())
 
         // Then
-        XCTAssertFalse(processed)
+        XCTAssertEqual(processed, .kept)
     }
 
     func testItSendsCrashReportWhenTrackingConsentIsPending() {
@@ -168,7 +168,7 @@ private final class AsyncCrashReceiver: FeatureMessageReceiver {
         }
         DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
             self.hasCompleted = true
-            crash.completion(true)
+            crash.completion(.processed)
         }
         return true
     }

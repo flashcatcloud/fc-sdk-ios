@@ -65,11 +65,11 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
 
     public init() {}
 
-    public func readPendingCrashReports(process: (DDCrashReport) -> Bool) {
+    public func readPendingCrashReports(process: (DDCrashReport) -> CrashReportOutcome) {
         readCount += 1
         var kept: [DDCrashReport] = []
         for report in pendingCrashReports {
-            if process(report) {
+            if process(report) == .processed {
                 deletedCrashReports.append(report)
             } else {
                 kept.append(report)
@@ -95,7 +95,7 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
 
 public class NOPCrashReportingPlugin: CrashReportingPlugin {
     public var crashedLastLaunch: Bool { false }
-    public func readPendingCrashReports(process: (DDCrashReport) -> Bool) {}
+    public func readPendingCrashReports(process: (DDCrashReport) -> CrashReportOutcome) {}
     public func inject(context: Data) {}
     public var backtraceReporter: BacktraceReporting? { nil }
 
@@ -121,15 +121,15 @@ public class CrashReportSenderMock: CrashReportSender {
     public var sentCrashContext: CrashContext? { sentCrashReports.last?.context }
     /// All launch reports sent, in order.
     public private(set) var sentLaunchReports: [LaunchReport] = []
-    /// What `send(report:with:)` returns: whether the crash was processed.
-    public var processesCrashReports = true
+    /// What `send(report:with:)` returns.
+    public var crashReportOutcome: CrashReportOutcome = .processed
 
     public init() {}
 
-    public func send(report: DDCrashReport, with context: CrashContext) -> Bool {
+    public func send(report: DDCrashReport, with context: CrashContext) -> CrashReportOutcome {
         sentCrashReports.append((report, context))
         didSendCrashReport?()
-        return processesCrashReports
+        return crashReportOutcome
     }
 
     public var didSendCrashReport: (() -> Void)?
@@ -142,14 +142,14 @@ public class CrashReportSenderMock: CrashReportSender {
 public class CrashReceiverMock: FeatureMessageReceiver {
     public var receivedCrash: Crash?
     /// What the receiver reports through the crash completion.
-    public var processes = true
+    public var outcome: CrashReportOutcome = .processed
 
     public func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
         guard case let .payload(crash as Crash) = message else {
             return false
         }
         receivedCrash = crash
-        crash.completion(processes)
+        crash.completion(outcome)
         return true
     }
 

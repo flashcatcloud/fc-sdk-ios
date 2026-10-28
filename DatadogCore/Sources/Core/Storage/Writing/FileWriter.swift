@@ -41,13 +41,14 @@ internal struct FileWriter: Writer {
         completion()
     }
 
-    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (_ written: Bool) -> Void) {
+    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (WriteOutcome) -> Void) {
         onResult(persist(value: value, metadata: metadata))
     }
 
     /// Encodes and appends the value and its metadata to the writable file.
-    /// - Returns: `false` if the value could not be encoded or appended.
-    private func persist<T: Encodable, M: Encodable>(value: T, metadata: M?) -> Bool {
+    /// - Returns: what became of the value: a value that cannot be encoded (including one too large) never will be,
+    ///   while a file that cannot be written to now may be later.
+    private func persist<T: Encodable, M: Encodable>(value: T, metadata: M?) -> WriteOutcome {
         var encoded: Data = .init()
         if let metadata = metadata {
             do {
@@ -65,7 +66,7 @@ internal struct FileWriter: Writer {
         } catch {
             DD.logger.error("(\(orchestrator.trackName)) Failed to encode value", error: error)
             telemetry.error("(\(orchestrator.trackName)) Failed to encode value", error: error)
-            return false
+            return .failedPermanently
         }
 
         // Make sure both event and event metadata are written to the same file.
@@ -78,7 +79,7 @@ internal struct FileWriter: Writer {
         } catch {
             DD.logger.error("(\(orchestrator.trackName)) Failed to get writable file for \(writeSize) bytes", error: error)
             telemetry.error("(\(orchestrator.trackName)) Failed to get writable file for \(writeSize) bytes", error: error)
-            return false
+            return .failedTransiently
         }
 
         do {
@@ -90,9 +91,9 @@ internal struct FileWriter: Writer {
         } catch {
             DD.logger.error("(\(orchestrator.trackName)) Failed to write \(writeSize) bytes to file", error: error)
             telemetry.error("(\(orchestrator.trackName)) Failed to write \(writeSize) bytes to file", error: error)
-            return false
+            return .failedTransiently
         }
-        return true
+        return .written
     }
 
     /// Encodes the given encodable value and encrypt it if encryption is available.

@@ -138,17 +138,17 @@ internal final class CrashReportingFeature: DatadogFeature {
     /// Reads the pending crash reports one at a time; each one is deleted only once it is processed. Called on `queue`.
     private func sendPendingCrashReports() {
         plugin.readPendingCrashReports { [weak self] crashReport in
-            self?.process(crashReport: crashReport) ?? false
+            self?.process(crashReport: crashReport) ?? .kept
         }
     }
 
     /// Sends the crash report if its consent allows it.
-    /// - Returns: `true` if the crash report can be deleted, `false` to keep it for later.
-    private func process(crashReport: DDCrashReport) -> Bool {
+    /// - Returns: what became of the crash report, which decides whether it is deleted.
+    private func process(crashReport: DDCrashReport) -> CrashReportOutcome {
         // A report whose `CrashContext` is missing or malformed (e.g. a crash before the first context reached the
         // crash reporter) is still reported, with a context built from the current launch. Kept until one exists.
         guard let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) ?? fallbackCrashContext(for: crashReport) else {
-            return false
+            return .kept
         }
 
         switch (crashContext.trackingConsent, trackingConsent ?? .pending) {
@@ -157,12 +157,12 @@ internal final class CrashReportingFeature: DatadogFeature {
             return sender.send(report: crashReport, with: crashContext)
         case (.notGranted, _), (.pending, .notGranted):
             DD.logger.debug("Deleted a crash report recorded with \(crashContext.trackingConsent) consent")
-            return true
+            return .processed
         case (.pending, .pending):
             // Kept until consent is granted or declined. Pending data does not outlive a launch, so this crash cannot
             // be written as pending data.
             DD.logger.debug("Kept a crash report recorded with pending consent until consent is granted or declined")
-            return false
+            return .kept
         }
     }
 

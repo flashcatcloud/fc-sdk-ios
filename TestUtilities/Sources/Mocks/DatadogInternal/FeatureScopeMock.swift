@@ -17,18 +17,18 @@ public final class FeatureScopeMock: FeatureScope, @unchecked Sendable {
             completion()
         }
 
-        func write<T, M>(value: T, metadata: M?, onResult: @escaping (Bool) -> Void) where T: Encodable, M: Encodable {
-            guard scope?.failsWrites != true else {
-                return onResult(false)
+        func write<T, M>(value: T, metadata: M?, onResult: @escaping (WriteOutcome) -> Void) where T: Encodable, M: Encodable {
+            let outcome = scope?.writeOutcome(value) ?? .written
+            if outcome == .written {
+                scope?.events.append((value, metadata, bypassConsent))
             }
-            scope?.events.append((value, metadata, bypassConsent))
-            onResult(true)
+            onResult(outcome)
         }
     }
 
-    /// When `true`, writes that report their result fail and record nothing.
+    /// What becomes of each value given to a write that reports its outcome; a value not written is not recorded.
     @ReadWriteLock
-    public var failsWrites = false
+    public var writeOutcome: (Encodable) -> WriteOutcome = { _ in .written }
 
     @ReadWriteLock
     public var contextMock: DatadogContext

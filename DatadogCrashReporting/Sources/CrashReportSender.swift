@@ -14,9 +14,10 @@ internal protocol CrashReportSender {
     /// - Parameters:
     ///   - report: The crash report.
     ///   - context: The crash context
-    /// - Returns: `true` once the crash is processed (its events are written, or deliberately not produced), so the
-    ///   crash report can be deleted; `false` if that is not known, so the report must be kept.
-    func send(report: DDCrashReport, with context: CrashContext) -> Bool
+    /// - Returns: what became of the crash: `.processed` once its events are written, or deliberately not produced, so
+    ///   the crash report can be deleted; `.writeFailed` if writing them failed but may succeed later; `.kept` if it is
+    ///   not known, so the report must be kept.
+    func send(report: DDCrashReport, with context: CrashContext) -> CrashReportOutcome
 
     /// Send the launch report and context to integrations.
     ///
@@ -42,16 +43,16 @@ internal struct MessageBusSender: CrashReportSender {
     /// - Parameters:
     ///   - report: The crash report.
     ///   - context: The crash context
-    func send(report: DDCrashReport, with context: CrashContext) -> Bool {
+    func send(report: DDCrashReport, with context: CrashContext) -> CrashReportOutcome {
         guard let core = core else {
-            return false
+            return .kept
         }
 
         let processed = DispatchSemaphore(value: 0)
         let result = ProcessingResult()
         core.send(
             message: .payload(
-                Crash(report: report, context: context, completion: { result.processed = $0; processed.signal() })
+                Crash(report: report, context: context, completion: { result.outcome = $0; processed.signal() })
             ),
             else: {
                 DD.logger.warn(
@@ -65,7 +66,7 @@ internal struct MessageBusSender: CrashReportSender {
             }
         )
         // `result` is written before `signal()` and read after `wait()` returns, which orders the two.
-        return processed.wait(timeout: .now() + processingTimeout) == .success && result.processed
+        return processed.wait(timeout: .now() + processingTimeout) == .success ? result.outcome : .kept
     }
 
     /// Send the launch report and context to integrations.
@@ -78,5 +79,5 @@ internal struct MessageBusSender: CrashReportSender {
 }
 
 private final class ProcessingResult {
-    var processed = false
+    var outcome: CrashReportOutcome = .kept
 }

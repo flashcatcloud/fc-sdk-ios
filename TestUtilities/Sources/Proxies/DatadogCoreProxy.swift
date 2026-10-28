@@ -207,7 +207,7 @@ private final class FeatureScopeInterceptor: @unchecked Sendable {
             record(value, metadata)
         }
 
-        func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (Bool) -> Void) {
+        func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (WriteOutcome) -> Void) {
             group.enter()
             defer { group.leave() }
 

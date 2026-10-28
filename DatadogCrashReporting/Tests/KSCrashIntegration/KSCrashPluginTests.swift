@@ -59,14 +59,14 @@ class KSCrashPluginTests: XCTestCase {
     private var knownReportIDsFile: URL { reportsDirectory.appendingPathComponent("known-report-ids") }
     private var legacyLatestReportIDFile: URL { reportsDirectory.appendingPathComponent("latest-report-id") }
 
-    private func createPlugin() throws -> (KSCrashPlugin, CrashReportStore) {
+    private func createPlugin(telemetry: Telemetry = NOPTelemetry()) throws -> (KSCrashPlugin, CrashReportStore) {
         let configuration = CrashReportStoreConfiguration()
         configuration.reportsPath = reportsDirectory.path
         configuration.appName = appName
         configuration.reportCleanupPolicy = .never
         let store = try CrashReportStore(configuration: configuration)
         store.sink = MessageFieldFilter()
-        return (KSCrashPlugin(store: store, stateDirectory: reportsDirectory, telemetry: NOPTelemetry()), store)
+        return (KSCrashPlugin(store: store, stateDirectory: reportsDirectory, telemetry: telemetry), store)
     }
 
     func testItReadsEveryPendingReportOldestFirstAndDeletesEachOneOnceProcessed() throws {
@@ -82,7 +82,7 @@ class KSCrashPluginTests: XCTestCase {
         plugin.readPendingCrashReports { report in
             processed.append(report.message)
             storeWhileProcessing.append(store.reportIDs)
-            return true
+            return .processed
         }
 
         // Then
@@ -103,10 +103,42 @@ class KSCrashPluginTests: XCTestCase {
         let (plugin, store) = try createPlugin()
 
         // When
-        plugin.readPendingCrashReports { report in report.message != "second" }
+        plugin.readPendingCrashReports { report in report.message != "second" ? .processed : .kept }
 
         // Then
         XCTAssertEqual(store.reportIDs, [2])
+    }
+
+    func testWhenTheErrorOfAReportCannotBeWritten_itIsDeletedAfterThreeReads() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "unwritable"}"#)
+        try writeReport(id: 2, contents: #"{"message": "kept"}"#)
+        let telemetry = TelemetryMock()
+
+        // When (one read per launch)
+        var reportIDsAfterEachRead: [[NSNumber]] = []
+        for _ in 0..<3 {
+            let (plugin, store) = try createPlugin(telemetry: telemetry)
+            plugin.readPendingCrashReports { $0.message == "unwritable" ? .writeFailed : .kept }
+            reportIDsAfterEachRead.append(store.reportIDs)
+        }
+
+        // Then
+        XCTAssertEqual(reportIDsAfterEachRead, [[1, 2], [1, 2], [2]])
+        XCTAssertEqual(telemetry.messages.firstError()?.message, "[KSCrash] Deleted a crash report whose error could not be written 3 times")
+    }
+
+    func testWhenAReportIsProcessedAfterAFailedWrite_itsAttemptsAreForgotten() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "first"}"#)
+        try createPlugin().0.readPendingCrashReports { _ in .writeFailed }
+        try createPlugin().0.readPendingCrashReports { _ in .writeFailed }
+
+        // When
+        try createPlugin().0.readPendingCrashReports { _ in .processed }
+
+        // Then
+        XCTAssertFalse(FileManager.default.fileExists(atPath: reportsDirectory.appendingPathComponent("write-attempts").path))
     }
 
     func testItPurgesReportsThatCannotBeLoadedWithoutDroppingOthers() throws {
@@ -121,7 +153,7 @@ class KSCrashPluginTests: XCTestCase {
         var processed: [String] = []
         plugin.readPendingCrashReports { report in
             processed.append(report.message)
-            return false
+            return .kept
         }
 
         // Then
@@ -137,7 +169,7 @@ class KSCrashPluginTests: XCTestCase {
         var processCount = 0
         plugin.readPendingCrashReports { _ in
             processCount += 1
-            return true
+            return .processed
         }
 
         // Then
@@ -251,7 +283,7 @@ class KSCrashPluginTests: XCTestCase {
         _ = try createPlugin().0.unreadLaunches
 
         // When
-        try createPlugin().0.readPendingCrashReports { $0.message == "processed" }
+        try createPlugin().0.readPendingCrashReports { $0.message == "processed" ? .processed : .kept }
 
         // Then
         XCTAssertEqual(try createPlugin().0.unreadLaunches, 0)
@@ -264,7 +296,7 @@ class KSCrashPluginTests: XCTestCase {
         _ = try createPlugin().0.unreadLaunches
 
         // When (e.g. no feature receives crashes yet)
-        try createPlugin().0.readPendingCrashReports { _ in false }
+        try createPlugin().0.readPendingCrashReports { _ in .kept }
 
         // Then
         XCTAssertEqual(try createPlugin().0.unreadLaunches, 3)
@@ -286,7 +318,7 @@ class KSCrashPluginTests: XCTestCase {
         try writeReport(id: 5, contents: #"{"message": "processed"}"#)
         XCTAssertTrue(try createPlugin().0.crashedLastLaunch)
         let (processing, store) = try createPlugin()
-        processing.readPendingCrashReports { _ in true }
+        processing.readPendingCrashReports { _ in .processed }
         XCTAssertEqual(store.reportIDs, [])
 
         // When

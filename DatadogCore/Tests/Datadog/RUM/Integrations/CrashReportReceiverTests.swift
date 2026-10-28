@@ -91,9 +91,9 @@ class CrashReportReceiverTests: XCTestCase {
     // MARK: - Reporting The Crash Processed
 
     /// Receives the crash and records how many events were written each time its completion is called.
-    private func receive(_ crashReport: DDCrashReport, with crashContext: CrashContext, by receiver: CrashReportReceiver) -> (handled: Bool, eventsWrittenAtCompletion: [Int], processed: [Bool]) {
+    private func receive(_ crashReport: DDCrashReport, with crashContext: CrashContext, by receiver: CrashReportReceiver) -> (handled: Bool, eventsWrittenAtCompletion: [Int], processed: [CrashReportOutcome]) {
         var eventsWrittenAtCompletion: [Int] = []
-        var processed: [Bool] = []
+        var processed: [CrashReportOutcome] = []
         let handled = receiver.receive(
             message: .payload(Crash(report: crashReport, context: crashContext, completion: {
                 eventsWrittenAtCompletion.append(self.featureScope.eventsWritten.count)
@@ -108,7 +108,7 @@ class CrashReportReceiverTests: XCTestCase {
         // Given
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
-        featureScope.failsWrites = true
+        featureScope.writeOutcome = { _ in .failedTransiently }
 
         // When
         let result = receive(
@@ -119,7 +119,7 @@ class CrashReportReceiverTests: XCTestCase {
 
         // Then
         XCTAssertTrue(result.handled)
-        XCTAssertEqual(result.processed, [false], "A failed write must not let the crash report be deleted")
+        XCTAssertEqual(result.processed, [.writeFailed], "A failed write must not let the crash report be deleted")
     }
 
     func testWhenTheCrashEventsAreWritten_itCompletesProcessed() {
@@ -135,7 +135,7 @@ class CrashReportReceiverTests: XCTestCase {
         )
 
         // Then
-        XCTAssertEqual(result.processed, [true])
+        XCTAssertEqual(result.processed, [.processed])
     }
 
     func testWhenTheCrashIsWrittenWithItsView_itCompletesOnceBothEventsAreWritten() {
@@ -153,6 +153,42 @@ class CrashReportReceiverTests: XCTestCase {
         // Then
         XCTAssertTrue(result.handled)
         XCTAssertEqual(result.eventsWrittenAtCompletion, [2], "It must complete once, after the RUM error and the RUM view are written")
+    }
+
+    func testWhenTheErrorIsWrittenButNotItsView_itCompletesProcessed() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+        featureScope.writeOutcome = { $0 is RUMViewEvent ? .failedTransiently : .written }
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(60)),
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: .mockRandomWith(crashCount: 0)),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self).count, 1)
+        XCTAssertEqual(result.processed, [.processed], "Writing the crash again would report its error twice")
+    }
+
+    func testWhenTheErrorCanNeverBeWritten_itCompletesProcessedAndReportsIt() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+        featureScope.writeOutcome = { $0 is RUMErrorEvent ? .failedPermanently : .written }
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(60)),
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: .mockRandomWith(crashCount: 0)),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertEqual(result.processed, [.processed], "Reading it again would fail again")
+        XCTAssertEqual(featureScope.telemetryMock.messages.firstError()?.message, "[RUM] A crash cannot be written and is dropped")
     }
 
     func testWhenOnlyTheErrorIsWritten_itCompletesOnceItIsWritten() {
@@ -233,7 +269,7 @@ class CrashReportReceiverTests: XCTestCase {
         // Then
         XCTAssertTrue(result.handled, "Declining a crash on purpose must not look like a missing receiver")
         XCTAssertEqual(result.eventsWrittenAtCompletion, [0])
-        XCTAssertEqual(result.processed, [true], "A sampled-out crash is deleted")
+        XCTAssertEqual(result.processed, [.processed], "A sampled-out crash is deleted")
     }
 
     // MARK: - Tracking Consent At Crash Time
@@ -342,7 +378,7 @@ class CrashReportReceiverTests: XCTestCase {
 
         // Then
         XCTAssertTrue(result.handled)
-        XCTAssertEqual(result.processed, [true], "A crash ignored for an earlier crash in the same view is deleted")
+        XCTAssertEqual(result.processed, [.processed], "A crash ignored for an earlier crash in the same view is deleted")
         XCTAssertEqual(featureScope.eventsWritten.count, 0, "It must send no message")
     }
 
@@ -498,7 +534,7 @@ class CrashReportReceiverTests: XCTestCase {
 
         // Then
         XCTAssertTrue(result.handled)
-        XCTAssertEqual(result.processed, [true], "A sampled-out crash is deleted")
+        XCTAssertEqual(result.processed, [.processed], "A sampled-out crash is deleted")
         XCTAssertEqual(featureScope.eventsWritten.count, 0, "Crash must not be send as it is rejected by sampler")
     }
 

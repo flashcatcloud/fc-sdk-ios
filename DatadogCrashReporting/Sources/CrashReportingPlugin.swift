@@ -28,13 +28,14 @@ public protocol CrashReportingPlugin: AnyObject {
     var unreadLaunches: Int { get }
 
     /// Reads the pending crash reports one at a time, oldest first.
-    /// - Parameter process: called with each report in turn. It returns `true` once the report is processed and can be
-    /// deleted, or `false` to keep it for a later read. The next report is read only after `process` returns. A report
-    /// that cannot be read is deleted without being passed to `process`.
+    /// - Parameter process: called with each report in turn. It returns `.processed` once the report is processed and
+    /// can be deleted, `.kept` to keep it for a later read, or `.writeFailed` to keep it for a limited number of reads.
+    /// The next report is read only after `process` returns. A report that cannot be read is deleted without being
+    /// passed to `process`.
     ///
     /// The SDK calls this method on a background thread. The implementation is free to choose any thread
     /// for executing `process`.
-    func readPendingCrashReports(process: @escaping (DDCrashReport) -> Bool)
+    func readPendingCrashReports(process: @escaping (DDCrashReport) -> CrashReportOutcome)
 
     /// Injects custom data for describing the application state in the crash report.
     /// This data will be attached to produced crash report and will be available in `DDCrashReport`.

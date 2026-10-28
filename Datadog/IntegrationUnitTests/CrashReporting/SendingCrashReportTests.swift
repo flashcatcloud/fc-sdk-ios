@@ -32,8 +32,8 @@ private class CrashReporterMock: CrashReportingPlugin {
     }
 
     var crashedLastLaunch: Bool { pendingCrashReport != nil }
-    func readPendingCrashReports(process: (DDCrashReport) -> Bool) {
-        if let report = pendingCrashReport, process(report) {
+    func readPendingCrashReports(process: (DDCrashReport) -> CrashReportOutcome) {
+        if let report = pendingCrashReport, process(report) == .processed {
             pendingCrashReport = nil
             onDelete?()
         }

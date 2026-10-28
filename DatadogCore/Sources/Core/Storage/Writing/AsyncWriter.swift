@@ -21,7 +21,7 @@ internal struct AsyncWriter: Writer {
         queue.async { writer.write(value: value, metadata: metadata, completion: completion) }
     }
 
-    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (_ written: Bool) -> Void) {
+    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (WriteOutcome) -> Void) {
         queue.async { writer.write(value: value, metadata: metadata, onResult: onResult) }
     }
 }
@@ -32,7 +32,7 @@ internal struct NOPWriter: Writer {
     }
 
     /// Dropping the value is this writer's purpose (no consent), not a failure.
-    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (_ written: Bool) -> Void) {
-        onResult(true)
+    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (WriteOutcome) -> Void) {
+        onResult(.written)
     }
 }

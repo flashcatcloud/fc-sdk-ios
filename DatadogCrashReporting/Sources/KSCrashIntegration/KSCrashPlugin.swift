@@ -31,6 +31,11 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     private let legacyLatestReportIDFile: URL
     /// Holds `unreadLaunches`, counting this launch while its reports are not read.
     private let unreadLaunchesFile: URL
+    /// Holds how many times the error of each report could not be written, one "<report ID> <count>" per line.
+    private let writeAttemptsFile: URL
+
+    /// After this many reads whose error could not be written, a report is deleted: the failure is not passing.
+    static let maxWriteAttempts = 3
 
     /// A report that was not there at the previous launch was written by the previous process.
     ///
@@ -55,7 +60,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     }()
 
     /// Computed once, on first access (from the Feature queue), before any report is read. This launch is counted as one
-    /// more unread launch until a pending report is processed (`process` returns `true`): a read that processes none,
+    /// more unread launch until a pending report is processed (`process` returns `.processed`): a read that processes none,
     /// e.g. as no feature receives crashes yet, does not count.
     private(set) lazy var unreadLaunches: Int = {
         let unreadLaunches = (try? String(contentsOf: unreadLaunchesFile, encoding: .utf8)).flatMap { Int($0) } ?? 0
@@ -149,6 +154,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         self.knownReportIDsFile = stateDirectory.appendingPathComponent("known-report-ids")
         self.legacyLatestReportIDFile = stateDirectory.appendingPathComponent("latest-report-id")
         self.unreadLaunchesFile = stateDirectory.appendingPathComponent("unread-launches")
+        self.writeAttemptsFile = stateDirectory.appendingPathComponent("write-attempts")
         super.init()
     }
 
@@ -158,8 +164,10 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     private var checkedHandlerTakeover = false
     /// Whether a pending report was processed in this process, which resets `unreadLaunches`.
     private var processedReportThisLaunch = false
+    /// How many times the error of each pending report could not be written, while reports are read.
+    private var writeAttempts: [Int64: Int] = [:]
 
-    func readPendingCrashReports(process: @escaping (DDCrashReport) -> Bool) {
+    func readPendingCrashReports(process: @escaping (DDCrashReport) -> CrashReportOutcome) {
         if !checkedHandlerTakeover {
             checkedHandlerTakeover = true
             let displaced = CrashHandlerTakeover.displacedHandlers()
@@ -169,25 +177,76 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         }
         _ = unreadLaunches // counts this launch first, if it was not
         let reportIDs = store.reportIDs.map { $0.int64Value } // sorted by ID, which grows with time: oldest first
+        writeAttempts = readWriteAttempts().filter { reportIDs.contains($0.key) }
         readReports(with: reportIDs[...], process: process)
     }
 
     /// Reads, processes and deletes the reports one at a time: a report is deleted only once it is processed, and a
     /// report that cannot be loaded is purged without affecting the others.
-    private func readReports(with ids: ArraySlice<Int64>, process: @escaping (DDCrashReport) -> Bool) {
+    /// A report whose error could not be written is kept until `maxWriteAttempts` reads failed so.
+    private func readReports(with ids: ArraySlice<Int64>, process: @escaping (DDCrashReport) -> CrashReportOutcome) {
         guard let id = ids.first else {
+            recordWriteAttempts(writeAttempts)
             return
         }
 
         loadReport(with: id) { report in
-            if let report = report, process(report) {
-                self.store.deleteReport(with: id)
-                if !self.processedReportThisLaunch {
-                    self.processedReportThisLaunch = true
-                    self.recordUnreadLaunches(0)
-                }
+            if let report = report {
+                self.handle(process(report), ofReportWith: id)
+            } else {
+                self.writeAttempts[id] = nil // purged
             }
             self.readReports(with: ids.dropFirst(), process: process)
+        }
+    }
+
+    private func handle(_ outcome: CrashReportOutcome, ofReportWith id: Int64) {
+        switch outcome {
+        case .processed:
+            store.deleteReport(with: id)
+            writeAttempts[id] = nil
+            if !processedReportThisLaunch {
+                processedReportThisLaunch = true
+                recordUnreadLaunches(0)
+            }
+        case .kept:
+            break
+        case .writeFailed:
+            let attempts = (writeAttempts[id] ?? 0) + 1
+            if attempts < Self.maxWriteAttempts {
+                writeAttempts[id] = attempts
+            } else {
+                store.deleteReport(with: id)
+                writeAttempts[id] = nil
+                telemetry.error("[KSCrash] Deleted a crash report whose error could not be written \(attempts) times")
+            }
+        }
+    }
+
+    private func readWriteAttempts() -> [Int64: Int] {
+        guard let contents = try? String(contentsOf: writeAttemptsFile, encoding: .utf8) else {
+            return [:]
+        }
+        var attempts: [Int64: Int] = [:]
+        for line in contents.split(separator: "\n") {
+            let fields = line.split(separator: " ")
+            if fields.count == 2, let id = Int64(fields[0]), let count = Int(fields[1]) {
+                attempts[id] = count
+            }
+        }
+        return attempts
+    }
+
+    private func recordWriteAttempts(_ attempts: [Int64: Int]) {
+        guard !attempts.isEmpty else {
+            try? FileManager.default.removeItem(at: writeAttemptsFile)
+            return
+        }
+        do {
+            let contents = attempts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: "\n")
+            try contents.write(to: writeAttemptsFile, atomically: true, encoding: .utf8)
+        } catch {
+            telemetry.error("[KSCrash] Fails to record the write attempts", error: error)
         }
     }
 

@@ -98,11 +98,11 @@ class CrashReportingFeatureTests: XCTestCase {
         plugin.unreadLaunches = 2
         plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
         let sender = CrashReportSenderMock()
-        sender.processesCrashReports = false
+        sender.crashReportOutcome = .kept
         let readTwice = expectation(description: "read twice")
         plugin.didReadPendingCrashReports = {
             if plugin.readCount == 2 {
-                sender.processesCrashReports = true
+                sender.crashReportOutcome = .processed
                 readTwice.fulfill()
             }
         }
@@ -235,7 +235,7 @@ class CrashReportingFeatureTests: XCTestCase {
         let plugin = CrashReportingPluginMock()
         plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
         let sender = CrashReportSenderMock()
-        sender.processesCrashReports = false // e.g. RUM did not confirm the write in time
+        sender.crashReportOutcome = .kept // e.g. RUM did not confirm the write in time
 
         let feature = CrashReportingFeature.mockWith(
             integration: sender,

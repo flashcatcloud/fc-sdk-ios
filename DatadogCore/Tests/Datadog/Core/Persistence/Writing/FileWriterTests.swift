@@ -224,7 +224,7 @@ class FileWriterTests: XCTestCase {
         wait(for: [expectation], timeout: 0)
     }
 
-    func testWhenDataCannotBeEncoded_itReportsItNotWritten() throws {
+    func testWhenDataCannotBeEncoded_itReportsItCanNeverBeWritten() throws {
         let writer = FileWriter(
             orchestrator: FilesOrchestrator(
                 directory: directory,
@@ -235,12 +235,42 @@ class FileWriterTests: XCTestCase {
             encryption: nil,
             telemetry: NOPTelemetry()
         )
-        var results: [Bool] = []
+        var results: [WriteOutcome] = []
 
         writer.write(value: FailingEncodableMock(errorMessage: "failed"), metadata: Data?.none, onResult: { results.append($0) })
         writer.write(value: ["key": "value"], metadata: Data?.none, onResult: { results.append($0) })
 
-        XCTAssertEqual(results, [false, true])
+        XCTAssertEqual(results, [.failedPermanently, .written])
+    }
+
+    func testItReportsWhetherAFailedWriteCanSucceedLater() throws {
+        let writer = FileWriter(
+            orchestrator: FilesOrchestrator(
+                directory: directory,
+                performance: StoragePerformanceMock(
+                    maxFileSize: .max,
+                    maxDirectorySize: .max,
+                    maxFileAgeForWrite: .distantFuture,
+                    minFileAgeForRead: .mockAny(),
+                    maxFileAgeForRead: .mockAny(),
+                    maxObjectsInFile: .max,
+                    maxObjectSize: 23 // 23 bytes is enough for TLV with {"key1":"value1"} JSON
+                ),
+                dateProvider: SystemDateProvider(),
+                telemetry: NOPTelemetry()
+            ),
+            encryption: nil,
+            telemetry: NOPTelemetry()
+        )
+        var results: [WriteOutcome] = []
+
+        writer.write(value: ["key1": "value1"], metadata: Data?.none, onResult: { results.append($0) })
+        writer.write(value: ["key2": "value that makes it exceed 23 bytes"], metadata: Data?.none, onResult: { results.append($0) })
+        try directory.files()[0].makeReadonly()
+        writer.write(value: ["k": "v"], metadata: Data?.none, onResult: { results.append($0) })
+        try directory.files()[0].makeReadWrite()
+
+        XCTAssertEqual(results, [.written, .failedPermanently, .failedTransiently])
     }
 
     func testGivenErrorVerbosity_whenIOExceptionIsThrown_itPrintsError() throws {
