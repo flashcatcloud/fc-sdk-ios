@@ -18,8 +18,10 @@ internal final class CrashReportingFeature: DatadogFeature {
     /// that window has passed.
     static let defaultProcessingDelay: TimeInterval = 5
 
-    /// After this many launches in a row that ended before reading the pending reports, they are read without waiting:
-    /// waiting loses them for good when every launch ends within `processingDelay`.
+    /// After this many launches in a row that ended before the pending reports were processed, they are read once
+    /// without waiting: waiting loses them for good when every launch ends within `processingDelay`. This read still
+    /// happens when the process may crash, so in a crash loop a crash during it can, rarely, hang until the system ends
+    /// the app: the price of not losing every report of the loop.
     static let maxUnreadLaunches = 2
 
     /// Queue for synchronizing internal operations.
@@ -74,7 +76,9 @@ internal final class CrashReportingFeature: DatadogFeature {
     // MARK: - Interaction with `DatadogCrashReporting` plugin
 
     /// Tells other features whether the previous process crashed, then sends the pending crash reports once
-    /// `processingDelay` has passed, or right away when earlier launches ended before reading them.
+    /// `processingDelay` has passed. When earlier launches ended before the reports were processed, they are also read
+    /// right away, once: what this read cannot process (e.g. as no feature receives crashes yet) is read again once
+    /// `processingDelay` has passed.
     func start() {
         queue.async {
             self.sender.send(launch: .init(didCrash: self.plugin.crashedLastLaunch))
@@ -85,7 +89,7 @@ internal final class CrashReportingFeature: DatadogFeature {
                     "[CrashReporting] Pending crash reports were not read for \(unreadLaunches) launches",
                     attributes: ["unread_launches": unreadLaunches]
                 )
-                self.startReadingCrashReports()
+                self.sendPendingCrashReports()
             }
         }
         queue.asyncAfter(deadline: .now() + processingDelay) { [weak self] in
@@ -93,7 +97,8 @@ internal final class CrashReportingFeature: DatadogFeature {
         }
     }
 
-    /// Reads the pending crash reports, once. Called on `queue`.
+    /// Reads the pending crash reports once `processingDelay` has passed, then whenever consent is resolved. Called on
+    /// `queue`.
     private func startReadingCrashReports() {
         guard !canReadCrashReports else {
             return

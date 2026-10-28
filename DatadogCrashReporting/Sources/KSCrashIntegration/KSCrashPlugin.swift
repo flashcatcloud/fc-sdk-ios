@@ -55,7 +55,8 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     }()
 
     /// Computed once, on first access (from the Feature queue), before any report is read. This launch is counted as one
-    /// more unread launch until `readPendingCrashReports(process:)` is called.
+    /// more unread launch until a pending report is processed (`process` returns `true`): a read that processes none,
+    /// e.g. as no feature receives crashes yet, does not count.
     private(set) lazy var unreadLaunches: Int = {
         let unreadLaunches = (try? String(contentsOf: unreadLaunchesFile, encoding: .utf8)).flatMap { Int($0) } ?? 0
         recordUnreadLaunches(store.reportIDs.isEmpty ? 0 : unreadLaunches + 1)
@@ -155,6 +156,8 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
 
     /// Whether the takeover's handlers were checked in this process.
     private var checkedHandlerTakeover = false
+    /// Whether a pending report was processed in this process, which resets `unreadLaunches`.
+    private var processedReportThisLaunch = false
 
     func readPendingCrashReports(process: @escaping (DDCrashReport) -> Bool) {
         if !checkedHandlerTakeover {
@@ -165,7 +168,6 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
             }
         }
         _ = unreadLaunches // counts this launch first, if it was not
-        recordUnreadLaunches(0)
         let reportIDs = store.reportIDs.map { $0.int64Value } // sorted by ID, which grows with time: oldest first
         readReports(with: reportIDs[...], process: process)
     }
@@ -180,6 +182,10 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         loadReport(with: id) { report in
             if let report = report, process(report) {
                 self.store.deleteReport(with: id)
+                if !self.processedReportThisLaunch {
+                    self.processedReportThisLaunch = true
+                    self.recordUnreadLaunches(0)
+                }
             }
             self.readReports(with: ids.dropFirst(), process: process)
         }

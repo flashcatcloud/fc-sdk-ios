@@ -23,7 +23,7 @@ public protocol CrashReportingPlugin: AnyObject {
     /// How many launches in a row, before this one, found pending crash reports and ended before reading them (e.g.
     /// crash loops and processes ended by the system within seconds).
     ///
-    /// The SDK reads it once, right after `crashedLastLaunch`; reading pending reports resets it. Without a value, the
+    /// The SDK reads it once, right after `crashedLastLaunch`; processing a pending report resets it. Without a value, the
     /// SDK always waits for the app to settle before reading reports.
     var unreadLaunches: Int { get }
 

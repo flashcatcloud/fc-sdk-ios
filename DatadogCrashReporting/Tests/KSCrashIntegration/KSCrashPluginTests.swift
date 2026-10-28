@@ -243,17 +243,31 @@ class KSCrashPluginTests: XCTestCase {
         XCTAssertEqual(counts, [0, 1, 2])
     }
 
-    func testWhenThePendingReportsAreRead_itResetsTheUnreadLaunches() throws {
+    func testWhenAPendingReportIsProcessed_itResetsTheUnreadLaunches() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "kept"}"#)
+        try writeReport(id: 2, contents: #"{"message": "processed"}"#)
+        _ = try createPlugin().0.unreadLaunches
+        _ = try createPlugin().0.unreadLaunches
+
+        // When
+        try createPlugin().0.readPendingCrashReports { $0.message == "processed" }
+
+        // Then
+        XCTAssertEqual(try createPlugin().0.unreadLaunches, 0)
+    }
+
+    func testWhenNoPendingReportIsProcessed_theLaunchStillCountsAsUnread() throws {
         // Given
         try writeReport(id: 1, contents: #"{"message": "kept"}"#)
         _ = try createPlugin().0.unreadLaunches
         _ = try createPlugin().0.unreadLaunches
 
-        // When
+        // When (e.g. no feature receives crashes yet)
         try createPlugin().0.readPendingCrashReports { _ in false }
 
         // Then
-        XCTAssertEqual(try createPlugin().0.unreadLaunches, 0)
+        XCTAssertEqual(try createPlugin().0.unreadLaunches, 3)
     }
 
     func testWhenThereIsNoPendingReport_itCountsNoUnreadLaunch() throws {

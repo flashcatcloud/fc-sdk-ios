@@ -92,6 +92,31 @@ class CrashReportingFeatureTests: XCTestCase {
         XCTAssertEqual(telemetry.messages.firstDebug()?.message, "[CrashReporting] Pending crash reports were not read for 2 launches")
     }
 
+    func testGivenReportsUnreadForTwoLaunches_whenTheImmediateReadProcessesNone_theyAreReadAgainAfterTheDelay() {
+        // Given (no feature receives crashes yet when the reports are read without waiting)
+        let plugin = CrashReportingPluginMock()
+        plugin.unreadLaunches = 2
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
+        let sender = CrashReportSenderMock()
+        sender.processesCrashReports = false
+        let readTwice = expectation(description: "read twice")
+        plugin.didReadPendingCrashReports = {
+            if plugin.readCount == 2 {
+                sender.processesCrashReports = true
+                readTwice.fulfill()
+            }
+        }
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, processingDelay: 0.2)
+
+        // When
+        feature.start()
+
+        // Then
+        wait(for: [readTwice], timeout: 5)
+        feature.flush()
+        XCTAssertEqual(sender.sentCrashReports.count, 2)
+    }
+
     func testGivenReportsUnreadForOneLaunch_whenStarted_itStillWaits() {
         // Given
         let plugin = CrashReportingPluginMock()
