@@ -208,6 +208,10 @@ class DatadogCoreTests: XCTestCase {
         )
         defer { core.flushAndTearDown() }
 
+        // The core queues context updates when it starts; let them run first, so the bounded read below measures
+        // the read itself rather than the work queued ahead of it on a busy machine.
+        _ = contextProvider.read()
+
         // Then
         XCTAssertEqual(core.currentContext()?.service, "current-context-service")
     }
