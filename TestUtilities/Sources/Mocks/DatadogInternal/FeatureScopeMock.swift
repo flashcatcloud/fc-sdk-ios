@@ -16,7 +16,19 @@ public final class FeatureScopeMock: FeatureScope, @unchecked Sendable {
             scope?.events.append((value, metadata, bypassConsent))
             completion()
         }
+
+        func write<T, M>(value: T, metadata: M?, onResult: @escaping (Bool) -> Void) where T: Encodable, M: Encodable {
+            guard scope?.failsWrites != true else {
+                return onResult(false)
+            }
+            scope?.events.append((value, metadata, bypassConsent))
+            onResult(true)
+        }
     }
+
+    /// When `true`, writes that report their result fail and record nothing.
+    @ReadWriteLock
+    public var failsWrites = false
 
     @ReadWriteLock
     public var contextMock: DatadogContext

@@ -139,13 +139,15 @@ public class CrashReportSenderMock: CrashReportSender {
 
 public class CrashReceiverMock: FeatureMessageReceiver {
     public var receivedCrash: Crash?
+    /// What the receiver reports through the crash completion.
+    public var processes = true
 
     public func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
         guard case let .payload(crash as Crash) = message else {
             return false
         }
         receivedCrash = crash
-        crash.completion()
+        crash.completion(processes)
         return true
     }
 

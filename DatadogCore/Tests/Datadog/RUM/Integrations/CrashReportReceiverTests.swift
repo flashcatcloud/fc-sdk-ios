@@ -91,13 +91,51 @@ class CrashReportReceiverTests: XCTestCase {
     // MARK: - Reporting The Crash Processed
 
     /// Receives the crash and records how many events were written each time its completion is called.
-    private func receive(_ crashReport: DDCrashReport, with crashContext: CrashContext, by receiver: CrashReportReceiver) -> (handled: Bool, eventsWrittenAtCompletion: [Int]) {
+    private func receive(_ crashReport: DDCrashReport, with crashContext: CrashContext, by receiver: CrashReportReceiver) -> (handled: Bool, eventsWrittenAtCompletion: [Int], processed: [Bool]) {
         var eventsWrittenAtCompletion: [Int] = []
+        var processed: [Bool] = []
         let handled = receiver.receive(
-            message: .payload(Crash(report: crashReport, context: crashContext, completion: { eventsWrittenAtCompletion.append(self.featureScope.eventsWritten.count) })),
+            message: .payload(Crash(report: crashReport, context: crashContext, completion: {
+                eventsWrittenAtCompletion.append(self.featureScope.eventsWritten.count)
+                processed.append($0)
+            })),
             from: NOPDatadogCore()
         )
-        return (handled, eventsWrittenAtCompletion)
+        return (handled, eventsWrittenAtCompletion, processed)
+    }
+
+    func testWhenTheCrashEventsCannotBeWritten_itCompletesUnprocessed() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+        featureScope.failsWrites = true
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(60)),
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: .mockRandomWith(crashCount: 0)),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertTrue(result.handled)
+        XCTAssertEqual(result.processed, [false], "A failed write must not let the crash report be deleted")
+    }
+
+    func testWhenTheCrashEventsAreWritten_itCompletesProcessed() {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        let result = receive(
+            .mockWith(date: currentDate.secondsAgo(60)),
+            with: .mockWith(trackingConsent: .granted, lastRUMViewEvent: .mockRandomWith(crashCount: 0)),
+            by: receiver
+        )
+
+        // Then
+        XCTAssertEqual(result.processed, [true])
     }
 
     func testWhenTheCrashIsWrittenWithItsView_itCompletesOnceBothEventsAreWritten() {

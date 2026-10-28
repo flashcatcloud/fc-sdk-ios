@@ -224,6 +224,25 @@ class FileWriterTests: XCTestCase {
         wait(for: [expectation], timeout: 0)
     }
 
+    func testWhenDataCannotBeEncoded_itReportsItNotWritten() throws {
+        let writer = FileWriter(
+            orchestrator: FilesOrchestrator(
+                directory: directory,
+                performance: PerformancePreset.mockAny(),
+                dateProvider: SystemDateProvider(),
+                telemetry: NOPTelemetry()
+            ),
+            encryption: nil,
+            telemetry: NOPTelemetry()
+        )
+        var results: [Bool] = []
+
+        writer.write(value: FailingEncodableMock(errorMessage: "failed"), metadata: Data?.none, onResult: { results.append($0) })
+        writer.write(value: ["key": "value"], metadata: Data?.none, onResult: { results.append($0) })
+
+        XCTAssertEqual(results, [false, true])
+    }
+
     func testGivenErrorVerbosity_whenIOExceptionIsThrown_itPrintsError() throws {
         let expectation = expectation(description: "Writes complete")
         expectation.expectedFulfillmentCount = 2

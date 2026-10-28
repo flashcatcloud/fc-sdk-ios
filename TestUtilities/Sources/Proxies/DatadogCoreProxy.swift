@@ -204,7 +204,18 @@ private final class FeatureScopeInterceptor: @unchecked Sendable {
             defer { group.leave() }
 
             actualWriter.write(value: value, metadata: metadata, completion: completion)
+            record(value, metadata)
+        }
 
+        func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (Bool) -> Void) {
+            group.enter()
+            defer { group.leave() }
+
+            actualWriter.write(value: value, metadata: metadata, onResult: onResult)
+            record(value, metadata)
+        }
+
+        private func record<T: Encodable, M: Encodable>(_ value: T, _ metadata: M) {
             let event = value
             let data = try! InterceptingWriter.jsonEncoder.encode(value)
             interception?.events.append((event, metadata, data))

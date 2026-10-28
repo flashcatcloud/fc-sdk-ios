@@ -70,6 +70,20 @@ class CrashReportSenderTests: XCTestCase {
         XCTAssertTrue(processed, "Without RUM, the crash cannot be processed later either")
     }
 
+    func testWhenTheReceiverCannotWriteTheCrash_itReturnsFalse() {
+        // Given
+        let receiver = CrashReceiverMock()
+        receiver.processes = false
+        let core = PassthroughCoreMock(messageReceiver: receiver)
+        let sender = MessageBusSender(core: core)
+
+        // When
+        let processed = sender.send(report: .mockAny(), with: .mockAny())
+
+        // Then
+        XCTAssertFalse(processed, "A crash whose events could not be written must be kept")
+    }
+
     func testWhenCoreIsReleased_itReturnsFalse() {
         // Given
         let sender = MessageBusSender(core: nil)
@@ -154,7 +168,7 @@ private final class AsyncCrashReceiver: FeatureMessageReceiver {
         }
         DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
             self.hasCompleted = true
-            crash.completion()
+            crash.completion(true)
         }
         return true
     }

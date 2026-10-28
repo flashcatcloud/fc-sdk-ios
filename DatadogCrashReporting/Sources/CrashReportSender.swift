@@ -48,9 +48,10 @@ internal struct MessageBusSender: CrashReportSender {
         }
 
         let processed = DispatchSemaphore(value: 0)
+        let result = ProcessingResult()
         core.send(
             message: .payload(
-                Crash(report: report, context: context, completion: { processed.signal() })
+                Crash(report: report, context: context, completion: { result.processed = $0; processed.signal() })
             ),
             else: {
                 DD.logger.warn(
@@ -59,10 +60,12 @@ internal struct MessageBusSender: CrashReportSender {
                     Make sure `RUM.enable(with:)` is called when initializing Datadog SDK.
                     """
                 )
+                result.processed = true
                 processed.signal()
             }
         )
-        return processed.wait(timeout: .now() + processingTimeout) == .success
+        // `result` is written before `signal()` and read after `wait()` returns, which orders the two.
+        return processed.wait(timeout: .now() + processingTimeout) == .success && result.processed
     }
 
     /// Send the launch report and context to integrations.
@@ -72,4 +75,8 @@ internal struct MessageBusSender: CrashReportSender {
     func send(launch: DatadogInternal.LaunchReport) {
         core?.set(context: launch)
     }
+}
+
+private final class ProcessingResult {
+    var processed = false
 }

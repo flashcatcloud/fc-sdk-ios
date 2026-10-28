@@ -89,7 +89,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
 
     /// - Parameter completion: called once the crash events are written, or once it is decided not to write any,
     ///   unless `false` is returned.
-    private func send(report: DDCrashReport, with context: CrashContext, completion: @escaping () -> Void) -> Bool {
+    private func send(report: DDCrashReport, with context: CrashContext, completion: @escaping (_ processed: Bool) -> Void) -> Bool {
         // The `crashReport.crashDate` uses system `Date` collected at the moment of crash, so we need to adjust it
         // to the server time before processing. Following use of the current correction is not ideal (it's not the correction
         // from the moment of crash), but this is the best approximation we can get.
@@ -159,7 +159,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         lastRUMViewEventInPreviousSession lastRUMViewEvent: RUMViewEvent,
         using crashTimings: AdjustedCrashTimings,
         bypassConsent: Bool,
-        completion: @escaping () -> Void
+        completion: @escaping (_ processed: Bool) -> Void
     ) {
         if FatalErrorBuilder.canSendView(lastRUMViewEvent, errorDate: crashTimings.realCrashDate, now: crashTimings.realDateNow) {
             send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings, bypassConsent: bypassConsent, completion: completion)
@@ -172,10 +172,10 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 let rumError = builder.createRUMError(with: lastRUMViewEvent)
 
                 if let mappedError = self.eventsMapper.map(event: rumError) {
-                    writer.write(value: mappedError, completion: completion)
+                    writer.write(value: mappedError, metadata: Data?.none, onResult: completion)
                 } else {
                     DD.logger.warn("errorEventMapper returned 'nil' for a crash. Discarding crashes is not supported. The unmodified event will be sent.")
-                    writer.write(value: rumError, completion: completion)
+                    writer.write(value: rumError, metadata: Data?.none, onResult: completion)
                 }
             }
         }
@@ -190,7 +190,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         lastRUMSessionStateInPreviousSession lastRUMSessionState: RUMSessionState,
         using crashTimings: AdjustedCrashTimings,
         under remoteRates: RemoteSamplingRates?,
-        completion: @escaping () -> Void
+        completion: @escaping (_ processed: Bool) -> Void
     ) {
         let handlingRule = RUMOffViewEventsHandlingRule(
             applicationState: nil,
@@ -242,7 +242,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         if let newRUMView = newRUMView {
             send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
         } else {
-            completion()
+            completion(true)
         }
     }
 
@@ -253,7 +253,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         crashContext: CrashContext,
         using crashTimings: AdjustedCrashTimings,
         under remoteRates: RemoteSamplingRates?,
-        completion: @escaping () -> Void
+        completion: @escaping (_ processed: Bool) -> Void
     ) {
         // There was no session, so there is no history of views: a crash in foreground happened during the
         // application launch, a crash in background happened in background. FLASHCAT FORK - it is reported in
@@ -287,7 +287,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         to rumView: RUMViewEvent,
         using crashTimings: AdjustedCrashTimings,
         bypassConsent: Bool,
-        completion: @escaping () -> Void
+        completion: @escaping (_ processed: Bool) -> Void
     ) {
         DD.logger.debug("Updating RUM view with crash report.")
 
@@ -303,12 +303,13 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 DD.logger.warn("errorEventMapper returned 'nil' for a crash. Discarding crashes is not supported. The unmodified event will be sent.")
                 errorToWrite = rumError
             }
-            // Writes run in order, so `completion` goes with the last one.
+            // Writes run in order, so `completion` goes with the last one; it reports whether both were written.
             if let mappedView = self.eventsMapper.map(event: updatedRUMView) {
-                writer.write(value: errorToWrite)
-                writer.write(value: self.eventsMapper.map(event: mappedView), completion: completion)
+                let errorWritten = WriteResult()
+                writer.write(value: errorToWrite, metadata: Data?.none, onResult: { errorWritten.value = $0 })
+                writer.write(value: self.eventsMapper.map(event: mappedView), metadata: Data?.none, onResult: { completion(errorWritten.value && $0) })
             } else {
-                writer.write(value: errorToWrite, completion: completion)
+                writer.write(value: errorToWrite, metadata: Data?.none, onResult: completion)
             }
         }
     }
@@ -494,4 +495,9 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             )
         )
     }
+}
+
+/// The result of a write, read by the write that follows it on the same serial writer queue.
+private final class WriteResult {
+    var value = true
 }

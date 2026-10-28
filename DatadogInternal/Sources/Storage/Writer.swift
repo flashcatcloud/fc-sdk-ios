@@ -14,9 +14,21 @@ public protocol Writer {
     ///   - metadata: Encodable metadata to write.
     ///   - completion: The block to execute after the write task is completed.
     func write<T: Encodable, M: Encodable>(value: T, metadata: M?, completion: @escaping CompletionHandler)
+
+    /// Encodes given encodable value and metadata, writes to the destination, and reports whether it was written.
+    /// - Parameters:
+    ///   - value: Encodable value to write.
+    ///   - metadata: Encodable metadata to write.
+    ///   - onResult: Called after the write task is completed, with `false` if the value could not be written.
+    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (_ written: Bool) -> Void)
 }
 
 extension Writer {
+    /// Default: a writer that cannot tell a failed write reports every write as written.
+    public func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (_ written: Bool) -> Void) {
+        write(value: value, metadata: metadata, completion: { onResult(true) })
+    }
+
     /// Encodes given encodable value and writes to the destination.
     /// Uses `write(value:metadata:)` with `nil` metadata.
     ///
