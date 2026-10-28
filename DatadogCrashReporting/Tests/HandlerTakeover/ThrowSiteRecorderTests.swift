@@ -5,7 +5,10 @@
  */
 
 import XCTest
+import MachO
 @testable import DatadogCrashReporting
+
+private var backtraceCalls = 0
 
 class ThrowSiteRecorderTests: XCTestCase {
     func testThrowSiteIsTheFirstFrameBelowTheRuntimeAndAnyInterposedThrow() {
@@ -43,6 +46,61 @@ class ThrowSiteRecorderTests: XCTestCase {
         var info = Dl_info()
         let recordFrame = try XCTUnwrap(UnsafeRawPointer(bitPattern: UInt(throwSite.addresses[0])))
         XCTAssertNotEqual(dladdr(recordFrame, &info), 0, "Raw return addresses of this process are recorded")
+    }
+
+    @inline(never)
+    private func recordFromANamedFrame() {
+        ThrowSiteRecorder.record()
+    }
+
+    func testRecordedThrowSiteIsTheStackOfTheCaller() throws {
+        // Given
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: file) }
+        ThrowSiteRecorder.prepare(file: file)
+
+        // When
+        recordFromANamedFrame()
+
+        // Then
+        let throwSite = try XCTUnwrap(ThrowSiteRecorder.read(from: file))
+        XCTAssertLessThanOrEqual(throwSite.addresses.count, ThrowSiteRecorder.maxFrames)
+        let symbols = throwSite.addresses.prefix(4).map { address -> String in
+            var info = Dl_info()
+            guard dladdr(UnsafeRawPointer(bitPattern: UInt(address)), &info) != 0, let name = info.dli_sname else {
+                return "?"
+            }
+            return String(cString: name)
+        }
+        XCTAssertTrue(symbols.contains { $0.contains("recordFromANamedFrame") }, "\(symbols)")
+    }
+
+    func testRecordingDoesNotUnwindWithBacktrace() throws {
+        // Given (`backtrace()` takes locks and may be bound lazily: not callable while terminating)
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let index = try XCTUnwrap((0..<_dyld_image_count()).first {
+            String(cString: _dyld_get_image_name($0)).hasSuffix("/DatadogCrashReporting.framework/DatadogCrashReporting")
+        })
+        let header = try XCTUnwrap(_dyld_get_image_header(index))
+        let countingBacktrace: @convention(c) (UnsafeMutablePointer<UnsafeMutableRawPointer?>?, Int32) -> Int32 = { _, _ in
+            backtraceCalls += 1
+            return 0
+        }
+        let realBacktrace = try XCTUnwrap(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "backtrace"))
+        SymbolRebinder.rebind([.init(name: "_backtrace", replacement: unsafeBitCast(countingBacktrace, to: UnsafeRawPointer.self))], inImage: header, slide: _dyld_get_image_vmaddr_slide(index))
+        defer {
+            SymbolRebinder.rebind([.init(name: "_backtrace", replacement: UnsafeRawPointer(realBacktrace))], inImage: header, slide: _dyld_get_image_vmaddr_slide(index))
+        }
+        ThrowSiteRecorder.prepare(file: file)
+        backtraceCalls = 0
+
+        // When
+        ThrowSiteRecorder.record()
+
+        // Then
+        XCTAssertEqual(backtraceCalls, 0)
+        XCTAssertGreaterThan(try XCTUnwrap(ThrowSiteRecorder.read(from: file)).addresses.count, 1)
     }
 
     func testPreparingKeepsThePreviousRecordUntilANewOneIsWritten() throws {

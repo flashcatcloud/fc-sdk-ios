@@ -15,9 +15,11 @@ import MachO
 /// still on the current stack there: the takeover's terminate handler records it with `record()`, and
 /// `DatadogCppThrowSiteFilter` puts it into the crash report when the report has no stack of its own.
 ///
-/// `record()` runs in the terminate handler, on a crashing thread that may hold any lock (e.g. the allocator's): it only
-/// writes raw return addresses, from preallocated memory, to a file opened beforehand. The addresses are symbolicated
-/// at the next launch, from the binary images of the crash report.
+/// `record()` runs in the terminate handler, on a crashing thread that may hold any lock (e.g. the allocator's or the
+/// unwinder's): it walks the frame pointers of the current stack (which arm64 and x86_64 code keeps), without locks or
+/// allocation, and writes the raw return addresses, from preallocated memory, to a file opened beforehand. Every function
+/// it calls was resolved or called once by `prepare(file:)`, so none is bound by dyld while terminating. The addresses
+/// are symbolicated at the next launch, from the binary images of the crash report.
 internal enum ThrowSiteRecorder {
     /// A recorded throw site.
     struct ThrowSite {
@@ -40,14 +42,29 @@ internal enum ThrowSiteRecorder {
     private static var fileDescriptor: Int32 = -1
     private static let buffer = UnsafeMutableRawPointer.allocate(byteCount: recordSize, alignment: MemoryLayout<UInt64>.alignment)
 
+    private typealias GetContextFunction = @convention(c) (UnsafeMutableRawPointer) -> Int32
+    /// `getcontext()`, which saves the caller's registers, including its frame pointer. Its declaration is not visible to
+    /// Swift (it needs `_XOPEN_SOURCE`).
+    private static var getContext: GetContextFunction?
+    /// A `ucontext_t` followed by the machine context `getcontext()` points it at, which is 16-byte aligned.
+    private static let contextSize = (MemoryLayout<ucontext_t>.size + 15) / 16 * 16 + MemoryLayout<mcontext_t.Pointee>.size
+    private static let context = UnsafeMutableRawPointer.allocate(byteCount: contextSize, alignment: 16)
+
     /// Opens the file `record()` writes to. The record of the previous process stays in it until `record()` runs.
     static func prepare(file: URL) {
         if fileDescriptor >= 0 {
             close(fileDescriptor)
         }
         // Globals are initialized on first access: here, not in the terminate handler.
-        _ = (buffer, magic, maxFrames, headerSize, recordSize)
+        _ = (buffer, magic, maxFrames, headerSize, recordSize, context, contextSize)
+        getContext = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "getcontext").map { unsafeBitCast($0, to: GetContextFunction.self) }
         fileDescriptor = open(file.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0o644)
+        // Binds the functions `record()` calls, in case they are bound lazily.
+        _ = pwrite(fileDescriptor, buffer, 0, 0)
+        _ = getpid()
+        var time = timeval()
+        gettimeofday(&time, nil)
+        _ = (pthread_get_stackaddr_np(pthread_self()), pthread_get_stacksize_np(pthread_self()))
     }
 
     /// Whether `record()` applies to the exception being terminated on, given its `std::type_info`: not to an
@@ -66,8 +83,7 @@ internal enum ThrowSiteRecorder {
         guard fileDescriptor >= 0 else {
             return
         }
-        let addresses = (buffer + headerSize).assumingMemoryBound(to: UnsafeMutableRawPointer?.self)
-        let count = backtrace(addresses, Int32(maxFrames))
+        let count = walkStack(into: (buffer + headerSize).assumingMemoryBound(to: UInt64.self))
         var time = timeval()
         gettimeofday(&time, nil)
         buffer.storeBytes(of: magic, as: UInt32.self)
@@ -75,6 +91,51 @@ internal enum ThrowSiteRecorder {
         buffer.storeBytes(of: Int64(getpid()), toByteOffset: 8, as: Int64.self)
         buffer.storeBytes(of: Int64(time.tv_sec) * 1_000_000 + Int64(time.tv_usec), toByteOffset: 16, as: Int64.self)
         _ = pwrite(fileDescriptor, buffer, recordSize, 0)
+    }
+
+    /// Writes the return addresses of the current stack, innermost first, from the caller of `getcontext()` (this function)
+    /// up. Each frame record is the pair of the caller's frame pointer and the return address, where the frame pointer
+    /// points; a record is followed only while it lies on this thread's stack, above the previous one. Returns the count.
+    @inline(never)
+    private static func walkStack(into addresses: UnsafeMutablePointer<UInt64>) -> Int {
+        guard let getContext, getContext(context) == 0 else {
+            return 0
+        }
+        guard let machineContext = context.assumingMemoryBound(to: ucontext_t.self).pointee.uc_mcontext else {
+            return 0
+        }
+        #if arch(arm64)
+        var framePointer = UInt(machineContext.pointee.__ss.__fp)
+        let returnAddressMask: UInt = 0x0000_000F_FFFF_FFFF // strips pointer authentication codes, like the crash reporter
+        #elseif arch(x86_64)
+        var framePointer = UInt(machineContext.pointee.__ss.__rbp)
+        let returnAddressMask = UInt.max
+        #else
+        return 0
+        #endif
+        let thread = pthread_self()
+        let stackTop = UInt(bitPattern: pthread_get_stackaddr_np(thread))
+        let stackBottom = stackTop &- UInt(pthread_get_stacksize_np(thread))
+        let recordSize = UInt(2 * MemoryLayout<UInt>.size)
+        var count = 0
+        while count < maxFrames,
+              framePointer >= stackBottom,
+              framePointer <= stackTop &- recordSize,
+              framePointer % UInt(MemoryLayout<UInt>.alignment) == 0,
+              let record = UnsafePointer<UInt>(bitPattern: framePointer) {
+            let returnAddress = record[1] & returnAddressMask
+            guard returnAddress != 0 else {
+                break
+            }
+            addresses[count] = UInt64(returnAddress)
+            count += 1
+            let callerFramePointer = record[0]
+            guard callerFramePointer > framePointer else {
+                break
+            }
+            framePointer = callerFramePointer
+        }
+        return count
     }
 
     /// Reads the throw site recorded in a file, if any.
