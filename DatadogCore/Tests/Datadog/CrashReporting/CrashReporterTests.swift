@@ -315,7 +315,9 @@ class CrashReporterTests: XCTestCase {
         XCTAssert(logs.contains(where: { $0.message == """
             In order to use Crash Reporting, RUM feature must be enabled.
             Make sure `RUM.enable(with:)` is called when initializing Datadog SDK.
+            The crash report is kept until it can be processed.
             """
         }))
+        XCTAssertEqual(plugin.deletedCrashReports.count, 0, "The report is kept for a launch that enables RUM")
     }
 }
