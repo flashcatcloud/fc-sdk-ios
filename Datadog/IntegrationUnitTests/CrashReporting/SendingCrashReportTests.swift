@@ -326,6 +326,22 @@ class SendingCrashReportTests: XCTestCase {
         try CrashReportingFeature.crashContextDecoder.decode(CrashContext.self, from: data)
     }
 
+    func testWhenPendingCrashReportHasNoReadableContext_itIsStillSentAsRUMCrash() throws {
+        // Given (a crash recorded before any crash context reached the crash reporter)
+        let crashReport: DDCrashReport = .mockWith(context: "{}".data(using: .utf8)!)
+
+        // When
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+        try CrashReporting.enableOrThrow(with: CrashReporterMock(pendingCrashReport: crashReport), in: core, processingDelay: 0)
+
+        // Then
+        let crash = try XCTUnwrap(
+            core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self).first { $0.error.isCrash == true },
+            "A crash must not be dropped for its context"
+        )
+        XCTAssertEqual(crash.error.type, crashReport.type)
+    }
+
     func testWhenPendingCrashReportIsSent_itIsDeletedOnlyOnceTheRUMErrorIsOnDisk() throws {
         // Given
         let crashReport: DDCrashReport = .mockRandomWith(

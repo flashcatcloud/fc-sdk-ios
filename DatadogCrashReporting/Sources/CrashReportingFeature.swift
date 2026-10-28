@@ -119,9 +119,10 @@ internal final class CrashReportingFeature: DatadogFeature {
     /// Sends the crash report if its consent allows it.
     /// - Returns: `true` if the crash report can be deleted, `false` to keep it for later.
     private func process(crashReport: DDCrashReport) -> Bool {
-        // A report whose `CrashContext` is malformed cannot be processed: it is purged.
-        guard let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) else {
-            return true
+        // A report whose `CrashContext` is missing or malformed (e.g. a crash before the first context reached the
+        // crash reporter) is still reported, with a context built from the current launch. Kept until one exists.
+        guard let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) ?? fallbackCrashContext() else {
+            return false
         }
 
         switch (crashContext.trackingConsent, trackingConsent ?? .pending) {
@@ -137,6 +138,39 @@ internal final class CrashReportingFeature: DatadogFeature {
             DD.logger.debug("Kept a crash report recorded with pending consent until consent is granted or declined")
             return false
         }
+    }
+
+    /// The context for a crash report whose own context is missing or malformed: the current launch's context
+    /// without anything that belongs to the current process (RUM session, view and attributes, launch date), so
+    /// the crash is not linked to the current session. Its consent is `.pending`: it is written under the current
+    /// consent, never bypassing it.
+    private func fallbackCrashContext() -> CrashContext? {
+        guard let current = crashContextProvider.currentCrashContext else {
+            return nil
+        }
+        DD.logger.debug("Reporting a crash whose context could not be read, with the current launch's context")
+        return CrashContext(
+            serverTimeOffset: current.serverTimeOffset,
+            service: current.service,
+            env: current.env,
+            version: current.version,
+            buildNumber: current.buildNumber,
+            device: current.device,
+            os: current.os,
+            sdkVersion: current.sdkVersion,
+            source: current.source,
+            trackingConsent: .pending,
+            userInfo: current.userInfo,
+            accountInfo: current.accountInfo,
+            networkConnectionInfo: current.networkConnectionInfo,
+            carrierInfo: current.carrierInfo,
+            lastIsAppInForeground: current.lastIsAppInForeground,
+            appLaunchDate: nil,
+            lastRUMViewEvent: nil,
+            lastRUMSessionState: nil,
+            lastRUMAttributes: nil,
+            lastLogAttributes: nil
+        )
     }
 
     // MARK: - CrashContext Encoding and Decoding

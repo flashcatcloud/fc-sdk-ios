@@ -104,7 +104,7 @@ public class CrashContextProviderMock: CrashContextProvider {
     public private(set) var currentCrashContext: CrashContext?
     public var onCrashContextChange: (CrashContext) -> Void
 
-    public init(initialCrashContext: CrashContext = .mockAny()) {
+    public init(initialCrashContext: CrashContext? = .mockAny()) {
         self.currentCrashContext = initialCrashContext
         self.onCrashContextChange = { _ in }
     }

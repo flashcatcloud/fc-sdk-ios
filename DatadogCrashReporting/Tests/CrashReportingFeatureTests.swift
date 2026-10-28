@@ -197,7 +197,8 @@ class CrashReportingFeatureTests: XCTestCase {
         let sender = CrashReportSenderMock()
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
-            crashReportingPlugin: plugin
+            crashReportingPlugin: plugin,
+            crashContextProvider: CrashContextProviderMock(initialCrashContext: .mockWith(service: "current", trackingConsent: .granted))
         )
 
         // When
@@ -205,20 +206,55 @@ class CrashReportingFeatureTests: XCTestCase {
         feature.flush()
 
         // Then
-        XCTAssertEqual(sender.sentCrashReports.map { $0.context.service }, ["first", "last"])
+        XCTAssertEqual(sender.sentCrashReports.map { $0.context.service }, ["first", "current", "last"], "The malformed one is sent with the current launch's context")
         XCTAssertEqual(plugin.deletedCrashReports.count, 3, "It should delete all reports, including the malformed one")
     }
 
-    func testItPurgesCrashReportWithMalformedContext() {
+    func testGivenCrashReportWithMalformedOrMissingContext_itIsSentWithTheCurrentLaunchContext() throws {
+        for reportContext in ["not a valid context".data(using: .utf8)!, "{}".data(using: .utf8)!, nil] {
+            // Given
+            let plugin = CrashReportingPluginMock()
+            plugin.pendingCrashReports = [.mockWith(context: reportContext)]
+            let current: CrashContext = .mockWith(
+                service: "current-service",
+                trackingConsent: .granted,
+                lastRUMViewEvent: .mockRandom(),
+                lastRUMSessionState: .mockRandom(),
+                appLaunchDate: .mockRandomInThePast(),
+                lastRUMAttributes: .mockRandom()
+            )
+            let sender = CrashReportSenderMock()
+            let feature = CrashReportingFeature.mockWith(
+                integration: sender,
+                crashReportingPlugin: plugin,
+                crashContextProvider: CrashContextProviderMock(initialCrashContext: current)
+            )
+
+            // When
+            feature.start()
+            feature.flush()
+
+            // Then
+            let context = try XCTUnwrap(sender.sentCrashContext, "A crash must not be dropped for its context")
+            XCTAssertEqual(context.service, "current-service")
+            XCTAssertEqual(context.trackingConsent, .pending, "It is written under the current consent, never bypassing it")
+            XCTAssertNil(context.lastRUMViewEvent, "It must not be linked to the current process' view")
+            XCTAssertNil(context.lastRUMSessionState, "It must not be linked to the current process' session")
+            XCTAssertNil(context.lastRUMAttributes)
+            XCTAssertNil(context.appLaunchDate)
+            XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+        }
+    }
+
+    func testGivenCrashReportWithMalformedContext_whenThereIsNoCurrentContextYet_itIsKept() {
         // Given
         let plugin = CrashReportingPluginMock()
-        let malformedData = "not a valid context".data(using: .utf8)!
-        plugin.pendingCrashReports = [.mockWith(context: malformedData)]
-
+        plugin.pendingCrashReports = [.mockWith(context: "not a valid context".data(using: .utf8)!)]
         let sender = CrashReportSenderMock()
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
-            crashReportingPlugin: plugin
+            crashReportingPlugin: plugin,
+            crashContextProvider: CrashContextProviderMock(initialCrashContext: nil)
         )
 
         // When
@@ -227,7 +263,7 @@ class CrashReportingFeatureTests: XCTestCase {
 
         // Then
         XCTAssertNil(sender.sentCrashReport)
-        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+        XCTAssertTrue(plugin.deletedCrashReports.isEmpty, "It is kept until a context exists to report it with")
     }
 
     // MARK: - Tracking Consent Tests
