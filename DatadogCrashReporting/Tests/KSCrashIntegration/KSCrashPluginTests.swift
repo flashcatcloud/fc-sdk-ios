@@ -56,6 +56,8 @@ class KSCrashPluginTests: XCTestCase {
         try contents.write(to: reportsDirectory.appendingPathComponent(fileName), atomically: true, encoding: .utf8)
     }
 
+    private var latestReportIDFile: URL { reportsDirectory.appendingPathComponent("latest-report-id") }
+
     private func createPlugin() throws -> (KSCrashPlugin, CrashReportStore) {
         let configuration = CrashReportStoreConfiguration()
         configuration.reportsPath = reportsDirectory.path
@@ -63,10 +65,10 @@ class KSCrashPluginTests: XCTestCase {
         configuration.reportCleanupPolicy = .never
         let store = try CrashReportStore(configuration: configuration)
         store.sink = MessageFieldFilter()
-        return (KSCrashPlugin(store: store, telemetry: NOPTelemetry()), store)
+        return (KSCrashPlugin(store: store, latestReportIDFile: latestReportIDFile, telemetry: NOPTelemetry()), store)
     }
 
-    func testItReadsEveryPendingReportOldestFirstAndDeletesThemOnceProcessed() throws {
+    func testItReadsEveryPendingReportOldestFirstAndDeletesEachOneOnceProcessed() throws {
         // Given
         try writeReport(id: 3, contents: #"{"message": "third"}"#)
         try writeReport(id: 1, contents: #"{"message": "first"}"#)
@@ -74,28 +76,36 @@ class KSCrashPluginTests: XCTestCase {
         let (plugin, store) = try createPlugin()
 
         // When
-        var readReports: [DDCrashReport]?
-        plugin.readPendingCrashReports { reports in
-            readReports = reports
+        var processed: [String] = []
+        var storeWhileProcessing: [[NSNumber]] = []
+        plugin.readPendingCrashReports { report in
+            processed.append(report.message)
+            storeWhileProcessing.append(store.reportIDs)
             return true
         }
 
         // Then
-        XCTAssertEqual(readReports?.map { $0.message }, ["first", "second", "third"])
+        XCTAssertEqual(processed, ["first", "second", "third"])
+        XCTAssertEqual(
+            storeWhileProcessing,
+            [[1, 2, 3], [2, 3], [3]],
+            "Each report must stay on disk until it is processed, and be deleted before the next one is read"
+        )
         XCTAssertEqual(store.reportIDs, [], "It should delete every processed report")
     }
 
-    func testItKeepsReportsWhenProcessingFails() throws {
+    func testItKeepsTheReportsThatAreNotProcessed() throws {
         // Given
         try writeReport(id: 1, contents: #"{"message": "first"}"#)
         try writeReport(id: 2, contents: #"{"message": "second"}"#)
+        try writeReport(id: 3, contents: #"{"message": "third"}"#)
         let (plugin, store) = try createPlugin()
 
         // When
-        plugin.readPendingCrashReports { _ in false }
+        plugin.readPendingCrashReports { report in report.message != "second" }
 
         // Then
-        XCTAssertEqual(store.reportIDs, [1, 2])
+        XCTAssertEqual(store.reportIDs, [2])
     }
 
     func testItPurgesReportsThatCannotBeLoadedWithoutDroppingOthers() throws {
@@ -107,16 +117,15 @@ class KSCrashPluginTests: XCTestCase {
         let (plugin, store) = try createPlugin()
 
         // When
-        var readReports: [DDCrashReport]?
-        plugin.readPendingCrashReports { reports in
-            readReports = reports
-            XCTAssertEqual(store.reportIDs, [1, 4], "It should purge unloadable reports before processing the others")
+        var processed: [String] = []
+        plugin.readPendingCrashReports { report in
+            processed.append(report.message)
             return false
         }
 
         // Then
-        XCTAssertEqual(readReports?.map { $0.message }, ["first", "last"])
-        XCTAssertEqual(store.reportIDs, [1, 4], "It should keep the loaded reports when processing fails")
+        XCTAssertEqual(processed, ["first", "last"])
+        XCTAssertEqual(store.reportIDs, [1, 4], "It should purge unloadable reports and keep the ones not processed")
     }
 
     func testItReadsNoReportWhenStoreIsEmpty() throws {
@@ -124,14 +133,74 @@ class KSCrashPluginTests: XCTestCase {
         let (plugin, _) = try createPlugin()
 
         // When
-        var readReports: [DDCrashReport]?
-        plugin.readPendingCrashReports { reports in
-            readReports = reports
-            return false
+        var processCount = 0
+        plugin.readPendingCrashReports { _ in
+            processCount += 1
+            return true
         }
 
         // Then
-        XCTAssertEqual(readReports?.count, 0)
+        XCTAssertEqual(processCount, 0)
+    }
+
+    // MARK: - Crashed Last Launch Tests
+
+    func testWhenThereIsNoReport_theLastLaunchDidNotCrash() throws {
+        let (plugin, _) = try createPlugin()
+        XCTAssertFalse(plugin.crashedLastLaunch)
+    }
+
+    func testWhenAReportIsFoundForTheFirstTime_theLastLaunchCrashed() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "first"}"#)
+        try writeReport(id: 2, contents: #"{"message": "second"}"#)
+
+        // When
+        let (plugin, _) = try createPlugin()
+
+        // Then
+        XCTAssertTrue(plugin.crashedLastLaunch)
+        XCTAssertEqual(try String(contentsOf: latestReportIDFile, encoding: .utf8), "2", "It records the most recent report ID")
+    }
+
+    func testWhenOnlyReportsFoundAtAnEarlierLaunchRemain_theLastLaunchDidNotCrash() throws {
+        // Given (e.g. a report kept until tracking consent is resolved)
+        try writeReport(id: 1, contents: #"{"message": "kept"}"#)
+        XCTAssertTrue(try createPlugin().0.crashedLastLaunch, "Launch that found the report")
+
+        // When
+        let (plugin, _) = try createPlugin()
+
+        // Then
+        XCTAssertFalse(plugin.crashedLastLaunch, "The report was written before the last launch")
+    }
+
+    func testWhenANewerReportIsFound_theLastLaunchCrashed() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "kept"}"#)
+        XCTAssertTrue(try createPlugin().0.crashedLastLaunch)
+        try writeReport(id: 2, contents: #"{"message": "new"}"#)
+
+        // When
+        let (plugin, _) = try createPlugin()
+
+        // Then
+        XCTAssertTrue(plugin.crashedLastLaunch)
+    }
+
+    func testWhenReportsWereDeleted_theLastLaunchDidNotCrash() throws {
+        // Given
+        try writeReport(id: 5, contents: #"{"message": "processed"}"#)
+        XCTAssertTrue(try createPlugin().0.crashedLastLaunch)
+        let (processing, store) = try createPlugin()
+        processing.readPendingCrashReports { _ in true }
+        XCTAssertEqual(store.reportIDs, [])
+
+        // When
+        let (plugin, _) = try createPlugin()
+
+        // Then
+        XCTAssertFalse(plugin.crashedLastLaunch)
     }
 }
 

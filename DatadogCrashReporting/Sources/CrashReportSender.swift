@@ -4,16 +4,19 @@
  * Copyright 2019-Present Datadog, Inc.
  */
 
+import Foundation
 import DatadogInternal
 
 /// An object for sending crash reports.
 internal protocol CrashReportSender {
-    /// Send the crash report and context to integrations.
+    /// Send the crash report and context to integrations, and wait until they have processed it.
     ///
     /// - Parameters:
     ///   - report: The crash report.
     ///   - context: The crash context
-    func send(report: DDCrashReport, with context: CrashContext)
+    /// - Returns: `true` once the crash is processed (its events are written, or deliberately not produced), so the
+    ///   crash report can be deleted; `false` if that is not known, so the report must be kept.
+    func send(report: DDCrashReport, with context: CrashContext) -> Bool
 
     /// Send the launch report and context to integrations.
     ///
@@ -30,21 +33,24 @@ internal struct MessageBusSender: CrashReportSender {
     /// integration kept by core).
     weak var core: DatadogCoreProtocol?
 
-    /// Send the crash report et context on the bus of the core.
+    /// How long `send(report:with:)` waits for the crash to be processed. Writing a crash takes milliseconds; reaching
+    /// it means the SDK is stopping or blocked, and the report is kept for the next launch rather than risk losing it.
+    var processingTimeout: TimeInterval = 10
+
+    /// Send the crash report et context on the bus of the core, and wait until it is processed.
     ///
     /// - Parameters:
     ///   - report: The crash report.
     ///   - context: The crash context
-    func send(report: DDCrashReport, with context: CrashContext) {
-        // A crash recorded with `.pending` consent is still sent: RUM writes it under the current consent.
-        guard let core = core, context.trackingConsent != .notGranted else {
-            DD.logger.debug("Skipped sending Crash Report as it was recorded with \(context.trackingConsent) consent")
-            return
+    func send(report: DDCrashReport, with context: CrashContext) -> Bool {
+        guard let core = core else {
+            return false
         }
 
+        let processed = DispatchSemaphore(value: 0)
         core.send(
             message: .payload(
-                Crash(report: report, context: context)
+                Crash(report: report, context: context, completion: { processed.signal() })
             ),
             else: {
                 DD.logger.warn(
@@ -53,8 +59,10 @@ internal struct MessageBusSender: CrashReportSender {
                     Make sure `RUM.enable(with:)` is called when initializing Datadog SDK.
                     """
                 )
+                processed.signal()
             }
         )
+        return processed.wait(timeout: .now() + processingTimeout) == .success
     }
 
     /// Send the launch report and context to integrations.

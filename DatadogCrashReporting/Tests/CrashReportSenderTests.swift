@@ -13,7 +13,7 @@ import DatadogInternal
 class CrashReportSenderTests: XCTestCase {
     // MARK: - Sending Crash Reports Tests
 
-    func testItSendsCrashReportWhenTrackingConsentIsGranted() {
+    func testItSendsCrashReport() {
         // Given
         let receiver = CrashReceiverMock()
         let core = PassthroughCoreMock(messageReceiver: receiver)
@@ -22,27 +22,63 @@ class CrashReportSenderTests: XCTestCase {
         let crashReport: DDCrashReport = .mockAny()
 
         // When
-        sender.send(report: crashReport, with: crashContext)
+        let processed = sender.send(report: crashReport, with: crashContext)
 
         // Then
+        XCTAssertTrue(processed)
         XCTAssertNotNil(receiver.receivedCrash)
         XCTAssertEqual(receiver.receivedCrash?.report.type, crashReport.type)
         XCTAssertEqual(receiver.receivedCrash?.context.trackingConsent, .granted)
     }
 
-    func testItDoesNotSendCrashReportWhenTrackingConsentIsNotGranted() {
+    func testItWaitsUntilTheReceiverHasProcessedTheCrash() {
         // Given
-        let receiver = CrashReceiverMock()
+        let receiver = AsyncCrashReceiver(delay: 0.2)
         let core = PassthroughCoreMock(messageReceiver: receiver)
         let sender = MessageBusSender(core: core)
-        let crashContext: CrashContext = .mockWith(trackingConsent: .notGranted)
-        let crashReport: DDCrashReport = .mockAny()
 
         // When
-        sender.send(report: crashReport, with: crashContext)
+        let processed = withExtendedLifetime(core) { sender.send(report: .mockAny(), with: .mockAny()) }
 
         // Then
-        XCTAssertNil(receiver.receivedCrash)
+        XCTAssertTrue(processed)
+        XCTAssertTrue(receiver.hasCompleted, "It must return only once the receiver has processed the crash")
+    }
+
+    func testWhenTheReceiverDoesNotCompleteInTime_itReturnsFalse() {
+        // Given
+        let receiver = AsyncCrashReceiver(delay: 2)
+        let core = PassthroughCoreMock(messageReceiver: receiver)
+        let sender = MessageBusSender(core: core, processingTimeout: 0.1)
+
+        // When
+        let processed = withExtendedLifetime(core) { sender.send(report: .mockAny(), with: .mockAny()) }
+
+        // Then
+        XCTAssertFalse(processed, "The crash report must be kept when its processing is not confirmed")
+    }
+
+    func testWhenNoReceiverHandlesTheCrash_itReturnsTrue() {
+        // Given
+        let core = PassthroughCoreMock(messageReceiver: NOPFeatureMessageReceiver())
+        let sender = MessageBusSender(core: core)
+
+        // When
+        let processed = withExtendedLifetime(core) { sender.send(report: .mockAny(), with: .mockAny()) }
+
+        // Then
+        XCTAssertTrue(processed, "Without RUM, the crash cannot be processed later either")
+    }
+
+    func testWhenCoreIsReleased_itReturnsFalse() {
+        // Given
+        let sender = MessageBusSender(core: nil)
+
+        // When
+        let processed = sender.send(report: .mockAny(), with: .mockAny())
+
+        // Then
+        XCTAssertFalse(processed)
     }
 
     func testItSendsCrashReportWhenTrackingConsentIsPending() {
@@ -54,7 +90,7 @@ class CrashReportSenderTests: XCTestCase {
         let crashReport: DDCrashReport = .mockAny()
 
         // When
-        sender.send(report: crashReport, with: crashContext)
+        _ = sender.send(report: crashReport, with: crashContext)
 
         // Then
         XCTAssertEqual(receiver.receivedCrash?.context.trackingConsent, .pending, "RUM writes it under the current consent")
@@ -74,7 +110,7 @@ class CrashReportSenderTests: XCTestCase {
         let crashReport: DDCrashReport = .mockAny()
 
         // When
-        sender.send(report: crashReport, with: crashContext)
+        _ = sender.send(report: crashReport, with: crashContext)
 
         // Then
         XCTAssertNotNil(receiver.receivedCrash)
@@ -99,5 +135,27 @@ class CrashReportSenderTests: XCTestCase {
         let receivedLaunchReport = core.context.additionalContext(ofType: LaunchReport.self)
         XCTAssertNotNil(receivedLaunchReport)
         XCTAssertEqual(receivedLaunchReport?.didCrash, didCrash)
+    }
+}
+
+/// Handles crashes and reports them processed after `delay`, from another thread.
+private final class AsyncCrashReceiver: FeatureMessageReceiver {
+    let delay: TimeInterval
+    @ReadWriteLock
+    var hasCompleted = false
+
+    init(delay: TimeInterval) {
+        self.delay = delay
+    }
+
+    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+        guard case let .payload(crash as Crash) = message else {
+            return false
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
+            self.hasCompleted = true
+            crash.completion()
+        }
+        return true
     }
 }

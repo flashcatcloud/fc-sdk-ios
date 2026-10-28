@@ -24,29 +24,38 @@ extension CrashReportingFeature {
         )
     }
 
+    /// Pending crash reports are read right after `start()` (no `processingDelay`), unless specified otherwise.
     public static func mockWith(
         integration: CrashReportSender,
         crashReportingPlugin: CrashReportingPlugin = NOPCrashReportingPlugin(),
         crashContextProvider: CrashContextProvider = CrashContextProviderMock(),
         messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver(),
-        telemetry: Telemetry = NOPTelemetry()
+        telemetry: Telemetry = NOPTelemetry(),
+        processingDelay: TimeInterval = 0
     ) -> Self {
         .init(
             crashReportingPlugin: crashReportingPlugin,
             crashContextProvider: crashContextProvider,
             sender: integration,
             messageReceiver: messageReceiver,
-            telemetry: telemetry
+            telemetry: telemetry,
+            processingDelay: processingDelay
         )
     }
 }
 
 public class CrashReportingPluginMock: CrashReportingPlugin {
-    /// The crash reports loaded by this plugin.
-    public var pendingCrashReports: [DDCrashReport] = []
-    /// If the plugin was asked to delete the crash reports.
+    /// The value of `crashedLastLaunch`.
+    public var crashedLastLaunch = false
+    /// The crash reports held by this plugin, oldest first. A report is removed once processed, as by `KSCrashPlugin`.
     @ReadWriteLock
-    public var hasPurgedCrashReports: Bool?
+    public var pendingCrashReports: [DDCrashReport] = []
+    /// The crash reports deleted once processed, in order.
+    @ReadWriteLock
+    public var deletedCrashReports: [DDCrashReport] = []
+    /// How many times the pending crash reports were read.
+    @ReadWriteLock
+    public var readCount = 0
     /// Custom app state data injected to the plugin.
     public var injectedContextData: Data?
     /// Custom backtrace reporter injected to the plugin.
@@ -54,12 +63,21 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
 
     public init() {}
 
-    public func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) {
-        hasPurgedCrashReports = completion(pendingCrashReports)
+    public func readPendingCrashReports(process: (DDCrashReport) -> Bool) {
+        readCount += 1
+        var kept: [DDCrashReport] = []
+        for report in pendingCrashReports {
+            if process(report) {
+                deletedCrashReports.append(report)
+            } else {
+                kept.append(report)
+            }
+        }
+        pendingCrashReports = kept
         didReadPendingCrashReports?()
     }
 
-    /// Notifies the `readPendingCrashReports(completion:)` return.
+    /// Notifies the `readPendingCrashReports(process:)` return.
     public var didReadPendingCrashReports: (() -> Void)?
 
     public func inject(context: Data) {
@@ -74,7 +92,8 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
 }
 
 public class NOPCrashReportingPlugin: CrashReportingPlugin {
-    public func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) {}
+    public var crashedLastLaunch: Bool { false }
+    public func readPendingCrashReports(process: (DDCrashReport) -> Bool) {}
     public func inject(context: Data) {}
     public var backtraceReporter: BacktraceReporting? { nil }
 
@@ -100,12 +119,15 @@ public class CrashReportSenderMock: CrashReportSender {
     public var sentCrashContext: CrashContext? { sentCrashReports.last?.context }
     /// All launch reports sent, in order.
     public private(set) var sentLaunchReports: [LaunchReport] = []
+    /// What `send(report:with:)` returns: whether the crash was processed.
+    public var processesCrashReports = true
 
     public init() {}
 
-    public func send(report: DDCrashReport, with context: CrashContext) {
+    public func send(report: DDCrashReport, with context: CrashContext) -> Bool {
         sentCrashReports.append((report, context))
         didSendCrashReport?()
+        return processesCrashReports
     }
 
     public var didSendCrashReport: (() -> Void)?
@@ -123,6 +145,7 @@ public class CrashReceiverMock: FeatureMessageReceiver {
             return false
         }
         receivedCrash = crash
+        crash.completion()
         return true
     }
 

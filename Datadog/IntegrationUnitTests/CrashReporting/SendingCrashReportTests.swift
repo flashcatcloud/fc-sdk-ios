@@ -5,7 +5,8 @@
  */
 
 import XCTest
-import TestUtilities
+@testable import TestUtilities
+@testable import DatadogCore
 @testable import DatadogCrashReporting
 import DatadogInternal
 @testable import DatadogLogs
@@ -23,12 +24,20 @@ private class CrashReporterMock: CrashReportingPlugin {
     var injectedContext: Data? { injectedContexts.last }
     /// Custom backtrace reporter injected to the plugin.
     var injectedBacktraceReporter: BacktraceReporting?
+    /// Called when the pending crash report is deleted, once processed.
+    var onDelete: (() -> Void)?
 
     init(pendingCrashReport: DDCrashReport? = nil) {
         self.pendingCrashReport = pendingCrashReport
     }
 
-    func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) { _ = completion(pendingCrashReport.map { [$0] } ?? []) }
+    var crashedLastLaunch: Bool { pendingCrashReport != nil }
+    func readPendingCrashReports(process: (DDCrashReport) -> Bool) {
+        if let report = pendingCrashReport, process(report) {
+            pendingCrashReport = nil
+            onDelete?()
+        }
+    }
     func inject(context: Data) { _injectedContexts.mutate { $0.append(context) } }
     var backtraceReporter: BacktraceReporting? { injectedBacktraceReporter }
 }
@@ -61,7 +70,7 @@ class SendingCrashReportTests: XCTestCase {
 
         // When
         RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
-        CrashReporting.enable(with: CrashReporterMock(pendingCrashReport: crashReport), in: core)
+        try CrashReporting.enableOrThrow(with: CrashReporterMock(pendingCrashReport: crashReport), in: core, processingDelay: 0)
 
         // Then (RUMError is sent)
         let rumEvent = try XCTUnwrap(core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self).first)
@@ -110,7 +119,7 @@ class SendingCrashReportTests: XCTestCase {
     private func crashSentByTheNextProcess(with crashContext: CrashContext) throws -> RUMErrorEvent? {
         core = DatadogCoreProxy(context: .mockWith(trackingConsent: .granted))
         RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
-        CrashReporting.enable(with: CrashReporterMock(pendingCrashReport: .mockRandomWith(context: crashContext)), in: core)
+        try CrashReporting.enableOrThrow(with: CrashReporterMock(pendingCrashReport: .mockRandomWith(context: crashContext)), in: core, processingDelay: 0)
 
         return core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self)
             .first { $0.error.isCrash == true }
@@ -315,5 +324,54 @@ class SendingCrashReportTests: XCTestCase {
 
     private func decode(_ data: Data) throws -> CrashContext {
         try CrashReportingFeature.crashContextDecoder.decode(CrashContext.self, from: data)
+    }
+
+    func testWhenPendingCrashReportIsSent_itIsDeletedOnlyOnceTheRUMErrorIsOnDisk() throws {
+        // Given
+        let crashReport: DDCrashReport = .mockRandomWith(
+            context: CrashContext.mockWith(trackingConsent: .granted, lastIsAppInForeground: true)
+        )
+        let plugin = CrashReporterMock(pendingCrashReport: crashReport)
+        var crashWasOnDiskWhenDeleted: Bool?
+        let deleted = expectation(description: "crash report deleted")
+        plugin.onDelete = {
+            crashWasOnDiskWhenDeleted = self.storedFilesContain(crashReport.message)
+            deleted.fulfill()
+        }
+
+        // When
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+        try CrashReporting.enableOrThrow(with: plugin, in: core, processingDelay: 0)
+
+        // Then
+        wait(for: [deleted], timeout: 30)
+        XCTAssertEqual(crashWasOnDiskWhenDeleted, true, "A crash in between would otherwise lose the report")
+    }
+
+    func testWhenCrashReportingIsEnabled_itSendsTheLaunchReportBeforeReadingCrashReports() throws {
+        // Given
+        let plugin = CrashReporterMock(pendingCrashReport: .mockRandomWith(context: CrashContext.mockWith(trackingConsent: .granted)))
+
+        // When
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+        CrashReporting.enable(with: plugin, in: core) // default processing delay
+        core.get(feature: CrashReportingFeature.self)?.flush()
+
+        // Then (read before `core.flush()`, which resets the launch report; `currentContext()` gives up after 100 ms)
+        var launchReport: LaunchReport?
+        for _ in 0..<50 where launchReport == nil {
+            launchReport = core.currentContext()?.additionalContext(ofType: LaunchReport.self)
+        }
+        XCTAssertEqual(launchReport?.didCrash, true)
+        XCTAssertNotNil(plugin.pendingCrashReport, "Crash reports must not be read right after enable")
+        XCTAssertTrue(core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self).isEmpty)
+    }
+
+    /// Whether a file written by the core contains `string`.
+    private func storedFilesContain(_ string: String) -> Bool {
+        let files = FileManager.default.enumerator(at: temporaryCoreDirectory.coreDirectory.url, includingPropertiesForKeys: nil)
+        return (files?.allObjects as? [URL] ?? []).contains { url in
+            (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self).contains(string) } ?? false
+        }
     }
 }

@@ -44,34 +44,71 @@ class CrashReportingFeatureTests: XCTestCase {
         XCTAssertEqual(decodedContext.env, "test-env")
     }
 
-    // MARK: - Crash Report Reading Tests
+    // MARK: - Launch Report Tests
 
-    func testItSendsLaunchReportWhenNoPendingCrash() {
+    func testWhenStarted_itSendsTheLaunchReportWithoutReadingCrashReports() {
         // Given
         let plugin = CrashReportingPluginMock()
-        plugin.pendingCrashReports = []
+        plugin.crashedLastLaunch = .mockRandom()
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReports")
-
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
-            crashReportingPlugin: plugin
+            crashReportingPlugin: plugin,
+            processingDelay: 60
         )
 
-        plugin.didReadPendingCrashReports = {
-            expectation.fulfill()
-        }
-
         // When
-        feature.sendCrashReportIfFound()
+        feature.start()
+        feature.flush()
 
         // Then
-        waitForExpectations(timeout: 1.0)
-        XCTAssertNil(sender.sentCrashReport)
-        XCTAssertNil(sender.sentCrashContext)
-        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [false])
-        XCTAssertEqual(plugin.hasPurgedCrashReports, false)
+        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [plugin.crashedLastLaunch])
+        XCTAssertEqual(plugin.readCount, 0, "Crash reports must not be read while the app may still crash at launch")
+        XCTAssertTrue(sender.sentCrashReports.isEmpty)
     }
+
+    func testGivenACrashReportKeptFromAnOlderLaunch_whenTheLastLaunchDidNotCrash_itReportsNoCrash() {
+        // Given (a crash recorded while consent was pending, kept since: the last launch ended without a crash)
+        let plugin = CrashReportingPluginMock()
+        plugin.crashedLastLaunch = false
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .pending))]
+        let sender = CrashReportSenderMock()
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin)
+
+        // When
+        feature.start()
+        feature.flush()
+
+        // Then (otherwise RUM would not report the last launch's Watchdog Termination)
+        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [false])
+    }
+
+    func testWhenStarted_itReadsCrashReportsOnceTheProcessingDelayHasPassed() {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
+        let sender = CrashReportSenderMock()
+        let feature = CrashReportingFeature.mockWith(
+            integration: sender,
+            crashReportingPlugin: plugin,
+            processingDelay: 0.2
+        )
+        let read = expectation(description: "didReadPendingCrashReports")
+        plugin.didReadPendingCrashReports = { read.fulfill() }
+
+        // When
+        let start = Date()
+        feature.start()
+
+        // Then
+        waitForExpectations(timeout: 5)
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(start), 0.2)
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+    }
+
+    // MARK: - Crash Report Reading Tests
 
     func testItSendsCrashReportWithValidContext() {
         // Given
@@ -85,60 +122,68 @@ class CrashReportingFeatureTests: XCTestCase {
         plugin.pendingCrashReports = [crashReport]
 
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReports")
-
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
             crashReportingPlugin: plugin
         )
 
-        // Fulfilled once the plugin has recorded the purge decision, which happens after the report is sent.
-        plugin.didReadPendingCrashReports = {
-            expectation.fulfill()
-        }
-
         // When
-        feature.sendCrashReportIfFound()
+        feature.start()
+        feature.flush()
 
         // Then
-        waitForExpectations(timeout: 1.0)
         XCTAssertNotNil(sender.sentCrashReport)
-        XCTAssertNotNil(sender.sentCrashContext)
         XCTAssertEqual(sender.sentCrashContext?.service, "test-service")
         XCTAssertEqual(sender.sentCrashContext?.env, "test-env")
         XCTAssertEqual(sender.sentCrashContext?.version, "1.0.0")
-        XCTAssertEqual(plugin.hasPurgedCrashReports, true)
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+        XCTAssertTrue(plugin.pendingCrashReports.isEmpty)
     }
 
     func testItSendsEveryPendingCrashReportInOrderWithItsOwnContext() {
         // Given
         let plugin = CrashReportingPluginMock()
         let crashReports: [DDCrashReport] = ["first", "second", "third"].map { service in
-            .mockRandomWith(context: .mockWith(service: service))
+            .mockRandomWith(context: .mockWith(service: service, trackingConsent: .granted))
         }
         plugin.pendingCrashReports = crashReports
 
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReports")
+        let feature = CrashReportingFeature.mockWith(
+            integration: sender,
+            crashReportingPlugin: plugin
+        )
+
+        // When
+        feature.start()
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(sender.sentCrashReports.map { $0.report.message }, crashReports.map { $0.message })
+        XCTAssertEqual(sender.sentCrashReports.map { $0.context.service }, ["first", "second", "third"])
+        XCTAssertEqual(plugin.deletedCrashReports.map { $0.message }, crashReports.map { $0.message })
+    }
+
+    func testWhenTheCrashIsNotKnownToBeProcessed_itKeepsTheCrashReport() {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
+        let sender = CrashReportSenderMock()
+        sender.processesCrashReports = false // e.g. RUM did not confirm the write in time
 
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
             crashReportingPlugin: plugin
         )
 
-        plugin.didReadPendingCrashReports = {
-            expectation.fulfill()
-        }
-
         // When
-        feature.sendCrashReportIfFound()
+        feature.start()
+        feature.flush()
 
         // Then
-        waitForExpectations(timeout: 1.0)
-        XCTAssertEqual(sender.sentCrashReports.map { $0.report.message }, crashReports.map { $0.message })
-        XCTAssertEqual(sender.sentCrashReports.map { $0.context.service }, ["first", "second", "third"])
-        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [true], "It should send one launch report")
-        XCTAssertEqual(plugin.hasPurgedCrashReports, true)
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+        XCTAssertTrue(plugin.deletedCrashReports.isEmpty, "The report must be kept until its crash is known to be written")
+        XCTAssertEqual(plugin.pendingCrashReports.count, 1)
     }
 
     func testItSendsValidCrashReportsWhenOneHasMalformedContext() {
@@ -150,55 +195,150 @@ class CrashReportingFeatureTests: XCTestCase {
         plugin.pendingCrashReports = [first, malformed, last]
 
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReports")
-
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
             crashReportingPlugin: plugin
         )
 
-        plugin.didReadPendingCrashReports = {
-            expectation.fulfill()
-        }
-
         // When
-        feature.sendCrashReportIfFound()
+        feature.start()
+        feature.flush()
 
         // Then
-        waitForExpectations(timeout: 1.0)
         XCTAssertEqual(sender.sentCrashReports.map { $0.context.service }, ["first", "last"])
-        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [true])
-        XCTAssertEqual(plugin.hasPurgedCrashReports, true, "It should purge all reports, including the malformed one")
+        XCTAssertEqual(plugin.deletedCrashReports.count, 3, "It should delete all reports, including the malformed one")
     }
 
     func testItPurgesCrashReportWithMalformedContext() {
         // Given
         let plugin = CrashReportingPluginMock()
         let malformedData = "not a valid context".data(using: .utf8)!
-        let crashReport: DDCrashReport = .mockWith(context: malformedData)
-        plugin.pendingCrashReports = [crashReport]
+        plugin.pendingCrashReports = [.mockWith(context: malformedData)]
 
         let sender = CrashReportSenderMock()
-        let expectation = self.expectation(description: "didReadPendingCrashReports")
-
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
             crashReportingPlugin: plugin
         )
 
-        plugin.didReadPendingCrashReports = {
-            expectation.fulfill()
-        }
-
         // When
-        feature.sendCrashReportIfFound()
+        feature.start()
+        feature.flush()
 
         // Then
-        waitForExpectations(timeout: 1.0)
         XCTAssertNil(sender.sentCrashReport)
-        XCTAssertNil(sender.sentCrashContext)
-        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [true])
-        XCTAssertEqual(plugin.hasPurgedCrashReports, true)
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+    }
+
+    // MARK: - Tracking Consent Tests
+
+    private func startFeature(
+        withPendingCrashRecordedWith recordedConsent: TrackingConsent,
+        currentConsent: TrackingConsent
+    ) -> (CrashReportingFeature, CrashReportingPluginMock, CrashReportSenderMock, CrashContextProviderMock) {
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: recordedConsent))]
+        let sender = CrashReportSenderMock()
+        let contextProvider = CrashContextProviderMock(initialCrashContext: .mockWith(trackingConsent: currentConsent))
+        let feature = CrashReportingFeature.mockWith(
+            integration: sender,
+            crashReportingPlugin: plugin,
+            crashContextProvider: contextProvider
+        )
+        feature.start()
+        feature.flush()
+        return (feature, plugin, sender, contextProvider)
+    }
+
+    func testGivenCrashRecordedWithGrantedConsent_itIsSentWhateverTheCurrentConsent() {
+        // When
+        let (_, plugin, sender, _) = startFeature(
+            withPendingCrashRecordedWith: .granted,
+            currentConsent: [.granted, .notGranted, .pending].randomElement()!
+        )
+
+        // Then
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+    }
+
+    func testGivenCrashRecordedWithNotGrantedConsent_itIsDeletedWithoutSending() {
+        // When
+        let (_, plugin, sender, _) = startFeature(
+            withPendingCrashRecordedWith: .notGranted,
+            currentConsent: [.granted, .notGranted, .pending].randomElement()!
+        )
+
+        // Then
+        XCTAssertTrue(sender.sentCrashReports.isEmpty)
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+    }
+
+    func testGivenCrashRecordedWithPendingConsent_whileConsentIsStillPending_itIsKeptWithoutSending() {
+        // When
+        let (_, plugin, sender, _) = startFeature(withPendingCrashRecordedWith: .pending, currentConsent: .pending)
+
+        // Then
+        XCTAssertTrue(sender.sentCrashReports.isEmpty, "Nothing may be sent before consent is granted")
+        XCTAssertTrue(plugin.deletedCrashReports.isEmpty, "The crash must be kept until consent is resolved")
+        XCTAssertEqual(plugin.pendingCrashReports.count, 1)
+    }
+
+    func testGivenCrashRecordedWithPendingConsent_whenConsentIsGranted_itIsSentAndDeleted() {
+        // Given
+        let (feature, plugin, sender, contextProvider) = startFeature(withPendingCrashRecordedWith: .pending, currentConsent: .pending)
+
+        // When
+        contextProvider.onCrashContextChange(.mockWith(trackingConsent: .granted))
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+        XCTAssertEqual(sender.sentCrashContext?.trackingConsent, .pending, "RUM writes it under the current consent")
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+    }
+
+    func testGivenCrashRecordedWithPendingConsent_whenConsentIsDeclined_itIsDeletedWithoutSending() {
+        // Given
+        let (feature, plugin, sender, contextProvider) = startFeature(withPendingCrashRecordedWith: .pending, currentConsent: .pending)
+
+        // When
+        contextProvider.onCrashContextChange(.mockWith(trackingConsent: .notGranted))
+        feature.flush()
+
+        // Then
+        XCTAssertTrue(sender.sentCrashReports.isEmpty)
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+    }
+
+    func testGivenCrashRecordedWithPendingConsent_whenConsentIsAlreadyGrantedAtLaunch_itIsSent() {
+        // When
+        let (_, plugin, sender, _) = startFeature(withPendingCrashRecordedWith: .pending, currentConsent: .granted)
+
+        // Then
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+    }
+
+    func testWhenConsentIsGrantedBeforeTheProcessingDelay_itDoesNotReadCrashReportsEarly() {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .pending))]
+        let contextProvider = CrashContextProviderMock(initialCrashContext: .mockWith(trackingConsent: .pending))
+        let feature = CrashReportingFeature.mockWith(
+            integration: CrashReportSenderMock(),
+            crashReportingPlugin: plugin,
+            crashContextProvider: contextProvider,
+            processingDelay: 60
+        )
+        feature.start()
+
+        // When
+        contextProvider.onCrashContextChange(.mockWith(trackingConsent: .granted))
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(plugin.readCount, 0)
     }
 
     // MARK: - Crash Context Injection Tests
@@ -257,7 +397,7 @@ class CrashReportingFeatureTests: XCTestCase {
         }
 
         // When
-        feature.sendCrashReportIfFound()
+        feature.start()
 
         // Then
         waitForExpectations(timeout: 1.0)

@@ -92,7 +92,11 @@ public final class CrashReporting {
         }
     }
 
-    internal static func enableOrThrow(with plugin: CrashReportingPlugin, in core: DatadogCoreProtocol) throws {
+    internal static func enableOrThrow(
+        with plugin: CrashReportingPlugin,
+        in core: DatadogCoreProtocol,
+        processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay
+    ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
                 description: "Datadog SDK must be initialized before calling `CrashReporting.enable()`."
@@ -106,7 +110,8 @@ public final class CrashReporting {
             crashContextProvider: contextProvider,
             sender: MessageBusSender(core: core),
             messageReceiver: contextProvider,
-            telemetry: core.telemetry
+            telemetry: core.telemetry,
+            processingDelay: processingDelay
         )
 
         // The crash context otherwise reaches the crash reporter through several asynchronous hops after the
@@ -123,7 +128,7 @@ public final class CrashReporting {
             try core.register(backtraceReporter: backtraceReporter)
         }
 
-        reporter.sendCrashReportIfFound()
+        reporter.start()
 
         core.telemetry.configuration(trackErrors: true)
     }
