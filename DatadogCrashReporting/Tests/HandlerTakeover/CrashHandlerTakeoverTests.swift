@@ -525,6 +525,42 @@ class CrashHandlerTakeoverTests: XCTestCase {
 
     // MARK: - Symbol Rebinder
 
+    func testItRecognizesTheSanitizerRuntimes() {
+        XCTAssertEqual(CrashHandlerTakeover.sanitizer { $0 == "__asan_init" }, "AddressSanitizer")
+        XCTAssertEqual(CrashHandlerTakeover.sanitizer { $0 == "__tsan_init" }, "ThreadSanitizer")
+        XCTAssertNil(CrashHandlerTakeover.sanitizer { _ in false })
+    }
+
+    func testRebinderGivesRewrittenPagesTheirProtectionBack() throws {
+        // Given (a page of `__DATA_CONST` left writable, e.g. by another tool)
+        var info = Dl_info()
+        XCTAssertNotEqual(dladdr(unsafeBitCast(ownHandler as sig_t, to: UnsafeRawPointer.self), &info), 0)
+        let testHeader = try XCTUnwrap(info.dli_fbase).assumingMemoryBound(to: mach_header.self)
+        let slide = (0..<_dyld_image_count()).first { _dyld_get_image_header($0) == UnsafePointer(testHeader) }
+            .map { _dyld_get_image_vmaddr_slide($0) } ?? 0
+        var size: UInt = 0
+        let segment = try XCTUnwrap(getsegmentdata(UnsafeRawPointer(testHeader).assumingMemoryBound(to: mach_header_64.self), "__DATA_CONST", &size))
+        let address = vm_address_t(UInt(bitPattern: segment))
+        XCTAssertEqual(vm_protect(mach_task_self_, address, vm_size_t(size), 0, VM_PROT_READ | VM_PROT_WRITE), KERN_SUCCESS)
+        defer { vm_protect(mach_task_self_, address, vm_size_t(size), 0, VM_PROT_READ) }
+        // `free` is imported through `__DATA_CONST`; the replacement passes the calls on.
+        let realFree = try XCTUnwrap(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "free"))
+        let passThroughFree: @convention(c) (UnsafeMutableRawPointer?) -> Void = {
+            unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "free"), to: (@convention(c) (UnsafeMutableRawPointer?) -> Void).self)($0)
+        }
+
+        // When
+        let replacement = unsafeBitCast(passThroughFree, to: UnsafeRawPointer.self)
+        XCTAssertGreaterThan(SymbolRebinder.rebind([.init(name: "_free", replacement: replacement)], inImage: testHeader, slide: slide), 0)
+        let slots = UnsafeRawPointer(segment).bindMemory(to: UnsafeRawPointer?.self, capacity: Int(size) / MemoryLayout<UnsafeRawPointer>.size)
+        let slot = (0..<Int(size) / MemoryLayout<UnsafeRawPointer>.size).first { slots[$0] == replacement }
+        SymbolRebinder.rebind([.init(name: "_free", replacement: UnsafeRawPointer(realFree))], inImage: testHeader, slide: slide)
+        let slotAddress = vm_address_t(UInt(bitPattern: slots.advanced(by: try XCTUnwrap(slot, "The symbol pointer is in `__DATA_CONST`"))))
+
+        // Then
+        XCTAssertEqual(SymbolRebinder.protection(at: slotAddress), VM_PROT_READ | VM_PROT_WRITE)
+    }
+
     func testRebinderRewritesImportsOfAppImagesOnly() throws {
         var info = Dl_info()
 

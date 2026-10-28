@@ -336,6 +336,18 @@ internal enum CrashHandlerTakeover {
         return threads
     }
 
+    /// The sanitizer runtime loaded in the process, if any. Address and Thread Sanitizers intercept `sigaction` and
+    /// `signal` and handle crash signals themselves, which the takeover would get in the way of.
+    static func sanitizer(lookingUp isLoaded: (String) -> Bool = { symbol($0) != nil }) -> String? {
+        if isLoaded("__asan_init") {
+            return "AddressSanitizer"
+        }
+        if isLoaded("__tsan_init") {
+            return "ThreadSanitizer"
+        }
+        return nil
+    }
+
     private static func symbol(_ name: String) -> UnsafeMutableRawPointer? {
         dlsym(UnsafeMutableRawPointer(bitPattern: -2), name) // RTLD_DEFAULT
     }

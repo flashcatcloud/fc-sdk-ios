@@ -137,20 +137,42 @@ internal enum SymbolRebinder {
             }
             replacing?(rebinding, slot.pointee)
             if isReadOnlySegment {
-                // `__DATA_CONST` is made read-only once dyld has bound it.
+                // `__DATA_CONST` is made read-only once dyld has bound it: made writable for the write, then given its
+                // protection back.
                 let address = vm_address_t(UInt(bitPattern: slot))
                 let size = vm_size_t(MemoryLayout<UnsafeRawPointer>.size)
-                guard vm_protect(mach_task_self_, address, size, 0, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY) == KERN_SUCCESS else {
+                guard
+                    let protection = protection(at: address),
+                    vm_protect(mach_task_self_, address, size, 0, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY) == KERN_SUCCESS
+                else {
                     continue
                 }
                 slot.pointee = rebinding.replacement
-                vm_protect(mach_task_self_, address, size, 0, VM_PROT_READ)
+                vm_protect(mach_task_self_, address, size, 0, protection)
             } else {
                 slot.pointee = rebinding.replacement
             }
             rewritten += 1
         }
         return rewritten
+    }
+
+    /// The current protection of the memory at an address.
+    static func protection(at address: vm_address_t) -> vm_prot_t? {
+        var regionAddress = address
+        var regionSize: vm_size_t = 0
+        var info = vm_region_basic_info_data_64_t()
+        var count = mach_msg_type_number_t(MemoryLayout<vm_region_basic_info_data_64_t>.size / MemoryLayout<Int32>.size)
+        var object: mach_port_t = 0
+        let result = withUnsafeMutablePointer(to: &info) { info in
+            info.withMemoryRebound(to: Int32.self, capacity: Int(count)) { info in
+                vm_region_64(mach_task_self_, &regionAddress, &regionSize, VM_REGION_BASIC_INFO_64, info, &count, &object)
+            }
+        }
+        guard result == KERN_SUCCESS, regionAddress <= address else {
+            return nil // no region contains the address: `vm_region_64` gave the next one
+        }
+        return info.protection
     }
 
     /// Whether the image belongs to the OS (including the simulator runtime).
