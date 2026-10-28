@@ -31,7 +31,8 @@ extension CrashReportingFeature {
         crashContextProvider: CrashContextProvider = CrashContextProviderMock(),
         messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver(),
         telemetry: Telemetry = NOPTelemetry(),
-        processingDelay: TimeInterval = 0
+        processingDelay: TimeInterval = 0,
+        bundleVersion: String? = nil
     ) -> Self {
         .init(
             crashReportingPlugin: crashReportingPlugin,
@@ -39,7 +40,8 @@ extension CrashReportingFeature {
             sender: integration,
             messageReceiver: messageReceiver,
             telemetry: telemetry,
-            processingDelay: processingDelay
+            processingDelay: processingDelay,
+            bundleVersion: bundleVersion
         )
     }
 }

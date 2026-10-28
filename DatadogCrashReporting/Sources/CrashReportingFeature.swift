@@ -37,6 +37,8 @@ internal final class CrashReportingFeature: DatadogFeature {
     let telemetry: Telemetry
     /// See `defaultProcessingDelay`.
     private let processingDelay: TimeInterval
+    /// The app version the bundle declares, as the SDK takes it when no other version is set.
+    private let bundleVersion: String?
 
     /// The current tracking consent. Only accessed from `queue`.
     private var trackingConsent: TrackingConsent?
@@ -49,7 +51,9 @@ internal final class CrashReportingFeature: DatadogFeature {
         sender: CrashReportSender,
         messageReceiver: FeatureMessageReceiver,
         telemetry: Telemetry,
-        processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay
+        processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay,
+        bundleVersion: String? = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
     ) {
         self.queue = DispatchQueue(
             label: "com.datadoghq.crash-reporter",
@@ -61,6 +65,7 @@ internal final class CrashReportingFeature: DatadogFeature {
         self.messageReceiver = messageReceiver
         self.telemetry = telemetry
         self.processingDelay = processingDelay
+        self.bundleVersion = bundleVersion
 
         // Inject current `CrashContext`
         if let context = crashContextProvider.currentCrashContext {
@@ -168,15 +173,18 @@ internal final class CrashReportingFeature: DatadogFeature {
 
     /// The context for a crash report whose own context is missing or malformed: the current launch's context
     /// without anything that belongs to the current process (RUM session, view and attributes, launch date, user
-    /// and account), so the crash is not linked to the current session or user. The app version and build and the
-    /// OS are the crashed process's, from the report, when it has them. Its consent is `.pending`: it is written
-    /// under the current consent, never bypassing it.
+    /// and account), so the crash is not linked to the current session or user. The OS is the crashed process's, from
+    /// the report, when it has it, and so are the app version and build when the current version is the bundle's: a
+    /// version set otherwise (e.g. by a cross-platform framework, or a custom version) is not the bundle's, so the
+    /// report's would not match it. Its consent is `.pending`: it is written under the current consent, never
+    /// bypassing it.
     private func fallbackCrashContext(for crashReport: DDCrashReport) -> CrashContext? {
         guard let current = crashContextProvider.currentCrashContext else {
             return nil
         }
         DD.logger.debug("Reporting a crash whose context could not be read, with the current launch's context")
         let system = crashReport.system
+        let takesAppVersionOfReport = current.version == bundleVersion
         let os = system?.osVersion.map { version in
             OperatingSystem(
                 build: system?.osBuild,
@@ -189,8 +197,8 @@ internal final class CrashReportingFeature: DatadogFeature {
             serverTimeOffset: current.serverTimeOffset,
             service: current.service,
             env: current.env,
-            version: system?.appVersion ?? current.version,
-            buildNumber: system?.appBuild ?? current.buildNumber,
+            version: takesAppVersionOfReport ? system?.appVersion ?? current.version : current.version,
+            buildNumber: takesAppVersionOfReport ? system?.appBuild ?? current.buildNumber : current.buildNumber,
             device: current.device,
             os: os ?? current.os,
             sdkVersion: current.sdkVersion,

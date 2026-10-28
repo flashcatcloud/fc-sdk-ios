@@ -332,7 +332,8 @@ class CrashReportingFeatureTests: XCTestCase {
         let feature = CrashReportingFeature.mockWith(
             integration: sender,
             crashReportingPlugin: plugin,
-            crashContextProvider: CrashContextProviderMock(initialCrashContext: current)
+            crashContextProvider: CrashContextProviderMock(initialCrashContext: current),
+            bundleVersion: "2.0.0"
         )
 
         // When
@@ -349,6 +350,35 @@ class CrashReportingFeatureTests: XCTestCase {
         XCTAssertEqual(context.os.versionMajor, "17")
         XCTAssertEqual(context.os.build, "21E236")
         XCTAssertEqual(context.trackingConsent, .pending)
+    }
+
+    func testGivenCrashReportWithMalformedContext_whenTheCurrentVersionIsNotTheBundles_itKeepsTheCurrentVersion() throws {
+        // Given (a version set by a cross-platform framework or a custom version, which the report does not carry)
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [
+            .mockWith(
+                context: nil,
+                system: .init(appVersion: "1.2.3", appBuild: "45", osName: "iOS", osVersion: "17.4.1", osBuild: "21E236")
+            )
+        ]
+        let current: CrashContext = .mockWith(version: "7.1.0-js", buildNumber: "60", trackingConsent: .granted)
+        let sender = CrashReportSenderMock()
+        let feature = CrashReportingFeature.mockWith(
+            integration: sender,
+            crashReportingPlugin: plugin,
+            crashContextProvider: CrashContextProviderMock(initialCrashContext: current),
+            bundleVersion: "2.0.0"
+        )
+
+        // When
+        feature.start()
+        feature.flush()
+
+        // Then
+        let context = try XCTUnwrap(sender.sentCrashContext)
+        XCTAssertEqual(context.version, "7.1.0-js")
+        XCTAssertEqual(context.buildNumber, "60")
+        XCTAssertEqual(context.os.version, "17.4.1", "The OS is still the crashed process's")
     }
 
     func testGivenCrashReportWithMalformedContext_whenThereIsNoCurrentContextYet_itIsKept() {
