@@ -7,6 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D9C774F166EE66BB1F5160FE /* SymbolRebinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7B856A325694223F21081 /* SymbolRebinder.swift */; };
+		D9C743C0C73F03C4815D6186 /* SymbolRebinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7B856A325694223F21081 /* SymbolRebinder.swift */; };
+		D9C783BA1CBFE088E73AAE1D /* CrashHandlerTakeover.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C740DC38CA35C46509E53A /* CrashHandlerTakeover.swift */; };
+		D9C756B4F63E82D8144E0B09 /* CrashHandlerTakeover.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C740DC38CA35C46509E53A /* CrashHandlerTakeover.swift */; };
+		D9C7E9707A027991ED8B85BC /* ThrowSiteRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7720A25C684CE097A5443 /* ThrowSiteRecorder.swift */; };
+		D9C7824F58120E8D3FAB1161 /* ThrowSiteRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7720A25C684CE097A5443 /* ThrowSiteRecorder.swift */; };
+		D9C7C70C4901B25DF27994C8 /* DatadogCppThrowSiteFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C77A53458871B6AF1FD437 /* DatadogCppThrowSiteFilter.swift */; };
+		D9C7739F4708D89C24294516 /* DatadogCppThrowSiteFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C77A53458871B6AF1FD437 /* DatadogCppThrowSiteFilter.swift */; };
+		D9C799475AF30869C661EE55 /* CrashHandlerTakeoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C735879518985E882DC1C2 /* CrashHandlerTakeoverTests.swift */; };
+		D9C7A236ABE3796461CFD1E3 /* CrashHandlerTakeoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C735879518985E882DC1C2 /* CrashHandlerTakeoverTests.swift */; };
+		D9C7CD22C3F6716A0F51A4AC /* ThrowSiteRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7F652203CCC38F7454BC3 /* ThrowSiteRecorderTests.swift */; };
+		D9C7EAE0D297E378045E15DE /* ThrowSiteRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7F652203CCC38F7454BC3 /* ThrowSiteRecorderTests.swift */; };
+		D9C7DE84F4F0FF24AFF79BC9 /* DatadogCppThrowSiteFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7CCC0FA7E361CC8103AC7 /* DatadogCppThrowSiteFilterTests.swift */; };
+		D9C70D5FF1B347977006B72A /* DatadogCppThrowSiteFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C7CCC0FA7E361CC8103AC7 /* DatadogCppThrowSiteFilterTests.swift */; };
 		0904F9F42EE1DA6800ED9A22 /* UIKitExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0904F9F32EE1DA6800ED9A22 /* UIKitExtensionsTests.swift */; };
 		0904F9F52EE1DA6800ED9A22 /* UIKitExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0904F9F32EE1DA6800ED9A22 /* UIKitExtensionsTests.swift */; };
 		0904F9F62EE1DA6800ED9A22 /* UIKitExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0904F9F32EE1DA6800ED9A22 /* UIKitExtensionsTests.swift */; };
@@ -2752,6 +2766,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D9C7B856A325694223F21081 /* SymbolRebinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolRebinder.swift; sourceTree = "<group>"; };
+		D9C740DC38CA35C46509E53A /* CrashHandlerTakeover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashHandlerTakeover.swift; sourceTree = "<group>"; };
+		D9C7720A25C684CE097A5443 /* ThrowSiteRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThrowSiteRecorder.swift; sourceTree = "<group>"; };
+		D9C77A53458871B6AF1FD437 /* DatadogCppThrowSiteFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatadogCppThrowSiteFilter.swift; sourceTree = "<group>"; };
+		D9C735879518985E882DC1C2 /* CrashHandlerTakeoverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashHandlerTakeoverTests.swift; sourceTree = "<group>"; };
+		D9C7F652203CCC38F7454BC3 /* ThrowSiteRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThrowSiteRecorderTests.swift; sourceTree = "<group>"; };
+		D9C7CCC0FA7E361CC8103AC7 /* DatadogCppThrowSiteFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatadogCppThrowSiteFilterTests.swift; sourceTree = "<group>"; };
 		0904F9F32EE1DA6800ED9A22 /* UIKitExtensionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitExtensionsTests.swift; sourceTree = "<group>"; };
 		09A9369A2F0EB989000B6379 /* SamplingMechanismType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplingMechanismType.swift; sourceTree = "<group>"; };
 		09A9369B2F0EB989000B6379 /* SamplingPriority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplingPriority.swift; sourceTree = "<group>"; };
@@ -4370,6 +4391,25 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		D9C74D9B0F1B1331678DEF80 /* HandlerTakeover */ = {
+			isa = PBXGroup;
+			children = (
+				D9C7B856A325694223F21081 /* SymbolRebinder.swift */,
+				D9C740DC38CA35C46509E53A /* CrashHandlerTakeover.swift */,
+				D9C7720A25C684CE097A5443 /* ThrowSiteRecorder.swift */,
+			);
+			path = HandlerTakeover;
+			sourceTree = "<group>";
+		};
+		D9C72AA970C519244A951EC8 /* HandlerTakeover */ = {
+			isa = PBXGroup;
+			children = (
+				D9C735879518985E882DC1C2 /* CrashHandlerTakeoverTests.swift */,
+				D9C7F652203CCC38F7454BC3 /* ThrowSiteRecorderTests.swift */,
+			);
+			path = HandlerTakeover;
+			sourceTree = "<group>";
+		};
 		111201C02E93C13000375DA3 /* AppState */ = {
 			isa = PBXGroup;
 			children = (
@@ -6191,6 +6231,7 @@
 				D296F1182EF97E9500BD088B /* CrashReportSender.swift */,
 				D296F11B2EF97F0700BD088B /* CrashReportException.swift */,
 				D22689C12EB12D1F00875E44 /* KSCrashIntegration */,
+				D9C74D9B0F1B1331678DEF80 /* HandlerTakeover */,
 			);
 			name = DatadogCrashReporting;
 			path = ../DatadogCrashReporting/Sources;
@@ -6203,6 +6244,7 @@
 				D296F1232EF9896500BD088B /* CrashContextCoreProviderTests.swift */,
 				D296F1262EF98E9C00BD088B /* CrashReportSenderTests.swift */,
 				D22689C52EB214F100875E44 /* KSCrashIntegration */,
+				D9C72AA970C519244A951EC8 /* HandlerTakeover */,
 			);
 			name = DatadogCrashReportingTests;
 			path = ../DatadogCrashReporting/Tests;
@@ -7039,6 +7081,7 @@
 			isa = PBXGroup;
 			children = (
 				D22689C22EB12D3D00875E44 /* KSCrashPlugin.swift */,
+				D9C77A53458871B6AF1FD437 /* DatadogCppThrowSiteFilter.swift */,
 				D253E65A2EBA31C40074BEC4 /* KSCrashBacktrace.swift */,
 				D2268AD42EB4DA5800875E44 /* CrashFieldDictionary.swift */,
 				D2268AEC2EB51F6300875E44 /* DatadogCrashReportFilter.swift */,
@@ -7059,6 +7102,7 @@
 				D2268AE32EB4F5CA00875E44 /* DatadogMinifyFilterTests.swift */,
 				D2268AE92EB50F7F00875E44 /* DatadogDiagnosticFilterTests.swift */,
 				D2268AEF2EB51FB600875E44 /* DatadogCrashReportFilterTests.swift */,
+				D9C7CCC0FA7E361CC8103AC7 /* DatadogCppThrowSiteFilterTests.swift */,
 				D253E65D2EBA478E0074BEC4 /* KSCrashBacktraceTests.swift */,
 			);
 			path = KSCrashIntegration;
@@ -10203,6 +10247,10 @@
 				D2268AD22EB4DA4100875E44 /* DatadogTypeSafeFilter.swift in Sources */,
 				D293302C2A137DAD0029C9EA /* CrashReportingFeature.swift in Sources */,
 				D22689C32EB12D3D00875E44 /* KSCrashPlugin.swift in Sources */,
+				D9C774F166EE66BB1F5160FE /* SymbolRebinder.swift in Sources */,
+				D9C783BA1CBFE088E73AAE1D /* CrashHandlerTakeover.swift in Sources */,
+				D9C7E9707A027991ED8B85BC /* ThrowSiteRecorder.swift in Sources */,
+				D9C7C70C4901B25DF27994C8 /* DatadogCppThrowSiteFilter.swift in Sources */,
 				D214DA8329DF2D5E004D0AE8 /* CrashReporting.swift in Sources */,
 				D296F1162EF97E8F00BD088B /* CrashContextProvider.swift in Sources */,
 				D2268AE72EB50F4C00875E44 /* DatadogDiagnosticFilter.swift in Sources */,
@@ -10223,6 +10271,9 @@
 				D2268ADF2EB4EC6700875E44 /* DatadogTypeSafeFilterTests.swift in Sources */,
 				D2268ADC2EB4E69C00875E44 /* CrashFieldDictionaryTests.swift in Sources */,
 				D2268AF02EB51FB600875E44 /* DatadogCrashReportFilterTests.swift in Sources */,
+				D9C799475AF30869C661EE55 /* CrashHandlerTakeoverTests.swift in Sources */,
+				D9C7CD22C3F6716A0F51A4AC /* ThrowSiteRecorderTests.swift in Sources */,
+				D9C7DE84F4F0FF24AFF79BC9 /* DatadogCppThrowSiteFilterTests.swift in Sources */,
 				D2268AEB2EB50F7F00875E44 /* DatadogDiagnosticFilterTests.swift in Sources */,
 				D296F1272EF98E9C00BD088B /* CrashReportSenderTests.swift in Sources */,
 				D22689C82EB2151F00875E44 /* KSCrashPluginTests.swift in Sources */,
@@ -11578,6 +11629,10 @@
 				D2268AD32EB4DA4100875E44 /* DatadogTypeSafeFilter.swift in Sources */,
 				D293302D2A137DAD0029C9EA /* CrashReportingFeature.swift in Sources */,
 				D22689C42EB12D3D00875E44 /* KSCrashPlugin.swift in Sources */,
+				D9C743C0C73F03C4815D6186 /* SymbolRebinder.swift in Sources */,
+				D9C756B4F63E82D8144E0B09 /* CrashHandlerTakeover.swift in Sources */,
+				D9C7824F58120E8D3FAB1161 /* ThrowSiteRecorder.swift in Sources */,
+				D9C7739F4708D89C24294516 /* DatadogCppThrowSiteFilter.swift in Sources */,
 				D214DA8429DF2D5E004D0AE8 /* CrashReporting.swift in Sources */,
 				D296F1172EF97E8F00BD088B /* CrashContextProvider.swift in Sources */,
 				D2268AE82EB50F4C00875E44 /* DatadogDiagnosticFilter.swift in Sources */,
@@ -11598,6 +11653,9 @@
 				D2268ADE2EB4EC6700875E44 /* DatadogTypeSafeFilterTests.swift in Sources */,
 				D2268ADB2EB4E69C00875E44 /* CrashFieldDictionaryTests.swift in Sources */,
 				D2268AF12EB51FB600875E44 /* DatadogCrashReportFilterTests.swift in Sources */,
+				D9C7A236ABE3796461CFD1E3 /* CrashHandlerTakeoverTests.swift in Sources */,
+				D9C7EAE0D297E378045E15DE /* ThrowSiteRecorderTests.swift in Sources */,
+				D9C70D5FF1B347977006B72A /* DatadogCppThrowSiteFilterTests.swift in Sources */,
 				D2268AEA2EB50F7F00875E44 /* DatadogDiagnosticFilterTests.swift in Sources */,
 				D296F1282EF98E9C00BD088B /* CrashReportSenderTests.swift in Sources */,
 				D22689C72EB2151F00875E44 /* KSCrashPluginTests.swift in Sources */,

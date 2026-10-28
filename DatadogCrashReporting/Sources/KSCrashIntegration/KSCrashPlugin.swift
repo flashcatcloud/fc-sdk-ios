@@ -54,19 +54,27 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         _ kscrash: KSCrash = .shared,
         telemetry: Telemetry = NOPTelemetry(),
         symbolicateInProcess: Bool = true,
-        handlesMachExceptions: Bool = false
+        handlesMachExceptions: Bool = false,
+        takesOverCrashHandlers: Bool = false
     ) throws {
         let configuration = try KSCrashConfiguration.datadog(handlesMachExceptions: handlesMachExceptions)
         do {
             try kscrash.install(with: configuration)
-            kscrash.reportStore?.sink = CrashReportFilterPipeline(
-                filters: [
-                    DatadogTypeSafeFilter(),
-                    DatadogMinifyFilter(),
-                    DatadogDiagnosticFilter(),
-                    DatadogCrashReportFilter(telemetry: telemetry, symbolicateInProcess: symbolicateInProcess)
-                ]
-            )
+
+            var filters: [CrashReportFilter] = [DatadogTypeSafeFilter()]
+            if takesOverCrashHandlers, let installPath = configuration.installPath {
+                let throwSiteFile = URL(fileURLWithPath: installPath).appendingPathComponent("cpp-throw-site.json")
+                filters.append(DatadogCppThrowSiteFilter(throwSiteFile: throwSiteFile))
+                if !CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile) {
+                    telemetry.debug("[KSCrash] Crash handler takeover could not be activated")
+                }
+            }
+            filters += [
+                DatadogMinifyFilter(),
+                DatadogDiagnosticFilter(),
+                DatadogCrashReportFilter(telemetry: telemetry, symbolicateInProcess: symbolicateInProcess)
+            ]
+            kscrash.reportStore?.sink = CrashReportFilterPipeline(filters: filters)
         } catch KSCrashInstallError.alreadyInstalled {
             consolePrint("DatadogCrashReporting error: crash reporting is already installed", .warn)
             telemetry.debug("[KSCrash] already installed")
