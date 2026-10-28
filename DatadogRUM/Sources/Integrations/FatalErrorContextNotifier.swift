@@ -93,8 +93,13 @@ internal final class FatalErrorContextNotifier: FatalErrorContextNotifying {
             return
         }
         // The value is read when the core context is written, on its queue: a change made before that is written
-        // by this write, and one made after requests the next.
+        // by this write, and one made after requests the next. A request the core drops without running it (e.g.
+        // once it is stopped or released) ends the pending write too, so later changes are not held back by it.
+        let request = WriteRequest { [weak self] in
+            self?._state.mutate { $0.isWritePending = false }
+        }
         featureScope.set(context: { [weak self] in
+            request.didRun = true
             var context: RUMFatalErrorContext?
             self?._state.mutate { state in
                 state.isWritePending = false
@@ -102,5 +107,21 @@ internal final class FatalErrorContextNotifier: FatalErrorContextNotifying {
             }
             return context
         })
+    }
+}
+
+/// A requested write of the core context, which calls `onDrop` if it is released without having run.
+private final class WriteRequest {
+    var didRun = false
+    private let onDrop: () -> Void
+
+    init(onDrop: @escaping () -> Void) {
+        self.onDrop = onDrop
+    }
+
+    deinit {
+        if !didRun {
+            onDrop()
+        }
     }
 }

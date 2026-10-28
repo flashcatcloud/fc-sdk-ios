@@ -74,6 +74,23 @@ class FatalErrorContextNotifierTests: XCTestCase {
         XCTAssertNil(sharedContext?.view)
     }
 
+    func testWhenThePendingWriteIsDroppedByTheCore_laterChangesAreWritten() throws {
+        // Given (the core is stopped or released before running the requested write)
+        featureScope.defersContextWrites = true
+        let fatalErrorContext = FatalErrorContextNotifier(featureScope: featureScope)
+        fatalErrorContext.sessionState = .mockRandom()
+        featureScope.dropPendingContextWrites()
+
+        // When
+        let view: RUMViewEvent = .mockRandom()
+        fatalErrorContext.view = view
+        featureScope.runPendingContextWrites()
+
+        // Then
+        XCTAssertEqual(featureScope.contextWriteRequests, 2, "The dropped write must not hold back later changes")
+        DDAssertJSONEqual(try XCTUnwrap(sharedContext?.view), view)
+    }
+
     // MARK: - Changing View State
 
     func testWhenViewIsSet_itSharesItInCoreContext() throws {

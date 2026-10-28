@@ -79,6 +79,11 @@ public final class FeatureScopeMock: FeatureScope, @unchecked Sendable {
         writes.forEach { $0() }
     }
 
+    /// Releases the pending context writes without running them, as a core that is stopped or released does.
+    public func dropPendingContextWrites() {
+        pendingContextWrites = []
+    }
+
     public func set(anonymousId: String?) {
         self.anonymousId = anonymousId
     }
