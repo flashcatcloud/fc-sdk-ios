@@ -25,10 +25,11 @@ import MachO
 /// The crash reporter's signal and uncaught exception handlers are called through handlers of the takeover, which note
 /// that a crash is being handled before calling them: from then on, the crash reporter (which restores the previous
 /// handlers and re-raises the signal) and the handlers it forwards the crash to are let through. The crash reporter
-/// handles Mach exceptions on threads of its own, recognized by their name.
+/// handles Mach exceptions on threads of its own, identified when the takeover is activated.
 ///
 /// The crash reporter still forwards each crash to the handler that was installed before it. When it restores that
-/// handler while handling a crash, the handler last recorded for the signal, if any, is installed instead: it is the one
+/// handler while handling a crash (the first handler installed for the signal from the thread handling the crash),
+/// the handler last recorded for the signal, if any, is installed instead: it is the one
 /// the other library expects to be installed. So a crash reporter started after the SDK still receives the crash, after
 /// the SDK; and one that removed its handler gets the default one installed, rather than its stale handler, which would
 /// ignore the signal and let the crash fault again forever.
@@ -44,10 +45,12 @@ internal enum CrashHandlerTakeover {
 
     /// Takes over the crash handlers currently installed. Call it right after the crash reporter is installed.
     ///
-    /// - Parameter throwSiteFile: where the throw site of an uncaught C++ exception is written.
+    /// - Parameters:
+    ///   - throwSiteFile: where the throw site of an uncaught C++ exception is written.
+    ///   - handlesMachExceptions: whether the crash reporter handles Mach exceptions, on threads of its own.
     /// - Returns: `true` if the takeover is active.
     @discardableResult
-    static func activate(throwSiteFile: URL) -> Bool {
+    static func activate(throwSiteFile: URL, handlesMachExceptions: Bool = false) -> Bool {
         guard state.pointee.isActive == 0 else {
             return true
         }
@@ -77,8 +80,11 @@ internal enum CrashHandlerTakeover {
         )
 
         state.pointee.isHandlingCrash = 0
+        let machThreads = handlesMachExceptions ? crashReporterMachThreads() : []
+        state.pointee.machThreads = (machThreads.first ?? 0, machThreads.dropFirst().first ?? 0)
         // Globals are initialized on first access: not in a signal handler.
-        _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActionSlots, foreignActionClaims, foreignActionPublished, crashRestoreRedirected)
+        _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActionSlots, foreignActionClaims, foreignActionPublished, crashRestoreRedirected, crashThread)
+        atomicExchange(crashThread, 0)
 
         // Own the crash signals the crash reporter handles. SIGPIPE is left alone: apps commonly ignore it.
         var ownedSignals: UInt32 = 0
@@ -208,6 +214,48 @@ internal enum CrashHandlerTakeover {
         return UInt(bitPattern: base)
     }
 
+    /// The threads on which the crash reporter handles Mach exceptions, named "… Exception Handler (Primary)" and
+    /// "… (Secondary)". It starts them while it is installed, and each one names itself once running: they are looked
+    /// for until both are found, for at most `machThreadsTimeout`.
+    private static func crashReporterMachThreads() -> [thread_t] {
+        var found: [thread_t] = []
+        let deadline = Date(timeIntervalSinceNow: machThreadsTimeout)
+        repeat {
+            found = threads(named: " Exception Handler (")
+            if found.count >= 2 {
+                break
+            }
+            usleep(1_000)
+        } while Date() < deadline
+        return found
+    }
+
+    static let machThreadsTimeout: TimeInterval = 0.2
+
+    /// The threads of the task whose name contains `name`. Their port names stay valid while the threads run.
+    static func threads(named name: String) -> [thread_t] {
+        var list: thread_act_array_t?
+        var count: mach_msg_type_number_t = 0
+        guard task_threads(mach_task_self_, &list, &count) == KERN_SUCCESS, let list else {
+            return []
+        }
+        defer {
+            vm_deallocate(mach_task_self_, vm_address_t(UInt(bitPattern: list)), vm_size_t(Int(count) * MemoryLayout<thread_t>.stride))
+        }
+        var threads: [thread_t] = []
+        for index in 0..<Int(count) {
+            let thread = list[index]
+            var buffer = [CChar](repeating: 0, count: 64)
+            if let pthread = pthread_from_mach_thread_np(thread),
+               pthread_getname_np(pthread, &buffer, buffer.count) == 0,
+               String(cString: buffer).contains(name) {
+                threads.append(thread)
+            }
+            mach_port_deallocate(mach_task_self_, thread) // the reference `task_threads` added
+        }
+        return threads
+    }
+
     private static func symbol(_ name: String) -> UnsafeMutableRawPointer? {
         dlsym(UnsafeMutableRawPointer(bitPattern: -2), name) // RTLD_DEFAULT
     }
@@ -245,6 +293,8 @@ private struct TakeoverState {
     var crashReporterTerminate: UnsafeMutableRawPointer?
     var foreignTerminate: UnsafeMutableRawPointer?
     var isForeignTerminateRecorded: Int32 = 0
+    /// The threads on which the crash reporter handles Mach exceptions (0 for none), set before activation.
+    var machThreads: (thread_t, thread_t) = (0, 0)
 }
 
 private let signalCapacity = 32 // signals are numbered 1...31 on Darwin
@@ -414,23 +464,39 @@ private func originalSetTerminate(_ handler: UnsafeMutableRawPointer?) -> Unsafe
     state.pointee.originalSetTerminate.flatMap { unsafeBitCast($0, to: SetPointerFunction.self)(handler) }
 }
 
+/// The calling thread. `mach_thread_self()` adds a reference to the port, released right away: the port name stays
+/// valid while the thread runs.
+private func currentThread() -> thread_t {
+    let thread = mach_thread_self()
+    mach_port_deallocate(mach_task_self_, thread)
+    return thread
+}
+
+/// Whether this is one of the threads on which the crash reporter handles Mach exceptions.
+private func isCrashReporterMachThread(_ thread: thread_t) -> Bool {
+    let machThreads = state.pointee.machThreads
+    return thread != 0 && (thread == machThreads.0 || thread == machThreads.1)
+}
+
+/// The first thread that reached the crash reporter's handlers (0 until then), set atomically.
+private let crashThread = atomicWords(count: 1)
+
+/// Marks that a crash is being handled, on the calling thread. Called by the handlers in front of the crash reporter's.
+private func noteCrash() {
+    state.pointee.isHandlingCrash = 1
+    _ = atomicCompareExchange(crashThread, 0, UInt(currentThread()))
+}
+
 /// Whether a crash is being handled: it reached the crash reporter's handlers, or this is one of the threads on which
-/// the crash reporter handles Mach exceptions (named "… Exception Handler (Primary)" and "… (Secondary)").
+/// the crash reporter handles Mach exceptions.
 private func isHandlingCrash() -> Bool {
-    if state.pointee.isHandlingCrash != 0 {
-        return true
-    }
-    var name: (UInt64, UInt64, UInt64, UInt64, UInt64, UInt64, UInt64, UInt64) = (0, 0, 0, 0, 0, 0, 0, 0)
-    return withUnsafeMutableBytes(of: &name) { buffer in
-        guard let base = buffer.baseAddress?.assumingMemoryBound(to: CChar.self) else {
-            return false
-        }
-        // The name of the calling thread is read without locking.
-        guard pthread_getname_np(pthread_self(), base, buffer.count - 1) == 0 else {
-            return false
-        }
-        return strstr(base, " Exception Handler (") != nil
-    }
+    state.pointee.isHandlingCrash != 0 || isCrashReporterMachThread(currentThread())
+}
+
+/// Whether the calling thread is the one the crash reporter handles the crash on.
+private func isCrashHandlingThread() -> Bool {
+    let thread = currentThread()
+    return isCrashReporterMachThread(thread) || (state.pointee.isHandlingCrash != 0 && UInt(thread) == atomicLoad(crashThread))
 }
 
 /// Whether the takeover applies to a call about this signal: it is active, owns the signal, its handler is still the
@@ -460,7 +526,7 @@ private func crashRestoreRedirect(signal: Int32) -> sigaction? {
     guard
         state.pointee.isActive != 0, bit != 0, state.pointee.ownedSignals & bit != 0,
         let recorded = recordedForeignAction(for: signal),
-        isHandlingCrash(),
+        isCrashHandlingThread(),
         atomicCompareExchange(crashRestoreRedirected.advanced(by: Int(signal)), 0, 1)
     else {
         return nil
@@ -555,7 +621,7 @@ private let getTerminateReplacement: GetPointerFunction = {
 
 /// Installed in front of the crash reporter's signal handler.
 private let signalTrampoline: SignalActionFunction = { signal, info, context in
-    state.pointee.isHandlingCrash = 1
+    noteCrash()
     guard signal > 0, signal < Int32(signalCapacity) else {
         return
     }
@@ -571,7 +637,7 @@ private let signalTrampolineAddress = unsafeBitCast(signalTrampoline, to: UInt.s
 
 /// Installed in front of the crash reporter's uncaught exception handler.
 private let exceptionTrampoline: ExceptionHandlerFunction = { exception in
-    state.pointee.isHandlingCrash = 1
+    noteCrash()
     if let handler = state.pointee.crashReporterExceptionHandler {
         unsafeBitCast(handler, to: ExceptionHandlerFunction.self)(exception)
     }
@@ -586,7 +652,7 @@ private let terminateHandler: TerminateFunction = {
         // No exception: abort, so the crash is recorded with the current stack as any other abort.
         abort()
     }
-    state.pointee.isHandlingCrash = 1
+    noteCrash()
     // The exception was not caught, so the stack has not been unwound: the throw site is still on it.
     if ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType) {
         ThrowSiteRecorder.record()

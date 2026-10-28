@@ -43,6 +43,44 @@ private func installedHandler(_ signal: Int32) -> UInt {
     return address(of: current)
 }
 
+/// A named thread that runs the blocks it is given, one at a time, until stopped.
+private final class NamedThread {
+    private let start = DispatchSemaphore(value: 0)
+    private let finish = DispatchSemaphore(value: 0)
+    private var block: (() -> Void)?
+    private var isStopped = false
+
+    init(name: String) {
+        let ready = DispatchSemaphore(value: 0)
+        Thread {
+            pthread_setname_np(name)
+            ready.signal()
+            while true {
+                self.start.wait()
+                if self.isStopped {
+                    self.finish.signal()
+                    return
+                }
+                self.block?()
+                self.finish.signal()
+            }
+        }.start()
+        ready.wait()
+    }
+
+    func run(_ block: @escaping () -> Void) {
+        self.block = block
+        start.signal()
+        finish.wait()
+    }
+
+    func stop() {
+        isStopped = true
+        start.signal()
+        finish.wait()
+    }
+}
+
 class CrashHandlerTakeoverTests: XCTestCase {
     // SIGFPE and SIGSYS are owned by the takeover but not used by the test runner.
     private let ownedSignal = SIGFPE
@@ -259,6 +297,64 @@ class CrashHandlerTakeoverTests: XCTestCase {
 
         // Then
         XCTAssertEqual(installedHandler(ownedSignal), address(of: foreignHandler))
+    }
+
+    func testWhenACrashIsBeingHandled_onlyTheCrashHandlingThreadRestoringAHandlerIsRedirected() {
+        // Given
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        _ = signal(ownedSignal, SIG_DFL) // recorded
+        raiseInstalledHandler(ownedSignal) // the crash reporter handles a crash on this thread
+
+        // When (another thread, e.g. a handler the crash was forwarded to on another thread)
+        let other = NamedThread(name: "other")
+        defer { other.stop() }
+        other.run {
+            var foreign = action(foreignHandler)
+            _ = sigaction(self.ownedSignal, &foreign, nil)
+        }
+
+        // Then
+        XCTAssertEqual(installedHandler(ownedSignal), address(of: foreignHandler), "Only the crash reporter's restore is redirected")
+
+        // When (the crash reporter restoring its saved handler, on the crash thread)
+        var saved = action(otherHandler)
+        _ = sigaction(ownedSignal, &saved, nil)
+
+        // Then
+        XCTAssertEqual(installedHandler(ownedSignal), address(of: SIG_DFL))
+    }
+
+    func testWhenActive_theCrashReporterMachThreadsFoundAtActivationAreLetThrough() {
+        // Given (the crash reporter's Mach exception threads, running before the takeover is activated)
+        let primary = NamedThread(name: "Test Exception Handler (Primary)")
+        let secondary = NamedThread(name: "Test Exception Handler (Secondary)")
+        defer { primary.stop(); secondary.stop() }
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, handlesMachExceptions: true))
+
+        // When (the crash reporter restoring handlers while handling a Mach exception)
+        primary.run {
+            var foreign = action(foreignHandler)
+            _ = sigaction(self.ownedSignal, &foreign, nil)
+        }
+
+        // Then
+        XCTAssertEqual(installedHandler(ownedSignal), address(of: foreignHandler))
+    }
+
+    func testWhenActive_aThreadNamedLikeTheCrashReporterMachThreadsLaterIsGuarded() {
+        // Given
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let impostor = NamedThread(name: "Other Exception Handler (Primary)")
+        defer { impostor.stop() }
+
+        // When
+        impostor.run {
+            var foreign = action(foreignHandler)
+            _ = sigaction(self.ownedSignal, &foreign, nil)
+        }
+
+        // Then
+        XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler, "Threads are not recognized by their name")
     }
 
     func testWhenTheCrashReporterHandlerIsNoLongerInstalled_callsAreNotAffected() {

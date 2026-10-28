@@ -97,7 +97,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
             if takesOverCrashHandlers, let installPath = configuration.installPath {
                 let throwSiteFile = URL(fileURLWithPath: installPath).appendingPathComponent("cpp-throw-site")
                 filters.append(DatadogCppThrowSiteFilter(throwSiteFile: throwSiteFile))
-                if !CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile) {
+                if !CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, handlesMachExceptions: handlesMachExceptions) {
                     telemetry.debug("[KSCrash] Crash handler takeover could not be activated")
                 }
             }
