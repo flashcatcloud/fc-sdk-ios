@@ -312,15 +312,17 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
         )
     }
 
-    /// Local day + anonymous id + user id; nil while there is no identity to report. With anonymous
-    /// tracking on, that waits for the anonymous id, which is read from disk after start.
+    /// Local day + app version and build + anonymous id + user id; nil while there is no identity to
+    /// report. With anonymous tracking on, that waits for the anonymous id, which is read from disk
+    /// after start. The version is part of it so that an upgrade the same day is reported for the
+    /// new version too; a marker written without it simply does not match, costing one request.
     private func key(for context: DatadogContext, at date: Date) -> String? {
         let anonymousId = nonEmpty(context.userInfo?.anonymousId)
         let userId = nonEmpty(context.userInfo?.id)
         if trackAnonymousUser ? anonymousId == nil : userId == nil {
             return nil
         }
-        return "\(Self.localDay(of: date))|\(anonymousId ?? "")|\(userId ?? "")"
+        return "\(Self.localDay(of: date))|\(context.version)|\(context.buildNumber)|\(anonymousId ?? "")|\(userId ?? "")"
     }
 
     private func body(for context: DatadogContext) -> Body {
