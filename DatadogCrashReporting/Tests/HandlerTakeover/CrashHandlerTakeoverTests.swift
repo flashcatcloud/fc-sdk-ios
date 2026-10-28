@@ -110,6 +110,42 @@ class CrashHandlerTakeoverTests: XCTestCase {
         XCTAssertEqual(address(of: queried), address(of: foreignHandler), "A query sees the handler the caller installed")
     }
 
+    /// Under the Thread Sanitizer, a record and a read of the same action that are not synchronized also fail the test.
+    func testWhenActive_concurrentRecordsAreSeenWhole() {
+        // Given
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let signal = ownedSignal
+        let writers = 4
+        let inconsistent = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+        inconsistent.initialize(to: 0)
+        defer { inconsistent.deallocate() }
+
+        // When (the handler, mask and flags of each action carry the same number)
+        DispatchQueue.concurrentPerform(iterations: writers + 1) { thread in
+            for round in 1...5_000 {
+                if thread < writers {
+                    let value = Int32(thread * 10_000 + round)
+                    var recorded = sigaction()
+                    recorded.__sigaction_u = unsafeBitCast(UInt(value) << 4, to: __sigaction_u.self)
+                    recorded.sa_mask = sigset_t(value)
+                    recorded.sa_flags = value
+                    _ = sigaction(signal, &recorded, nil)
+                } else {
+                    var queried = sigaction()
+                    _ = sigaction(signal, nil, &queried)
+                    let handler = address(of: queried) >> 4
+                    if handler != UInt(queried.sa_flags) || queried.sa_mask != sigset_t(queried.sa_flags) {
+                        inconsistent.pointee += 1
+                    }
+                }
+            }
+        }
+
+        // Then
+        XCTAssertEqual(inconsistent.pointee, 0)
+        XCTAssertEqual(installedHandler(signal), CrashHandlerTakeover.signalHandler)
+    }
+
     func testWhenActive_resettingToTheDefaultHandlerIsNotApplied() {
         // Given
         XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))

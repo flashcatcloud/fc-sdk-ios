@@ -78,7 +78,7 @@ internal enum CrashHandlerTakeover {
 
         state.pointee.isHandlingCrash = 0
         // Globals are initialized on first access: not in a signal handler.
-        _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActions, foreignActionRecorded, crashRestoreRedirected)
+        _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActionSlots, foreignActionClaims, foreignActionPublished, crashRestoreRedirected)
 
         // Own the crash signals the crash reporter handles. SIGPIPE is left alone: apps commonly ignore it.
         var ownedSignals: UInt32 = 0
@@ -86,8 +86,8 @@ internal enum CrashHandlerTakeover {
             var action = sigaction()
             _ = callOriginalSigaction(signal, nil, &action)
             let handler = handlerAddress(of: action)
-            foreignActionRecorded[Int(signal)] = 0
-            crashRestoreRedirected[Int(signal)] = 0
+            atomicExchange(foreignActionPublished.advanced(by: Int(signal)), 0)
+            atomicExchange(crashRestoreRedirected.advanced(by: Int(signal)), 0)
             guard handler != handlerAddress(of: SIG_DFL), handler != handlerAddress(of: SIG_IGN) else {
                 continue
             }
@@ -262,25 +262,113 @@ private let crashReporterActions: UnsafeMutablePointer<sigaction> = {
     return pointer
 }()
 
-/// The last action another caller tried to install for each owned signal.
-private let foreignActions: UnsafeMutablePointer<sigaction> = {
-    let pointer = UnsafeMutablePointer<sigaction>.allocate(capacity: signalCapacity)
-    pointer.initialize(repeating: sigaction(), count: signalCapacity)
-    return pointer
-}()
+/// The actions other callers tried to install for each owned signal. Each one is recorded in a slot of its own
+/// (`slotsPerSignal` slots per signal, used in turn), then the slot is published. Every access is atomic, and a slot's
+/// sequence number is odd while it is written: a reader, e.g. the crash-time redirect interrupting a recording on the
+/// same thread, copies a complete action or retries.
+private let slotsPerSignal = 8
+/// The words of each slot.
+private enum SlotWord: Int, CaseIterable {
+    case sequence, handler, maskAndFlags
+}
 
-private let foreignActionRecorded: UnsafeMutablePointer<Int32> = {
-    let pointer = UnsafeMutablePointer<Int32>.allocate(capacity: signalCapacity)
-    pointer.initialize(repeating: 0, count: signalCapacity)
-    return pointer
-}()
+private let foreignActionSlots = atomicWords(count: signalCapacity * slotsPerSignal * SlotWord.allCases.count)
+/// How many slots were claimed for each signal (as an integer).
+private let foreignActionClaims = atomicWords(count: signalCapacity)
+/// The index of the slot of the last action recorded for each signal, plus one; `nil` if none.
+private let foreignActionPublished = atomicWords(count: signalCapacity)
 
-/// Whether the first handler installed for each owned signal while handling a crash was replaced by the recorded one.
-private let crashRestoreRedirected: UnsafeMutablePointer<Int32> = {
-    let pointer = UnsafeMutablePointer<Int32>.allocate(capacity: signalCapacity)
-    pointer.initialize(repeating: 0, count: signalCapacity)
+/// Whether the first handler installed for each owned signal while handling a crash was replaced by the recorded one
+/// (non-`nil`).
+private let crashRestoreRedirected = atomicWords(count: signalCapacity)
+
+private func atomicWords(count: Int) -> UnsafeMutablePointer<UnsafeRawPointer?> {
+    let pointer = UnsafeMutablePointer<UnsafeRawPointer?>.allocate(capacity: count)
+    pointer.initialize(repeating: nil, count: count)
     return pointer
-}()
+}
+
+// MARK: - Atomics (async-signal-safe)
+
+// A compare-and-swap is a single sequentially consistent instruction sequence, without a lock: it is safe in a signal
+// handler, including one interrupting another access on the same thread. Integers are stored as pointer bit patterns.
+
+private func atomicLoad(_ word: UnsafeMutablePointer<UnsafeRawPointer?>) -> UInt {
+    var expected: UnsafeRawPointer? = nil
+    _ = _stdlib_atomicCompareExchangeStrongPtr(object: word, expected: &expected, desired: nil) // fails unless nil
+    return UInt(bitPattern: expected)
+}
+
+@discardableResult
+private func atomicExchange(_ word: UnsafeMutablePointer<UnsafeRawPointer?>, _ value: UInt) -> UInt {
+    var expected = UnsafeRawPointer(bitPattern: atomicLoad(word))
+    while !_stdlib_atomicCompareExchangeStrongPtr(object: word, expected: &expected, desired: UnsafeRawPointer(bitPattern: value)) {}
+    return UInt(bitPattern: expected)
+}
+
+/// Sets the word to `desired` if it is `expected`. Returns whether it did.
+private func atomicCompareExchange(_ word: UnsafeMutablePointer<UnsafeRawPointer?>, _ expected: UInt, _ desired: UInt) -> Bool {
+    var expected = UnsafeRawPointer(bitPattern: expected)
+    return _stdlib_atomicCompareExchangeStrongPtr(object: word, expected: &expected, desired: UnsafeRawPointer(bitPattern: desired))
+}
+
+/// Increments the word. Returns the value before the increment.
+@discardableResult
+private func atomicIncrement(_ word: UnsafeMutablePointer<UnsafeRawPointer?>) -> UInt {
+    var expected = UnsafeRawPointer(bitPattern: atomicLoad(word))
+    while !_stdlib_atomicCompareExchangeStrongPtr(
+        object: word,
+        expected: &expected,
+        desired: UnsafeRawPointer(bitPattern: UInt(bitPattern: expected) &+ 1)
+    ) {}
+    return UInt(bitPattern: expected)
+}
+
+private func slotWord(_ slot: Int, _ word: SlotWord) -> UnsafeMutablePointer<UnsafeRawPointer?> {
+    foreignActionSlots.advanced(by: slot * SlotWord.allCases.count + word.rawValue)
+}
+
+/// Records the action another caller tried to install for a signal.
+private func recordForeignAction(_ action: sigaction, for signal: Int32) {
+    // Take a slot no other record is writing (its sequence is even) by making its sequence odd; a slot being written,
+    // e.g. by a record this call interrupts on the same thread, is skipped rather than waited for.
+    var slot: Int
+    var sequence: UInt
+    repeat {
+        let claim = atomicIncrement(foreignActionClaims.advanced(by: Int(signal)))
+        slot = Int(signal) * slotsPerSignal + Int(claim % UInt(slotsPerSignal))
+        sequence = atomicLoad(slotWord(slot, .sequence))
+    } while sequence % 2 != 0 || !atomicCompareExchange(slotWord(slot, .sequence), sequence, sequence + 1)
+    atomicExchange(slotWord(slot, .handler), handlerAddress(of: action))
+    atomicExchange(slotWord(slot, .maskAndFlags), UInt(action.sa_mask) | UInt(UInt32(bitPattern: action.sa_flags)) << 32)
+    atomicIncrement(slotWord(slot, .sequence)) // even: complete
+    atomicExchange(foreignActionPublished.advanced(by: Int(signal)), UInt(slot + 1))
+}
+
+/// The last action recorded for a signal, if any.
+internal func recordedForeignAction(for signal: Int32) -> sigaction? {
+    // A slot is rewritten only after `slotsPerSignal` more records: retrying covers concurrent records, and an
+    // unbounded wait is never needed.
+    for _ in 0..<64 {
+        let published = atomicLoad(foreignActionPublished.advanced(by: Int(signal)))
+        guard published != 0 else {
+            return nil
+        }
+        let slot = Int(published) - 1
+        let sequence = atomicLoad(slotWord(slot, .sequence))
+        let handler = atomicLoad(slotWord(slot, .handler))
+        let maskAndFlags = atomicLoad(slotWord(slot, .maskAndFlags))
+        guard sequence % 2 == 0, atomicLoad(slotWord(slot, .sequence)) == sequence else {
+            continue
+        }
+        var action = sigaction()
+        action.__sigaction_u = unsafeBitCast(handler, to: __sigaction_u.self)
+        action.sa_mask = sigset_t(truncatingIfNeeded: maskAndFlags)
+        action.sa_flags = Int32(bitPattern: UInt32(truncatingIfNeeded: maskAndFlags >> 32))
+        return action
+    }
+    return nil
+}
 
 // MARK: - Helpers (async-signal-safe)
 
@@ -359,37 +447,37 @@ private func isGuarding(signal: Int32) -> Bool {
 
 /// The action a caller sees as installed: the last one it recorded, or the default one.
 private func recordedAction(for signal: Int32) -> sigaction {
-    foreignActionRecorded[Int(signal)] != 0 ? foreignActions[Int(signal)] : sigaction()
+    recordedForeignAction(for: signal) ?? sigaction()
 }
 
 // MARK: - Replacements
 
-/// Whether a handler installed for this signal is the crash reporter restoring the handler it saved, while handling a
-/// crash, and another one was recorded since: the first one installed for the signal once a crash is being handled.
-private func isCrashRestoreToRedirect(signal: Int32) -> Bool {
+/// The action recorded for this signal, if a handler installed for it is the crash reporter restoring the handler it
+/// saved, while handling a crash, and another one was recorded since: the first one installed for the signal once a
+/// crash is being handled.
+private func crashRestoreRedirect(signal: Int32) -> sigaction? {
     let bit = signalBit(signal)
     guard
         state.pointee.isActive != 0, bit != 0, state.pointee.ownedSignals & bit != 0,
-        foreignActionRecorded[Int(signal)] != 0, crashRestoreRedirected[Int(signal)] == 0,
-        isHandlingCrash()
+        let recorded = recordedForeignAction(for: signal),
+        isHandlingCrash(),
+        atomicCompareExchange(crashRestoreRedirected.advanced(by: Int(signal)), 0, 1)
     else {
-        return false
+        return nil
     }
-    crashRestoreRedirected[Int(signal)] = 1
-    return true
+    return recorded
 }
 
 private let sigactionReplacement: SigactionFunction = { signal, action, oldAction in
     guard isGuarding(signal: signal) else {
-        if action != nil, isCrashRestoreToRedirect(signal: signal) {
-            return callOriginalSigaction(signal, foreignActions.advanced(by: Int(signal)), oldAction)
+        if action != nil, var recorded = crashRestoreRedirect(signal: signal) {
+            return callOriginalSigaction(signal, &recorded, oldAction)
         }
         return callOriginalSigaction(signal, action, oldAction)
     }
     let previous = recordedAction(for: signal)
     if let action {
-        foreignActions[Int(signal)] = action.pointee
-        foreignActionRecorded[Int(signal)] = 1
+        recordForeignAction(action.pointee, for: signal)
     }
     oldAction?.pointee = previous
     return 0
@@ -402,8 +490,7 @@ private let signalReplacement: SignalFunction = { signal, handler in
     let previous = recordedAction(for: signal)
     var action = sigaction()
     action.__sigaction_u = unsafeBitCast(handler, to: __sigaction_u.self)
-    foreignActions[Int(signal)] = action
-    foreignActionRecorded[Int(signal)] = 1
+    recordForeignAction(action, for: signal)
     return unsafeBitCast(previous.__sigaction_u, to: UnsafeMutableRawPointer?.self)
 }
 
