@@ -114,13 +114,7 @@ public final class CrashReporting {
         // then dropped. Write the first one now, before registering, so later updates always replace it. Skipped
         // when crash reporting is already enabled: this call fails to register and must not replace the live context.
         if core.get(feature: CrashReportingFeature.self) == nil, let context = core.currentContext() {
-            reporter.inject(initialCrashContext: CrashContext(
-                context,
-                lastRUMViewEvent: nil,
-                lastRUMSessionState: nil,
-                lastRUMAttributes: nil,
-                lastLogAttributes: nil
-            ))
+            reporter.inject(initialCrashContext: CrashContext(context, lastLogAttributes: nil))
         }
 
         try core.register(feature: reporter)

@@ -149,7 +149,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
             accessibilityReader: accessibilityReader,
             onSessionStart: configuration.onSessionStart,
             viewCache: ViewCache(dateProvider: configuration.dateProvider),
-            fatalErrorContext: FatalErrorContextNotifier(messageBus: featureScope),
+            fatalErrorContext: FatalErrorContextNotifier(featureScope: featureScope),
             sessionEndedMetric: sessionEndedMetric,
             viewEndedMetricFactory: {
                 let viewEndedController = ViewEndedController(

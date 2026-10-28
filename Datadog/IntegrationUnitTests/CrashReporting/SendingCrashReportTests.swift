@@ -17,8 +17,10 @@ import DatadogInternal
 private class CrashReporterMock: CrashReportingPlugin {
     @ReadWriteLock
     var pendingCrashReport: DDCrashReport?
+    /// Every crash context injected, in order.
     @ReadWriteLock
-    var injectedContext: Data? = nil
+    var injectedContexts: [Data] = []
+    var injectedContext: Data? { injectedContexts.last }
     /// Custom backtrace reporter injected to the plugin.
     var injectedBacktraceReporter: BacktraceReporting?
 
@@ -27,7 +29,7 @@ private class CrashReporterMock: CrashReportingPlugin {
     }
 
     func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) { _ = completion(pendingCrashReport.map { [$0] } ?? []) }
-    func inject(context: Data) { injectedContext = context }
+    func inject(context: Data) { _injectedContexts.mutate { $0.append(context) } }
     var backtraceReporter: BacktraceReporting? { injectedBacktraceReporter }
 }
 
@@ -101,5 +103,125 @@ class SendingCrashReportTests: XCTestCase {
 
         // Then (the second call fails to register and must not replace the live crash context)
         XCTAssertNil(secondPlugin.injectedContext)
+    }
+
+    // MARK: - RUM State In The Crash Context
+
+    func testWhenCrashReportingIsEnabledAfterRUM_theCrashContextHasRUMSessionStateAndView() throws {
+        // Given
+        let plugin = CrashReporterMock()
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+        RUMMonitor.shared(in: core).startView(key: "view", name: "FirstView")
+        core.flush()
+
+        // When
+        CrashReporting.enable(with: plugin, in: core)
+        flushCrashContext()
+
+        // Then
+        let crashContext = try decode(XCTUnwrap(plugin.injectedContext))
+        let sessionState = try XCTUnwrap(crashContext.lastRUMSessionState, "The session state must reach a crash reporter enabled after RUM")
+        XCTAssertNotEqual(sessionState.sessionUUID, .dd.nullUUID)
+        XCTAssertEqual(crashContext.lastRUMViewEvent?.view.name, "FirstView")
+        XCTAssertEqual(crashContext.lastRUMViewEvent?.session.id, sessionState.sessionUUID.uuidString.lowercased())
+    }
+
+    func testWhenCrashReportingIsEnabledAfterRUM_theCrashContextFollowsLaterRUMChanges() throws {
+        // Given
+        let plugin = CrashReporterMock()
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+        let monitor = RUMMonitor.shared(in: core)
+        monitor.startView(key: "view1", name: "FirstView")
+        core.flush()
+        CrashReporting.enable(with: plugin, in: core)
+
+        // When
+        monitor.startView(key: "view2", name: "SecondView")
+        monitor.addAttribute(forKey: "global-attribute", value: "value")
+        flushCrashContext()
+
+        // Then
+        let crashContext = try decode(XCTUnwrap(plugin.injectedContext))
+        XCTAssertNotNil(crashContext.lastRUMSessionState)
+        XCTAssertEqual(crashContext.lastRUMViewEvent?.view.name, "SecondView")
+        XCTAssertEqual((crashContext.lastRUMAttributes?.contextInfo["global-attribute"] as? AnyCodable)?.value as? String, "value")
+    }
+
+    func testWhenCrashReportingIsEnabledBeforeRUM_theCrashContextHasRUMSessionStateAndView() throws {
+        // Given
+        let plugin = CrashReporterMock()
+        CrashReporting.enable(with: plugin, in: core)
+
+        // When
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+        RUMMonitor.shared(in: core).startView(key: "view", name: "FirstView")
+        flushCrashContext()
+
+        // Then
+        let crashContext = try decode(XCTUnwrap(plugin.injectedContext))
+        let sessionState = try XCTUnwrap(crashContext.lastRUMSessionState)
+        XCTAssertNotEqual(sessionState.sessionUUID, .dd.nullUUID)
+        XCTAssertEqual(crashContext.lastRUMViewEvent?.view.name, "FirstView")
+    }
+
+    func testWhenCrashReportingIsEnabledAfterRUM_theCrashContextWrittenBeforeReturningHasRUMSessionStateAndView() throws {
+        // Given
+        let plugin = CrashReporterMock()
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+        RUMMonitor.shared(in: core).startView(key: "view", name: "FirstView")
+        core.flush()
+
+        // When
+        CrashReporting.enable(with: plugin, in: core)
+
+        // Then (no waiting: the first crash context written is the one written before `enable()` returns)
+        let crashContext = try decode(XCTUnwrap(plugin.injectedContexts.first))
+        XCTAssertNotNil(crashContext.lastRUMSessionState, "The crash context written at `enable()` must have the session state")
+        XCTAssertEqual(crashContext.lastRUMViewEvent?.view.name, "FirstView")
+    }
+
+    func testWhenCrashReportingIsEnabledAfterRUMWithSampledOutSession_theCrashContextHasTheRejectedSessionState() throws {
+        // Given
+        let plugin = CrashReporterMock()
+        RUM.enable(with: .init(applicationID: "rum-app-id", sessionSampleRate: 0), in: core)
+        RUMMonitor.shared(in: core).startView(key: "view", name: "FirstView")
+        core.flush()
+
+        // When
+        CrashReporting.enable(with: plugin, in: core)
+        flushCrashContext()
+
+        // Then (a crash in a session rejected by the sampler must be dropped, not sampled again in a new session)
+        let crashContext = try decode(XCTUnwrap(plugin.injectedContext))
+        let sessionState = try XCTUnwrap(crashContext.lastRUMSessionState)
+        XCTAssertEqual(sessionState.sessionUUID, .dd.nullUUID)
+        XCTAssertNil(crashContext.lastRUMViewEvent)
+    }
+
+    func testWhenRUMIsNotEnabled_theCrashContextHasNoRUMState() throws {
+        // Given
+        let plugin = CrashReporterMock()
+
+        // When
+        CrashReporting.enable(with: plugin, in: core)
+        flushCrashContext()
+
+        // Then
+        let crashContext = try decode(XCTUnwrap(plugin.injectedContext))
+        XCTAssertNil(crashContext.lastRUMSessionState)
+        XCTAssertNil(crashContext.lastRUMViewEvent)
+        XCTAssertNil(crashContext.lastRUMAttributes)
+    }
+
+    /// Awaits the crash context reaching the plugin: it goes through the crash context provider's queue, which
+    /// `core.flush()` does not await.
+    private func flushCrashContext() {
+        core.flush()
+        (core.get(feature: CrashReportingFeature.self)?.messageReceiver as? Flushable)?.flush()
+        core.flush()
+    }
+
+    private func decode(_ data: Data) throws -> CrashContext {
+        try CrashReportingFeature.crashContextDecoder.decode(CrashContext.self, from: data)
     }
 }

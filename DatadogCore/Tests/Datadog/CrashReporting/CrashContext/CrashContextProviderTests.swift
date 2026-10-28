@@ -59,178 +59,51 @@ class CrashContextProviderTests: XCTestCase {
         DDAssert(crashContext: crashContext, includes: nextSDKContext)
     }
 
-    // MARK: - Receiving RUM View
+    // MARK: - Receiving RUM State
 
-    func testWhenRUMViewIsReceivedAfterSDKContext_itNotifiesNewCrashContext() throws {
+    func testWhenSDKContextWithRUMStateIsReceived_itNotifiesNewCrashContext() throws {
         var latestCrashContext: CrashContext? = nil
         provider.onCrashContextChange = { latestCrashContext = $0 }
 
         // Given
-        let sdkContext: DatadogContext = .mockRandom()
-        let rumView: RUMViewEvent = .mockRandom()
+        let rumContext = RUMFatalErrorContext(sessionState: .mockRandom(), view: .mockRandom(), globalAttributes: .mockRandom())
+        var sdkContext: DatadogContext = .mockRandom()
+        sdkContext.set(additionalContext: rumContext)
+
+        // When
+        XCTAssertTrue(provider.receive(message: .context(.mockRandom()), from: NOPDatadogCore())) // receive initial SDK context
+        XCTAssertTrue(provider.receive(message: .context(sdkContext), from: NOPDatadogCore()))
+
+        // Then
+        provider.flush()
+        let crashContext = try XCTUnwrap(latestCrashContext)
+        XCTAssertEqual(crashContext, provider.currentCrashContext)
+        DDAssert(crashContext: crashContext, includes: sdkContext)
+        DDAssertJSONEqual(crashContext.lastRUMViewEvent, rumContext.view, "Last RUM view must be available")
+        XCTAssertEqual(crashContext.lastRUMSessionState, rumContext.sessionState, "Last RUM session state must be available")
+        DDAssertJSONEqual(crashContext.lastRUMAttributes, rumContext.globalAttributes, "Last RUM attributes must be available")
+    }
+
+    func testWhenSDKContextWithRUMStateWithoutViewIsReceived_itNotifiesCrashContextWithoutView() throws {
+        var latestCrashContext: CrashContext? = nil
+        provider.onCrashContextChange = { latestCrashContext = $0 }
+
+        // Given
+        let sessionState: RUMSessionState = .mockRandom()
+        var sdkContext: DatadogContext = .mockRandom()
+        sdkContext.set(additionalContext: RUMFatalErrorContext(sessionState: sessionState, view: .mockRandom(), globalAttributes: nil))
+        var nextSDKContext = sdkContext
+        nextSDKContext.set(additionalContext: RUMFatalErrorContext(sessionState: sessionState, view: nil, globalAttributes: nil))
 
         // When
         XCTAssertTrue(provider.receive(message: .context(sdkContext), from: NOPDatadogCore()))
-        XCTAssertTrue(provider.receive(message: .payload(rumView), from: NOPDatadogCore()))
-
-        // Then
-        provider.flush()
-        let crashContext = try XCTUnwrap(latestCrashContext)
-        XCTAssertEqual(crashContext, provider.currentCrashContext)
-        DDAssert(crashContext: crashContext, includes: sdkContext)
-        DDAssertJSONEqual(crashContext.lastRUMViewEvent, rumView, "Last RUM view must be available")
-    }
-
-    func testWhenSDKContextIsReceivedAfterRUMView_itNotifiesNewCrashContext() throws {
-        var latestCrashContext: CrashContext? = nil
-        provider.onCrashContextChange = { latestCrashContext = $0 }
-
-        // Given
-        let rumView: RUMViewEvent = .mockRandom()
-        let nextSDKContext: DatadogContext = .mockRandom()
-
-        // When
-        XCTAssertTrue(provider.receive(message: .context(.mockRandom()), from: NOPDatadogCore())) // receive initial SDK context
-        XCTAssertTrue(provider.receive(message: .payload(rumView), from: NOPDatadogCore()))
         XCTAssertTrue(provider.receive(message: .context(nextSDKContext), from: NOPDatadogCore()))
 
         // Then
         provider.flush()
         let crashContext = try XCTUnwrap(latestCrashContext)
-        XCTAssertEqual(crashContext, provider.currentCrashContext)
-        DDAssert(crashContext: crashContext, includes: nextSDKContext)
-        DDAssertJSONEqual(crashContext.lastRUMViewEvent, rumView, "Last RUM view must be available even after next SDK context update")
-    }
-
-    // MARK: - Receiving RUM View Reset
-
-    func testWhenRUMViewResetIsReceivedAfterRUMView_thenItNotifiesNewCrashContext() throws {
-        var latestCrashContext: CrashContext? = nil
-        provider.onCrashContextChange = { latestCrashContext = $0 }
-
-        // Given
-        let sdkContext: DatadogContext = .mockRandom()
-        let rumView: RUMViewEvent = .mockRandom()
-
-        // When
-        XCTAssertTrue(provider.receive(message: .context(sdkContext), from: NOPDatadogCore())) // receive initial SDK context
-        XCTAssertTrue(provider.receive(message: .payload(rumView), from: NOPDatadogCore()))
-        XCTAssertTrue(provider.receive(message: .payload(RUMPayloadMessages.viewReset), from: NOPDatadogCore()))
-
-        // Then
-        provider.flush()
-        let crashContext = try XCTUnwrap(latestCrashContext)
-        XCTAssertEqual(crashContext, provider.currentCrashContext)
-        DDAssert(crashContext: crashContext, includes: sdkContext)
         XCTAssertNil(crashContext.lastRUMViewEvent, "Last RUM view must reset")
-    }
-
-    func testWhenSDKContextIsReceivedAfterRUMViewReset_thenItNotifiesNewCrashContext() throws {
-        var latestCrashContext: CrashContext? = nil
-        provider.onCrashContextChange = { latestCrashContext = $0 }
-
-        // Given
-        let rumView: RUMViewEvent = .mockRandom()
-        let nextSDKContext: DatadogContext = .mockRandom()
-
-        // When
-        XCTAssertTrue(provider.receive(message: .context(.mockRandom()), from: NOPDatadogCore())) // receive initial SDK context
-        XCTAssertTrue(provider.receive(message: .payload(rumView), from: NOPDatadogCore()))
-        XCTAssertTrue(provider.receive(message: .payload(RUMPayloadMessages.viewReset), from: NOPDatadogCore()))
-        XCTAssertTrue(provider.receive(message: .context(nextSDKContext), from: NOPDatadogCore()))
-
-        // Then
-        provider.flush()
-        let crashContext = try XCTUnwrap(latestCrashContext)
-        XCTAssertEqual(crashContext, provider.currentCrashContext)
-        DDAssert(crashContext: crashContext, includes: nextSDKContext)
-        XCTAssertNil(crashContext.lastRUMViewEvent, "Last RUM view must reset even after next SDK context update")
-    }
-
-    // MARK: - Receiving RUM Session State
-
-    func testWhenRUMSessionStateIsReceivedAfterSDKContext_itNotifiesNewCrashContext() throws {
-        var latestCrashContext: CrashContext? = nil
-        provider.onCrashContextChange = { latestCrashContext = $0 }
-
-        // Given
-        let sdkContext: DatadogContext = .mockRandom()
-        let rumSessionState: RUMSessionState = .mockRandom()
-
-        // When
-        XCTAssertTrue(provider.receive(message: .context(sdkContext), from: NOPDatadogCore())) // receive initial SDK context
-        XCTAssertTrue(provider.receive(message: .payload(rumSessionState), from: NOPDatadogCore()))
-
-        // Then
-        provider.flush()
-        let crashContext = try XCTUnwrap(latestCrashContext)
-        XCTAssertEqual(crashContext, provider.currentCrashContext)
-        DDAssert(crashContext: crashContext, includes: sdkContext)
-        XCTAssertEqual(crashContext.lastRUMSessionState, rumSessionState, "Last RUM session state must be available")
-    }
-
-    func testWhenSDKContextIsReceivedAfterRUMSessionState_itNotifiesNewCrashContext() throws {
-        var latestCrashContext: CrashContext? = nil
-        provider.onCrashContextChange = { latestCrashContext = $0 }
-
-        // Given
-        let rumSessionState: RUMSessionState = .mockRandom()
-        let nextSDKContext: DatadogContext = .mockRandom()
-
-        // When
-        XCTAssertTrue(provider.receive(message: .context(.mockRandom()), from: NOPDatadogCore())) // receive initial SDK context
-        XCTAssertTrue(provider.receive(message: .payload(rumSessionState), from: NOPDatadogCore()))
-        XCTAssertTrue(provider.receive(message: .context(nextSDKContext), from: NOPDatadogCore()))
-
-        // Then
-        provider.flush()
-        let crashContext = try XCTUnwrap(latestCrashContext)
-        XCTAssertEqual(crashContext, provider.currentCrashContext)
-        DDAssert(crashContext: crashContext, includes: nextSDKContext)
-        XCTAssertEqual(crashContext.lastRUMSessionState, rumSessionState, "Last RUM session state must be available even after next SDK context update")
-    }
-
-    // MARK: - Receiving Global RUM Attributes
-
-    func testWhenRUMAttributesAreReceivedAfterSDKContext_itNotifiesNewCrashContext() throws {
-        var latestCrashContext: CrashContext? = nil
-        provider.onCrashContextChange = { latestCrashContext = $0 }
-
-        // Given
-        let sdkContext: DatadogContext = .mockRandom()
-        let rumAttributes: RUMEventAttributes = .mockRandom()
-
-        // When
-        XCTAssertTrue(provider.receive(message: .context(sdkContext), from: NOPDatadogCore())) // receive initial SDK context
-        XCTAssertTrue(provider.receive(message: .payload(rumAttributes), from: NOPDatadogCore()))
-
-        // Then
-        provider.flush()
-        let crashContext = try XCTUnwrap(latestCrashContext)
-        XCTAssertEqual(crashContext, provider.currentCrashContext)
-        DDAssert(crashContext: crashContext, includes: sdkContext)
-        DDAssertJSONEqual(crashContext.lastRUMAttributes, rumAttributes, "Last RUM attributes must be available")
-    }
-
-    func testWhenSDKContextIsReceivedAfterRUMAttributes_itNotifiesNewCrashContext() throws {
-        var latestCrashContext: CrashContext? = nil
-        provider.onCrashContextChange = { latestCrashContext = $0 }
-
-        // Given
-        let rumAttributes: RUMEventAttributes = .mockRandom()
-        let nextSDKContext: DatadogContext = .mockRandom()
-
-        // When
-        XCTAssertTrue(provider.receive(message: .context(.mockRandom()), from: NOPDatadogCore())) // receive initial SDK context
-        XCTAssertTrue(provider.receive(message: .payload(rumAttributes), from: NOPDatadogCore()))
-        XCTAssertTrue(provider.receive(message: .context(nextSDKContext), from: NOPDatadogCore()))
-
-        // Then
-        provider.flush()
-        let crashContext = try XCTUnwrap(latestCrashContext)
-        XCTAssertEqual(crashContext, provider.currentCrashContext)
-        DDAssert(crashContext: crashContext, includes: nextSDKContext)
-        DDAssertJSONEqual(crashContext.lastRUMAttributes, rumAttributes, "Last RUM attributes must be available even after next SDK context update")
+        XCTAssertEqual(crashContext.lastRUMSessionState, sessionState)
     }
 
     // MARK: - Receiving Global Log Attributes
@@ -280,17 +153,16 @@ class CrashContextProviderTests: XCTestCase {
 
     func testWhenContextIsWrittenAndReadFromDifferentThreads_itRunsAllOperationsSafely() {
         let provider = CrashContextCoreProvider()
-        let viewEvent: RUMViewEvent = .mockRandom()
-        let sessionState: RUMSessionState = .mockRandom()
+        var contextWithRUMState: DatadogContext = .mockRandom()
+        contextWithRUMState.set(additionalContext: RUMFatalErrorContext(sessionState: .mockRandom(), view: .mockRandom(), globalAttributes: nil))
 
         // swiftlint:disable opening_brace
         callConcurrently(
             closures: [
                 { _ = provider.currentCrashContext },
                 { _ = provider.receive(message: .context(.mockRandom()), from: NOPDatadogCore()) },
-                { _ = provider.receive(message: .payload(viewEvent), from: NOPDatadogCore()) },
-                { _ = provider.receive(message: .payload(RUMPayloadMessages.viewReset), from: NOPDatadogCore()) },
-                { _ = provider.receive(message: .payload(sessionState), from: NOPDatadogCore()) },
+                { _ = provider.receive(message: .context(contextWithRUMState), from: NOPDatadogCore()) },
+                { _ = provider.receive(message: .payload(LogEventAttributes.mockRandom()), from: NOPDatadogCore()) },
             ],
             iterations: 50
         )
