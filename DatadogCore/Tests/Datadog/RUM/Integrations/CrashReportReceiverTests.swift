@@ -214,7 +214,7 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(result.eventsWrittenAtCompletion, [0], "A crash in a sampled-out session is processed without events")
     }
 
-    func testWhenTheCrashIsNotHandled_itDoesNotComplete() {
+    func testWhenTheCrashIsSampledOut_itCompletesProcessedWithoutEvents() {
         // Given
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         let receiver: CrashReportReceiver = .mockWith(
@@ -231,8 +231,9 @@ class CrashReportReceiverTests: XCTestCase {
         )
 
         // Then
-        XCTAssertFalse(result.handled)
-        XCTAssertEqual(result.eventsWrittenAtCompletion, [], "The sender completes a message no receiver handles")
+        XCTAssertTrue(result.handled, "Declining a crash on purpose must not look like a missing receiver")
+        XCTAssertEqual(result.eventsWrittenAtCompletion, [0])
+        XCTAssertEqual(result.processed, [true], "A sampled-out crash is deleted")
     }
 
     // MARK: - Tracking Consent At Crash Time
@@ -337,13 +338,11 @@ class CrashReportReceiverTests: XCTestCase {
         )
 
         // When
-        XCTAssertFalse(
-            receiver.receive(message: .payload(
-                Crash(report: crashReport, context: crashContext)
-            ), from: NOPDatadogCore())
-        )
+        let result = receive(crashReport, with: crashContext, by: receiver)
 
         // Then
+        XCTAssertTrue(result.handled)
+        XCTAssertEqual(result.processed, [true], "A crash ignored for an earlier crash in the same view is deleted")
         XCTAssertEqual(featureScope.eventsWritten.count, 0, "It must send no message")
     }
 
@@ -495,13 +494,11 @@ class CrashReportReceiverTests: XCTestCase {
         )
 
         // When
-        XCTAssertFalse(
-            receiver.receive(message: .payload(
-                Crash(report: crashReport, context: crashContext)
-            ), from: NOPDatadogCore())
-        )
+        let result = receive(crashReport, with: crashContext, by: receiver)
 
         // Then
+        XCTAssertTrue(result.handled)
+        XCTAssertEqual(result.processed, [true], "A sampled-out crash is deleted")
         XCTAssertEqual(featureScope.eventsWritten.count, 0, "Crash must not be send as it is rejected by sampler")
     }
 

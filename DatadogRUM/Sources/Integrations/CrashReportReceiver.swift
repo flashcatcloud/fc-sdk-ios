@@ -87,8 +87,9 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         return send(report: crash.report, with: crash.context, completion: crash.completion)
     }
 
-    /// - Parameter completion: called once the crash events are written, or once it is decided not to write any,
-    ///   unless `false` is returned.
+    /// - Parameter completion: called once the crash events are written, or once it is decided not to write any.
+    /// - Returns: always `true` for a crash: declining it on purpose is a decision, and the sender keeps a crash only
+    ///   when no receiver handles it at all.
     private func send(report: DDCrashReport, with context: CrashContext, completion: @escaping (_ processed: Bool) -> Void) -> Bool {
         // The `crashReport.crashDate` uses system `Date` collected at the moment of crash, so we need to adjust it
         // to the server time before processing. Following use of the current correction is not ideal (it's not the correction
@@ -131,7 +132,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 )
             } else {
                 DD.logger.debug("There was a crash in previous session, but it is ignored due to another crash already present in the last view.")
-                return false
+                completion(true)
             }
         } else if let lastRUMSessionState = context.lastRUMSessionState {
             sendCrashReportToPreviousSession(
@@ -146,7 +147,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates, completion: completion)
         } else {
             DD.logger.debug("There was a crash in previous session, but it is ignored due to sampling.")
-            return false
+            completion(true)
         }
 
         return true

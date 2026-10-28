@@ -58,7 +58,7 @@ class CrashReportSenderTests: XCTestCase {
         XCTAssertFalse(processed, "The crash report must be kept when its processing is not confirmed")
     }
 
-    func testWhenNoReceiverHandlesTheCrash_itReturnsTrue() {
+    func testWhenNoReceiverHandlesTheCrash_itReturnsFalse() {
         // Given
         let core = PassthroughCoreMock(messageReceiver: NOPFeatureMessageReceiver())
         let sender = MessageBusSender(core: core)
@@ -67,7 +67,7 @@ class CrashReportSenderTests: XCTestCase {
         let processed = withExtendedLifetime(core) { sender.send(report: .mockAny(), with: .mockAny()) }
 
         // Then
-        XCTAssertTrue(processed, "Without RUM, the crash cannot be processed later either")
+        XCTAssertFalse(processed, "A crash nothing received must be kept for a launch that enables RUM")
     }
 
     func testWhenTheReceiverCannotWriteTheCrash_itReturnsFalse() {

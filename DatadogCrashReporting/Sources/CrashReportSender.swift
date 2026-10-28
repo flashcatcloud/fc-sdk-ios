@@ -58,9 +58,9 @@ internal struct MessageBusSender: CrashReportSender {
                     """
                     In order to use Crash Reporting, RUM feature must be enabled.
                     Make sure `RUM.enable(with:)` is called when initializing Datadog SDK.
+                    The crash report is kept until it can be processed.
                     """
                 )
-                result.processed = true
                 processed.signal()
             }
         )
