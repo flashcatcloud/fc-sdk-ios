@@ -140,7 +140,17 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
 
     // MARK: - CrashReportingPlugin
 
+    /// Whether the takeover's handlers were checked in this process.
+    private var checkedHandlerTakeover = false
+
     func readPendingCrashReports(process: @escaping (DDCrashReport) -> Bool) {
+        if !checkedHandlerTakeover {
+            checkedHandlerTakeover = true
+            let displaced = CrashHandlerTakeover.displacedHandlers()
+            if !displaced.isEmpty {
+                telemetry.debug("[KSCrash] Crash handlers were displaced", attributes: ["displaced": displaced.joined(separator: ", ")])
+            }
+        }
         _ = unreadLaunches // counts this launch first, if it was not
         recordUnreadLaunches(0)
         let reportIDs = store.reportIDs.map { $0.int64Value } // sorted by ID, which grows with time: oldest first

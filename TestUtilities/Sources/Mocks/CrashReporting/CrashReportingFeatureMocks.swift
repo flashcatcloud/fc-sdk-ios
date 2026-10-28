@@ -234,3 +234,18 @@ extension CrashContext {
 
     public var data: Data { try! JSONEncoder.dd.default().encode(self) }
 }
+
+/// A `sigaction` wrapper of the kind another library installs by rewriting symbol pointers: it counts the calls and
+/// passes them to the real function. It lives in this framework, an image of its own.
+public enum SigactionWrapperMock {
+    public typealias Function = @convention(c) (Int32, UnsafePointer<sigaction>?, UnsafeMutablePointer<sigaction>?) -> Int32
+
+    public static var calls = 0
+
+    public static let function: Function = { signal, action, oldAction in
+        calls += 1
+        return real(signal, action, oldAction)
+    }
+
+    private static let real = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "sigaction"), to: Function.self)
+}

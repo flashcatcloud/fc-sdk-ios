@@ -24,9 +24,15 @@ internal struct SymbolRebinding {
 internal enum SymbolRebinder {
     /// Rewrites the symbol pointers of one image.
     ///
+    /// - Parameter replacing: called with each symbol pointer's value before it is rewritten.
     /// - Returns: The number of symbol pointers rewritten.
     @discardableResult
-    static func rebind(_ rebindings: [SymbolRebinding], inImage header: UnsafePointer<mach_header>, slide: Int) -> Int {
+    static func rebind(
+        _ rebindings: [SymbolRebinding],
+        inImage header: UnsafePointer<mach_header>,
+        slide: Int,
+        replacing: ((SymbolRebinding, UnsafeRawPointer?) -> Void)? = nil
+    ) -> Int {
         guard header.pointee.magic == MH_MAGIC_64, !isSystemImage(header) else {
             return 0
         }
@@ -85,7 +91,8 @@ internal enum SymbolRebinder {
                         isReadOnlySegment: segmentName(segment) == "__DATA_CONST",
                         symbols: symbols,
                         strings: strings,
-                        indirectSymbols: indirectSymbols
+                        indirectSymbols: indirectSymbols,
+                        replacing: replacing
                     )
                 }
                 section = section.advanced(by: 1)
@@ -102,7 +109,8 @@ internal enum SymbolRebinder {
         isReadOnlySegment: Bool,
         symbols: UnsafePointer<nlist_64>,
         strings: UnsafePointer<CChar>,
-        indirectSymbols: UnsafePointer<UInt32>
+        indirectSymbols: UnsafePointer<UInt32>,
+        replacing: ((SymbolRebinding, UnsafeRawPointer?) -> Void)?
     ) -> Int {
         let pointerCount = Int(section.pointee.size) / MemoryLayout<UnsafeRawPointer>.size
         guard
@@ -127,6 +135,7 @@ internal enum SymbolRebinder {
             if slot.pointee == rebinding.replacement {
                 continue
             }
+            replacing?(rebinding, slot.pointee)
             if isReadOnlySegment {
                 // `__DATA_CONST` is made read-only once dyld has bound it.
                 let address = vm_address_t(UInt(bitPattern: slot))

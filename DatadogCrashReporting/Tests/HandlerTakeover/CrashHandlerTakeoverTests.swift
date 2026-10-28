@@ -6,6 +6,7 @@
 
 import XCTest
 import MachO
+import TestUtilities
 @testable import DatadogCrashReporting
 
 private typealias RealSigaction = @convention(c) (Int32, UnsafePointer<sigaction>?, UnsafeMutablePointer<sigaction>?) -> Int32
@@ -389,6 +390,50 @@ class CrashHandlerTakeoverTests: XCTestCase {
         var foreign = action(foreignHandler)
         _ = sigaction(ownedSignal, &foreign, nil)
         XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler)
+    }
+
+    func testWhenAnotherLibraryRewroteASymbolPointerBefore_theReplacementCallsItsFunction() throws {
+        // Given (another library's `sigaction` wrapper, installed in this test image before the takeover)
+        var info = Dl_info()
+        XCTAssertNotEqual(dladdr(unsafeBitCast(ownHandler as sig_t, to: UnsafeRawPointer.self), &info), 0)
+        let testHeader = try XCTUnwrap(info.dli_fbase).assumingMemoryBound(to: mach_header.self)
+        let slide = (0..<_dyld_image_count()).first { _dyld_get_image_header($0) == UnsafePointer(testHeader) }
+            .map { _dyld_get_image_vmaddr_slide($0) } ?? 0
+        let wrapper = unsafeBitCast(SigactionWrapperMock.function, to: UnsafeRawPointer.self)
+        SymbolRebinder.rebind([.init(name: "_sigaction", replacement: wrapper)], inImage: testHeader, slide: slide)
+        defer {
+            CrashHandlerTakeover.deactivate()
+            SymbolRebinder.rebind([.init(name: "_sigaction", replacement: unsafeBitCast(realSigaction, to: UnsafeRawPointer.self))], inImage: testHeader, slide: slide)
+        }
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        SigactionWrapperMock.calls = 0
+
+        // When
+        var foreign = action(foreignHandler)
+        _ = sigaction(SIGUSR1, &foreign, nil)
+
+        // Then
+        XCTAssertEqual(SigactionWrapperMock.calls, 1, "The wrapper still sees the calls the takeover lets through")
+        XCTAssertEqual(installedHandler(SIGUSR1), address(of: foreignHandler))
+
+        // When
+        _ = sigaction(ownedSignal, &foreign, nil)
+
+        // Then
+        XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler, "Calls about owned signals are still guarded")
+    }
+
+    func testWhenAHandlerIsReplacedByAPathTheTakeoverDoesNotSee_itIsReportedDisplaced() {
+        // Given
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        XCTAssertEqual(CrashHandlerTakeover.displacedHandlers(), [])
+
+        // When
+        var other = action(otherHandler)
+        _ = realSigaction(ownedSignal, &other, nil)
+
+        // Then
+        XCTAssertEqual(CrashHandlerTakeover.displacedHandlers(), ["signal \(ownedSignal)"])
     }
 
     func testWhenDeactivated_handlersAreInstalledAgain() {

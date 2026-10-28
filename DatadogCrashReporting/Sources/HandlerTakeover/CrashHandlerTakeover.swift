@@ -37,6 +37,9 @@ import MachO
 /// It also installs a C++ terminate handler that records the throw site of an uncaught C++ exception (see
 /// `ThrowSiteRecorder`) before passing it on to the crash reporter's.
 ///
+/// A symbol pointer another library already rewrote to a function of its own (e.g. a wrapper calling the real function)
+/// is chained, not clobbered: the replacement calls that function instead of the real one.
+///
 /// The replacement functions run inside signal handlers of other libraries, so they only use preallocated storage,
 /// plain memory accesses and async-signal-safe calls.
 internal enum CrashHandlerTakeover {
@@ -127,6 +130,9 @@ internal enum CrashHandlerTakeover {
 
         state.pointee.isActive = 1
 
+        adoptedCallThroughs = []
+        isAdoptingCallThroughs = true
+        defer { isAdoptingCallThroughs = false }
         if isImageCallbackRegistered {
             // The callback only runs for images loaded from now on: rewrite the ones already loaded.
             for index in 0..<_dyld_image_count() {
@@ -198,12 +204,74 @@ internal enum CrashHandlerTakeover {
     /// The base addresses of the images implementing the original functions.
     private static var implementingImages: Set<UInt> = []
 
+    /// Whether the symbol pointers rewritten now are looked at for functions of other libraries (while activating).
+    private static var isAdoptingCallThroughs = false
+    /// The rebindings whose replacement calls a function of another library.
+    private static var adoptedCallThroughs: Set<String> = []
+
+    /// Where each replacement finds the function it calls through to.
+    private static let callThroughs: [String: WritableKeyPath<TakeoverState, UnsafeMutableRawPointer?>] = [
+        "_sigaction": \.originalSigaction,
+        "_signal": \.originalSignal,
+        "_NSSetUncaughtExceptionHandler": \.originalSetExceptionHandler,
+        "_NSGetUncaughtExceptionHandler": \.originalGetExceptionHandler,
+        "__ZSt13set_terminatePFvvE": \.originalSetTerminate,
+        "__ZSt13get_terminatev": \.originalGetTerminate,
+    ]
+
     /// Rewrites an image, unless it implements one of the original functions.
     fileprivate static func rebind(_ rebindings: [SymbolRebinding], inImage header: UnsafePointer<mach_header>, slide: Int) {
         guard !implementingImages.contains(UInt(bitPattern: header)) else {
             return
         }
-        SymbolRebinder.rebind(rebindings, inImage: header, slide: slide)
+        SymbolRebinder.rebind(rebindings, inImage: header, slide: slide) { rebinding, previous in
+            if isAdoptingCallThroughs {
+                adoptCallThrough(for: rebinding.name, previous: previous, inImage: UInt(bitPattern: header))
+            }
+        }
+    }
+
+    /// Makes `previous`, found in a symbol pointer of an image, the function the replacement calls, when it is a function
+    /// of another image than the real one: another library rewrote the pointer to a function of its own. A pointer to
+    /// a lazy binding stub of the image itself (never called yet) is not. The first such function found is kept, and
+    /// its image is left alone like the images implementing the original functions.
+    private static func adoptCallThrough(for name: String, previous: UnsafeRawPointer?, inImage slotImage: UInt) {
+        guard
+            !adoptedCallThroughs.contains(name),
+            let keyPath = callThroughs[name],
+            let previous,
+            let real = state.pointee[keyPath: keyPath],
+            let previousImage = imageBase(of: UnsafeMutableRawPointer(mutating: previous)),
+            previousImage != slotImage,
+            previousImage != imageBase(of: real)
+        else {
+            return
+        }
+        adoptedCallThroughs.insert(name)
+        state.pointee[keyPath: keyPath] = UnsafeMutableRawPointer(mutating: previous)
+        implementingImages.insert(previousImage)
+    }
+
+    /// The handlers of the takeover that are no longer installed: another path than the ones it rewrites (a system
+    /// framework, a direct system call) replaced them. Empty when the takeover is not active.
+    static func displacedHandlers() -> [String] {
+        guard state.pointee.isActive != 0 else {
+            return []
+        }
+        var displaced: [String] = []
+        for signal in 1..<Int32(signalCapacity) where state.pointee.ownedSignals & signalBit(signal) != 0 {
+            var current = sigaction()
+            if callOriginalSigaction(signal, nil, &current) == 0, handlerAddress(of: current) != signalTrampolineAddress {
+                displaced.append("signal \(signal)")
+            }
+        }
+        if state.pointee.ownExceptionHandler != nil, originalGetExceptionHandler() != state.pointee.ownExceptionHandler {
+            displaced.append("uncaught exception handler")
+        }
+        if originalGetTerminate() != state.pointee.ownTerminate {
+            displaced.append("terminate handler")
+        }
+        return displaced
     }
 
     private static func imageBase(of function: UnsafeMutableRawPointer) -> UInt? {
