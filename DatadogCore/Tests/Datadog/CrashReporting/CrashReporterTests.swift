@@ -115,9 +115,8 @@ class CrashReporterTests: XCTestCase {
         XCTAssertTrue(plugin.deletedCrashReports.isEmpty, "It should not purge the crash report")
     }
 
-    func testWhenPendingCrashReportIsFoundButItHasUnavailableCrashContext_itPurgesTheCrashReportWithNoSending() {
-        let expectation = self.expectation(description: "`CrashReportSender` does not send the crash report")
-        expectation.isInverted = true
+    func testWhenPendingCrashReportIsFoundButItHasUnavailableCrashContext_itSendsItWithTheCurrentLaunchContext() {
+        let expectation = self.expectation(description: "`CrashReportSender` sends the crash report")
         let plugin = CrashReportingPluginMock()
 
         // Given
@@ -128,7 +127,7 @@ class CrashReporterTests: XCTestCase {
         let sender = CrashReportSenderMock()
         let feature = CrashReportingFeature(
             crashReportingPlugin: plugin,
-            crashContextProvider: CrashContextProviderMock(),
+            crashContextProvider: CrashContextProviderMock(initialCrashContext: .mockWith(trackingConsent: .granted)),
             sender: sender,
             messageReceiver: NOPFeatureMessageReceiver(),
             telemetry: NOPTelemetry(),
@@ -140,11 +139,9 @@ class CrashReporterTests: XCTestCase {
         feature.start()
 
         waitForExpectations(timeout: 5, handler: nil)
-        XCTAssertEqual(
-            plugin.deletedCrashReports.count,
-            1,
-            "It should ask to purge the crash report as the crash context is unavailable"
-        )
+        XCTAssertEqual(sender.sentCrashContext?.trackingConsent, .pending, "It is written under the current consent")
+        XCTAssertNil(sender.sentCrashContext?.lastRUMSessionState, "It must not be linked to the current session")
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1, "It should delete the crash report once it is sent")
     }
 
     // MARK: - Crash Context Injection
