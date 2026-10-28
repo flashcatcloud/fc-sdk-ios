@@ -55,15 +55,17 @@ internal enum CrashHandlerTakeover {
     ///
     /// - Parameters:
     ///   - throwSiteFile: where the throw site of an uncaught C++ exception is written.
-    ///   - handlesMachExceptions: whether the crash reporter handles Mach exceptions, on threads of its own.
+    ///   - threadsStartedByCrashReporter: the threads started while the crash reporter was installed, `nil` if it does
+    ///     not handle Mach exceptions: it handles them on two threads of its own, started while it is installed.
     ///   - exceptionHandlerBeforeCrashReporter: the uncaught exception handler installed before the crash reporter,
     ///     which the crash reporter calls itself.
     /// - Returns: `true` if the takeover is active.
     @discardableResult
     static func activate(
         throwSiteFile: URL,
-        handlesMachExceptions: Bool = false,
-        exceptionHandlerBeforeCrashReporter: UnsafeMutableRawPointer? = nil
+        threadsStartedByCrashReporter: [thread_t]? = nil,
+        exceptionHandlerBeforeCrashReporter: UnsafeMutableRawPointer? = nil,
+        isBeingTraced: () -> Bool = isBeingTraced
     ) -> Bool {
         guard state.pointee.isActive == 0 else {
             return true
@@ -94,11 +96,13 @@ internal enum CrashHandlerTakeover {
         )
 
         state.pointee.isHandlingCrash = 0
-        let machThreads = handlesMachExceptions ? crashReporterMachThreads() : []
-        state.pointee.machThreads = (machThreads.first ?? 0, machThreads.dropFirst().first ?? 0)
         // Globals are initialized on first access: not in a signal handler.
-        _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActionSlots, foreignActionClaims, foreignActionPublished, crashRestoreRedirected, crashThread)
+        _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActionSlots, foreignActionClaims, foreignActionPublished, crashRestoreRedirected, crashThread, machThreadPorts)
         atomicExchange(crashThread, 0)
+        atomicExchange(machThreadPorts, 0)
+        if let threadsStartedByCrashReporter, !isBeingTraced() {
+            findCrashReporterMachThreads(among: threadsStartedByCrashReporter)
+        }
 
         // Own the crash signals the crash reporter handles. SIGPIPE is left alone: apps commonly ignore it.
         var ownedSignals: UInt32 = 0
@@ -348,26 +352,45 @@ internal enum CrashHandlerTakeover {
         return UInt(bitPattern: base)
     }
 
-    /// The threads on which the crash reporter handles Mach exceptions, named "… Exception Handler (Primary)" and
-    /// "… (Secondary)". It starts them while it is installed, and each one names itself once running: they are looked
-    /// for until both are found, for at most `machThreadsTimeout`.
-    private static func crashReporterMachThreads() -> [thread_t] {
-        var found: [thread_t] = []
-        let deadline = Date(timeIntervalSinceNow: machThreadsTimeout)
-        repeat {
-            found = threads(named: " Exception Handler (")
-            if found.count >= 2 {
-                break
+    /// Finds the threads on which the crash reporter handles Mach exceptions, among the threads started while it was
+    /// installed. It starts exactly two, before its installation returns, unless its Mach exception handling is
+    /// inactive (e.g. under a debugger): two threads are taken without looking further. With more, e.g. started at the
+    /// same time by the app, the two named "KSCrash Exception Handler (Primary)" and "(Secondary)" are looked for in
+    /// the background, as each one names itself once running. Activation never waits for them: until they are known,
+    /// their calls are guarded like any other thread's.
+    private static func findCrashReporterMachThreads(among threads: [thread_t]) {
+        if threads.count == 2 {
+            publishMachThreads(threads)
+        } else if threads.count > 2 {
+            DispatchQueue.global(qos: .utility).async {
+                let deadline = Date(timeIntervalSinceNow: machThreadsNamingTimeout)
+                var found: [thread_t] = []
+                while found.count < 2, Date() < deadline {
+                    usleep(1_000)
+                    found = threads.filter { name(of: $0)?.hasPrefix(machThreadNamePrefix) == true }
+                }
+                if found.count == 2 {
+                    publishMachThreads(found)
+                }
             }
-            usleep(1_000)
-        } while Date() < deadline
-        return found
+        }
     }
 
-    static let machThreadsTimeout: TimeInterval = 0.2
+    private static let machThreadNamePrefix = "KSCrash Exception Handler ("
+    static let machThreadsNamingTimeout: TimeInterval = 1
 
-    /// The threads of the task whose name contains `name`. Their port names stay valid while the threads run.
-    static func threads(named name: String) -> [thread_t] {
+    private static func publishMachThreads(_ threads: [thread_t]) {
+        atomicExchange(machThreadPorts, UInt(threads[0]) | UInt(threads[1]) << 32)
+    }
+
+    /// The threads on which the crash reporter handles Mach exceptions, once known.
+    static var crashReporterMachThreads: [thread_t] {
+        let ports = atomicLoad(machThreadPorts)
+        return ports == 0 ? [] : [thread_t(truncatingIfNeeded: ports), thread_t(truncatingIfNeeded: ports >> 32)]
+    }
+
+    /// The threads of the task. Their port names stay valid while the threads run.
+    static func taskThreads() -> [thread_t] {
         var list: thread_act_array_t?
         var count: mach_msg_type_number_t = 0
         guard task_threads(mach_task_self_, &list, &count) == KERN_SUCCESS, let list else {
@@ -376,18 +399,30 @@ internal enum CrashHandlerTakeover {
         defer {
             vm_deallocate(mach_task_self_, vm_address_t(UInt(bitPattern: list)), vm_size_t(Int(count) * MemoryLayout<thread_t>.stride))
         }
-        var threads: [thread_t] = []
-        for index in 0..<Int(count) {
+        return (0..<Int(count)).map { index in
             let thread = list[index]
-            var buffer = [CChar](repeating: 0, count: 64)
-            if let pthread = pthread_from_mach_thread_np(thread),
-               pthread_getname_np(pthread, &buffer, buffer.count) == 0,
-               String(cString: buffer).contains(name) {
-                threads.append(thread)
-            }
             mach_port_deallocate(mach_task_self_, thread) // the reference `task_threads` added
+            return thread
         }
-        return threads
+    }
+
+    private static func name(of thread: thread_t) -> String? {
+        var buffer = [CChar](repeating: 0, count: 64)
+        guard let pthread = pthread_from_mach_thread_np(thread), pthread_getname_np(pthread, &buffer, buffer.count) == 0 else {
+            return nil
+        }
+        return String(cString: buffer)
+    }
+
+    /// Whether a debugger traces the process: the crash reporter then does not handle Mach exceptions.
+    static func isBeingTraced() -> Bool {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+        guard sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0 else {
+            return false
+        }
+        return info.kp_proc.p_flag & P_TRACED != 0
     }
 
     /// The sanitizer runtime loaded in the process, if any. Address and Thread Sanitizers intercept `sigaction` and
@@ -440,8 +475,6 @@ private struct TakeoverState {
     var crashReporterTerminate: UnsafeMutableRawPointer?
     var foreignTerminate: UnsafeMutableRawPointer?
     var isForeignTerminateRecorded: Int32 = 0
-    /// The threads on which the crash reporter handles Mach exceptions (0 for none), set before activation.
-    var machThreads: (thread_t, thread_t) = (0, 0)
 }
 
 private let signalCapacity = 32 // signals are numbered 1...31 on Darwin
@@ -638,10 +671,14 @@ private func currentThread() -> thread_t {
     return thread
 }
 
+/// The threads on which the crash reporter handles Mach exceptions, both in one word (the first one in the low 32 bits;
+/// 0 until known), set atomically.
+private let machThreadPorts = atomicWords(count: 1)
+
 /// Whether this is one of the threads on which the crash reporter handles Mach exceptions.
 private func isCrashReporterMachThread(_ thread: thread_t) -> Bool {
-    let machThreads = state.pointee.machThreads
-    return thread != 0 && (thread == machThreads.0 || thread == machThreads.1)
+    let ports = atomicLoad(machThreadPorts)
+    return thread != 0 && ports != 0 && (UInt(thread) == ports & 0xFFFF_FFFF || UInt(thread) == ports >> 32)
 }
 
 /// The first thread that reached the crash reporter's handlers (0 until then), set atomically.

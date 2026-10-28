@@ -81,11 +81,13 @@ private final class NamedThread {
     private let finish = DispatchSemaphore(value: 0)
     private var block: (() -> Void)?
     private var isStopped = false
+    private(set) var port: thread_t = 0
 
     init(name: String) {
         let ready = DispatchSemaphore(value: 0)
         Thread {
             pthread_setname_np(name)
+            self.port = pthread_mach_thread_np(pthread_self())
             ready.signal()
             while true {
                 self.start.wait()
@@ -386,21 +388,84 @@ class CrashHandlerTakeoverTests: XCTestCase {
         XCTAssertEqual(installedHandler(ownedSignal), address(of: SIG_DFL))
     }
 
-    func testWhenActive_theCrashReporterMachThreadsFoundAtActivationAreLetThrough() {
-        // Given (the crash reporter's Mach exception threads, running before the takeover is activated)
-        let primary = NamedThread(name: "Test Exception Handler (Primary)")
-        let secondary = NamedThread(name: "Test Exception Handler (Secondary)")
-        defer { primary.stop(); secondary.stop() }
-        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, handlesMachExceptions: true))
+    /// Starts named threads, as the crash reporter does while it is installed. Returns them and their ports.
+    private func startThreads(named names: [String]) -> ([NamedThread], [thread_t]) {
+        let threads = names.map { NamedThread(name: $0) }
+        return (threads, threads.map(\.port))
+    }
+
+    func testTheThreadsOfTheTaskIncludeANewThread() {
+        let before = CrashHandlerTakeover.taskThreads()
+        let thread = NamedThread(name: "New")
+        defer { thread.stop() }
+        XCTAssertFalse(before.contains(thread.port))
+        XCTAssertTrue(CrashHandlerTakeover.taskThreads().contains(thread.port))
+    }
+
+    func testWhenActive_theTwoThreadsStartedByTheCrashReporterAreLetThrough() {
+        // Given (the crash reporter's Mach exception threads, started while it is installed)
+        let (threads, started) = startThreads(named: ["Primary", "Secondary"])
+        defer { threads.forEach { $0.stop() } }
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: started, isBeingTraced: { false }))
 
         // When (the crash reporter restoring handlers while handling a Mach exception)
-        primary.run {
+        threads[1].run {
             var foreign = action(foreignHandler)
             _ = sigaction(self.ownedSignal, &foreign, nil)
         }
 
         // Then
         XCTAssertEqual(installedHandler(ownedSignal), address(of: foreignHandler))
+    }
+
+    func testWhenMoreThreadsWereStarted_theCrashReporterMachThreadsAreFoundByTheirNameInTheBackground() throws {
+        // Given
+        let (threads, started) = startThreads(
+            named: ["KSCrash Exception Handler (Primary)", "Other Exception Handler (Primary)", "KSCrash Exception Handler (Secondary)"]
+        )
+        defer { threads.forEach { $0.stop() } }
+
+        // When
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: started, isBeingTraced: { false }))
+        let deadline = Date(timeIntervalSinceNow: 5)
+        while CrashHandlerTakeover.crashReporterMachThreads.isEmpty, Date() < deadline {
+            usleep(1_000)
+        }
+
+        // Then
+        XCTAssertEqual(Set(CrashHandlerTakeover.crashReporterMachThreads), Set([started[0], started[2]]))
+        threads[1].run {
+            var foreign = action(foreignHandler)
+            _ = sigaction(self.ownedSignal, &foreign, nil)
+        }
+        XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler, "A thread of another name is guarded")
+        threads[0].run {
+            var foreign = action(foreignHandler)
+            _ = sigaction(self.ownedSignal, &foreign, nil)
+        }
+        XCTAssertEqual(installedHandler(ownedSignal), address(of: foreignHandler))
+    }
+
+    func testWhenTracedByADebugger_noThreadIsTakenForTheCrashReporterMachThreads() {
+        // Given
+        let (threads, started) = startThreads(named: ["Primary", "Secondary"])
+        defer { threads.forEach { $0.stop() } }
+
+        // When
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: started, isBeingTraced: { true }))
+
+        // Then
+        XCTAssertEqual(CrashHandlerTakeover.crashReporterMachThreads, [])
+    }
+
+    func testWhenTheCrashReporterStartedNoMachThread_activationDoesNotWaitForThem() {
+        // When
+        let start = Date()
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: [], isBeingTraced: { false }))
+
+        // Then
+        XCTAssertLessThan(Date().timeIntervalSince(start), 0.1)
+        XCTAssertEqual(CrashHandlerTakeover.crashReporterMachThreads, [])
     }
 
     func testWhenActive_aThreadNamedLikeTheCrashReporterMachThreadsLaterIsGuarded() {

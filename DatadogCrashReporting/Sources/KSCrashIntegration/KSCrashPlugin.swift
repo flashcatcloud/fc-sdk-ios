@@ -92,7 +92,12 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         let configuration = try KSCrashConfiguration.datadog(handlesMachExceptions: handlesMachExceptions)
         let exceptionHandlerBeforeInstall = NSGetUncaughtExceptionHandler().map { unsafeBitCast($0, to: UnsafeMutableRawPointer.self) }
         do {
+            // The crash reporter starts its Mach exception threads while it is installed.
+            let threadsBeforeInstall = handlesMachExceptions ? CrashHandlerTakeover.taskThreads() : []
             try kscrash.install(with: configuration)
+            let threadsStartedByInstall = handlesMachExceptions
+                ? CrashHandlerTakeover.taskThreads().filter { !threadsBeforeInstall.contains($0) }
+                : nil
 
             var filters: [CrashReportFilter] = [DatadogTypeSafeFilter()]
             if takesOverCrashHandlers, let sanitizer = CrashHandlerTakeover.sanitizer() {
@@ -103,7 +108,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
                 filters.append(DatadogCppThrowSiteFilter(throwSiteFile: throwSiteFile))
                 if !CrashHandlerTakeover.activate(
                     throwSiteFile: throwSiteFile,
-                    handlesMachExceptions: handlesMachExceptions,
+                    threadsStartedByCrashReporter: threadsStartedByInstall,
                     exceptionHandlerBeforeCrashReporter: exceptionHandlerBeforeInstall
                 ) {
                     telemetry.debug("[KSCrash] Crash handler takeover could not be activated")
