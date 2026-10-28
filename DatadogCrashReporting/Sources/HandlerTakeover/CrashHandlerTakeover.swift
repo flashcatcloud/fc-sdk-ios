@@ -353,15 +353,13 @@ internal enum CrashHandlerTakeover {
     }
 
     /// Finds the threads on which the crash reporter handles Mach exceptions, among the threads started while it was
-    /// installed. It starts exactly two, before its installation returns, unless its Mach exception handling is
-    /// inactive (e.g. under a debugger): two threads are taken without looking further. With more, e.g. started at the
-    /// same time by the app, the two named "KSCrash Exception Handler (Primary)" and "(Secondary)" are looked for in
-    /// the background, as each one names itself once running. Activation never waits for them: until they are known,
-    /// their calls are guarded like any other thread's.
+    /// installed. It starts two, before its installation returns, unless its Mach exception handling is inactive (e.g.
+    /// under a debugger), and the app may start others at the same time: the two named "KSCrash Exception Handler
+    /// (Primary)" and "(Secondary)" are looked for in the background, as each one names itself once running. Threads
+    /// of other names are never taken, even when exactly two were started. Activation never waits for them: until they
+    /// are known, their calls are guarded like any other thread's.
     private static func findCrashReporterMachThreads(among threads: [thread_t]) {
-        if threads.count == 2 {
-            publishMachThreads(threads)
-        } else if threads.count > 2 {
+        if threads.count >= 2 {
             DispatchQueue.global(qos: .utility).async {
                 let deadline = Date(timeIntervalSinceNow: machThreadsNamingTimeout)
                 var found: [thread_t] = []

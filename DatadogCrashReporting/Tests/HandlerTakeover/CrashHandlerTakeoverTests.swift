@@ -421,9 +421,13 @@ class CrashHandlerTakeoverTests: XCTestCase {
 
     func testWhenActive_theTwoThreadsStartedByTheCrashReporterAreLetThrough() {
         // Given (the crash reporter's Mach exception threads, started while it is installed)
-        let (threads, started) = startThreads(named: ["Primary", "Secondary"])
+        let (threads, started) = startThreads(named: ["KSCrash Exception Handler (Primary)", "KSCrash Exception Handler (Secondary)"])
         defer { threads.forEach { $0.stop() } }
         XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: started, isBeingTraced: { false }))
+        let deadline = Date(timeIntervalSinceNow: 5)
+        while CrashHandlerTakeover.crashReporterMachThreads.isEmpty, Date() < deadline {
+            usleep(1_000)
+        }
 
         // When (the crash reporter restoring handlers while handling a Mach exception)
         threads[1].run {
@@ -461,6 +465,24 @@ class CrashHandlerTakeoverTests: XCTestCase {
             _ = sigaction(self.ownedSignal, &foreign, nil)
         }
         XCTAssertEqual(installedHandler(ownedSignal), address(of: foreignHandler))
+    }
+
+    func testWhenExactlyTwoThreadsOfOtherNamesWereStarted_theyAreNotTakenForTheCrashReporterMachThreads() {
+        // Given (the crash reporter started none, e.g. its Mach exception handling is inactive, while the app started two)
+        let (threads, started) = startThreads(named: ["App Worker", "Other Exception Handler (Primary)"])
+        defer { threads.forEach { $0.stop() } }
+
+        // When
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: started, isBeingTraced: { false }))
+        usleep(useconds_t((CrashHandlerTakeover.machThreadsNamingTimeout + 0.5) * 1_000_000))
+
+        // Then
+        XCTAssertEqual(CrashHandlerTakeover.crashReporterMachThreads, [])
+        threads[0].run {
+            var foreign = action(foreignHandler)
+            _ = sigaction(self.ownedSignal, &foreign, nil)
+        }
+        XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler, "The app thread is guarded")
     }
 
     func testWhenTracedByADebugger_noThreadIsTakenForTheCrashReporterMachThreads() {
