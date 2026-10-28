@@ -37,6 +37,9 @@ private final class DirectRequestSenderMock: DirectRequestSender {
     }
 
     func body(_ index: Int) throws -> [String: Any] {
+        guard requests.indices.contains(index) else {
+            throw ErrorMock("no request #\(index) was sent")
+        }
         let data = try XCTUnwrap(requests[index].httpBody)
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
@@ -116,15 +119,17 @@ class ActiveDeviceBeaconTests: XCTestCase {
         bundleType: BundleType = .iOSApp,
         anonymousId: String?? = .none,
         userId: String? = nil,
-        service: String = "shop-ios"
+        service: String = "shop-ios",
+        version: String = "1.2.3",
+        buildNumber: String = "42"
     ) -> DatadogContext {
         .mockWith(
             site: .cn,
             clientToken: "pub-token",
             service: service,
             env: "prod",
-            version: "1.2.3",
-            buildNumber: "42",
+            version: version,
+            buildNumber: buildNumber,
             sdkVersion: "0.9.0",
             applicationBundleType: bundleType,
             device: .mockWith(model: "iPhone15,2"),
@@ -292,6 +297,31 @@ class ActiveDeviceBeaconTests: XCTestCase {
         beacon = makeBeacon() // a new process, same data store
         publish(context())
         XCTAssertEqual(sender.requests.count, 1)
+    }
+
+    func testAnUpgradeTheSameDayIsReportedForTheNewVersion() throws {
+        publish(context())
+        respond(202)
+
+        beacon = makeBeacon() // the upgraded app's first launch, same day, same identity
+        publish(context(version: "1.2.4", buildNumber: "43"))
+        XCTAssertEqual(sender.requests.count, 2, "the new version is reported")
+        XCTAssertEqual(try sender.body(1)["version"] as? String, "1.2.4")
+        XCTAssertEqual(try sender.body(1)["build_version"] as? String, "43")
+        respond(202)
+
+        beacon = makeBeacon() // relaunched again on the same version
+        publish(context(version: "1.2.4", buildNumber: "43"))
+        XCTAssertEqual(sender.requests.count, 2, "the same version is not reported twice a day")
+    }
+
+    func testANewBuildOfTheSameVersionIsReportedTheSameDay() {
+        publish(context())
+        respond(202)
+
+        beacon = makeBeacon()
+        publish(context(buildNumber: "43"))
+        XCTAssertEqual(sender.requests.count, 2)
     }
 
     func testANewUserIsReportedTheSameDay() throws {
