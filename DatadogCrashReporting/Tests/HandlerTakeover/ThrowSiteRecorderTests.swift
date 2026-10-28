@@ -29,6 +29,12 @@ class ThrowSiteRecorderTests: XCTestCase {
         XCTAssertEqual(ThrowSiteRecorder.throwSiteIndex(in: frames), 0)
     }
 
+    func testStrippingPointerAuthenticationKeepsTheAddressBitsAboveThe36th() {
+        let address: UInt = 0x0000_1234_5678_9ABC // above 2^36, below the 47-bit user space limit
+        let signed: UInt = 0x8A2D_0000_0000_0000 | address
+        XCTAssertEqual(signed & ThrowSiteRecorder.arm64ReturnAddressMask, address)
+    }
+
     func testRecordedThrowSiteCanBeRead() throws {
         // Given
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")

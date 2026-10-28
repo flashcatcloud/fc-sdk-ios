@@ -93,6 +93,10 @@ internal enum ThrowSiteRecorder {
         _ = pwrite(fileDescriptor, buffer, recordSize, 0)
     }
 
+    /// Strips pointer authentication codes from an arm64 return address, keeping the 47 bits of a user space address,
+    /// like the crash reporter does for the frames of its reports.
+    static let arm64ReturnAddressMask: UInt = 0x0000_7FFF_FFFF_FFFF
+
     /// Writes the return addresses of the current stack, innermost first, from the caller of `getcontext()` (this function)
     /// up. Each frame record is the pair of the caller's frame pointer and the return address, where the frame pointer
     /// points; a record is followed only while it lies on this thread's stack, above the previous one. Returns the count.
@@ -106,7 +110,7 @@ internal enum ThrowSiteRecorder {
         }
         #if arch(arm64)
         var framePointer = UInt(machineContext.pointee.__ss.__fp)
-        let returnAddressMask: UInt = 0x0000_000F_FFFF_FFFF // strips pointer authentication codes, like the crash reporter
+        let returnAddressMask = arm64ReturnAddressMask
         #elseif arch(x86_64)
         var framePointer = UInt(machineContext.pointee.__ss.__rbp)
         let returnAddressMask = UInt.max
