@@ -142,9 +142,11 @@ internal enum CrashHandlerTakeover {
 
         state.pointee.isActive = 1
 
+        // Two passes: the images of other libraries' functions found in symbol pointers are known before any image is
+        // rewritten, so that none of them is (see `findCallThroughs()`).
+        findCallThroughs()
         adoptedCallThroughs = []
         isAdoptingCallThroughs = true
-        defer { isAdoptingCallThroughs = false }
         if isImageCallbackRegistered {
             // The callback only runs for images loaded from now on: rewrite the ones already loaded.
             for index in 0..<_dyld_image_count() {
@@ -157,6 +159,8 @@ internal enum CrashHandlerTakeover {
             _ = rebindings // initialized here rather than in the callback, which runs with the loader's lock held
             _dyld_register_func_for_add_image(rebindAddedImage) // also called for every image already loaded
         }
+        isAdoptingCallThroughs = false
+        rewriteImagesOfUnadoptedCallThroughs()
         return true
     }
 
@@ -218,6 +222,10 @@ internal enum CrashHandlerTakeover {
 
     /// Whether the symbol pointers rewritten now are looked at for functions of other libraries (while activating).
     private static var isAdoptingCallThroughs = false
+    /// The function of another library found in a symbol pointer for each rebinding, before any image is rewritten.
+    private static var callThroughCandidates: [String: UnsafeRawPointer] = [:]
+    /// The images of `callThroughCandidates`, left alone while they may be called through.
+    private static var callThroughImages: Set<UInt> = []
     /// The rebindings whose replacement calls a function of another library.
     private static var adoptedCallThroughs: Set<String> = []
 
@@ -238,30 +246,76 @@ internal enum CrashHandlerTakeover {
         }
         SymbolRebinder.rebind(rebindings, inImage: header, slide: slide) { rebinding, previous in
             if isAdoptingCallThroughs {
-                adoptCallThrough(for: rebinding.name, previous: previous, inImage: UInt(bitPattern: header))
+                adoptCallThrough(for: rebinding.name, previous: previous)
             }
         }
     }
 
-    /// Makes `previous`, found in a symbol pointer of an image, the function the replacement calls, when it is a function
-    /// of another image than the real one: another library rewrote the pointer to a function of its own. A pointer to
-    /// a lazy binding stub of the image itself (never called yet) is not. The first such function found is kept, and
-    /// its image is left alone like the images implementing the original functions.
-    private static func adoptCallThrough(for name: String, previous: UnsafeRawPointer?, inImage slotImage: UInt) {
+    /// Looks, without rewriting anything, for symbol pointers that another library rewrote to a function of its own
+    /// (one of another image than the real function's and the pointer's; a pointer to a lazy binding stub of the image
+    /// itself, never called yet, is not). The first such function found for each rebinding is a candidate for the
+    /// replacement to call, and its image is left alone like the images implementing the original functions: a library
+    /// that rewrote only some images and calls the function through its own imports would otherwise reach the
+    /// replacement again, which would call it again, in a loop.
+    private static func findCallThroughs() {
+        callThroughCandidates = [:]
+        for index in 0..<_dyld_image_count() {
+            guard let header = _dyld_get_image_header(index), !implementingImages.contains(UInt(bitPattern: header)) else {
+                continue
+            }
+            let slotImage = UInt(bitPattern: header)
+            SymbolRebinder.symbolPointers(of: rebindings, inImage: header, slide: _dyld_get_image_vmaddr_slide(index)) { rebinding, value in
+                guard
+                    callThroughCandidates[rebinding.name] == nil,
+                    let value,
+                    value != rebinding.replacement,
+                    let real = callThroughs[rebinding.name].flatMap({ state.pointee[keyPath: $0] }),
+                    let valueImage = imageBase(of: UnsafeMutableRawPointer(mutating: value)),
+                    valueImage != slotImage,
+                    valueImage != imageBase(of: real)
+                else {
+                    return
+                }
+                callThroughCandidates[rebinding.name] = value
+            }
+        }
+        callThroughImages = Set(callThroughCandidates.values.compactMap { imageBase(of: UnsafeMutableRawPointer(mutating: $0)) })
+            .subtracting(implementingImages)
+        implementingImages.formUnion(callThroughImages)
+    }
+
+    /// Makes the candidate function the replacement calls, once a symbol pointer to it was rewritten: the replacement
+    /// then stands in front of it for that pointer's callers.
+    private static func adoptCallThrough(for name: String, previous: UnsafeRawPointer?) {
         guard
             !adoptedCallThroughs.contains(name),
-            let keyPath = callThroughs[name],
-            let previous,
-            let real = state.pointee[keyPath: keyPath],
-            let previousImage = imageBase(of: UnsafeMutableRawPointer(mutating: previous)),
-            previousImage != slotImage,
-            previousImage != imageBase(of: real)
+            let candidate = callThroughCandidates[name],
+            previous == candidate,
+            let keyPath = callThroughs[name]
         else {
             return
         }
         adoptedCallThroughs.insert(name)
-        state.pointee[keyPath: keyPath] = UnsafeMutableRawPointer(mutating: previous)
-        implementingImages.insert(previousImage)
+        state.pointee[keyPath: keyPath] = UnsafeMutableRawPointer(mutating: candidate)
+    }
+
+    /// Rewrites the images of candidates that were not adopted (none of their symbol pointers could be rewritten): the
+    /// replacement does not call them, so they cannot loop.
+    private static func rewriteImagesOfUnadoptedCallThroughs() {
+        let adoptedImages = Set(
+            adoptedCallThroughs.compactMap { callThroughCandidates[$0] }.compactMap { imageBase(of: UnsafeMutableRawPointer(mutating: $0)) }
+        )
+        let unadoptedImages = callThroughImages.subtracting(adoptedImages)
+        guard !unadoptedImages.isEmpty else {
+            return
+        }
+        implementingImages.subtract(unadoptedImages)
+        callThroughImages.subtract(unadoptedImages)
+        for index in 0..<_dyld_image_count() {
+            if let header = _dyld_get_image_header(index), unadoptedImages.contains(UInt(bitPattern: header)) {
+                rebind(rebindings, inImage: header, slide: _dyld_get_image_vmaddr_slide(index))
+            }
+        }
     }
 
     /// The handlers of the takeover that are no longer installed: another path than the ones it rewrites (a system

@@ -29,6 +29,20 @@ private var foreignExceptionHandlerCalls = 0
 private func foreignExceptionHandler(_ exception: NSException) { foreignExceptionHandlerCalls += 1 }
 private let foreignTerminate: @convention(c) () -> Void = { abort() }
 
+/// Another library's `sigaction` hook, which rewrote some images only and calls `sigaction` through the imports of its
+/// own image (this test bundle). Past a depth of 2 it is in a loop, and stops it.
+private var selfCallingHookDepth = 0
+private var selfCallingHookLooped = false
+private let selfCallingHook: RealSigaction = { signal, action, oldAction in
+    selfCallingHookDepth += 1
+    defer { selfCallingHookDepth -= 1 }
+    guard selfCallingHookDepth <= 2 else {
+        selfCallingHookLooped = true
+        return realSigaction(signal, action, oldAction)
+    }
+    return sigaction(signal, action, oldAction)
+}
+
 private func address(of handler: sig_t?) -> UInt { unsafeBitCast(handler, to: UInt.self) }
 private func address(of action: sigaction) -> UInt { unsafeBitCast(action.__sigaction_u, to: UInt.self) }
 
@@ -36,6 +50,22 @@ private func action(_ handler: sig_t?) -> sigaction {
     var action = sigaction()
     action.__sigaction_u = unsafeBitCast(handler, to: __sigaction_u.self)
     return action
+}
+
+/// Points the `sigaction` symbol pointers of every image that point at a hook at the real function again (deactivating
+/// the takeover points them all at the function it called through to).
+private func unhookSigaction(_ hook: UnsafeRawPointer) {
+    let real = SymbolRebinding(name: "_sigaction", replacement: unsafeBitCast(realSigaction, to: UnsafeRawPointer.self))
+    for index in 0..<_dyld_image_count() {
+        guard let header = _dyld_get_image_header(index) else {
+            continue
+        }
+        var isHooked = false
+        SymbolRebinder.symbolPointers(of: [real], inImage: header, slide: _dyld_get_image_vmaddr_slide(index)) { isHooked = isHooked || $1 == hook }
+        if isHooked {
+            SymbolRebinder.rebind([real], inImage: header, slide: _dyld_get_image_vmaddr_slide(index))
+        }
+    }
 }
 
 /// The handler really installed for a signal, bypassing the takeover.
@@ -434,7 +464,7 @@ class CrashHandlerTakeoverTests: XCTestCase {
         SymbolRebinder.rebind([.init(name: "_sigaction", replacement: wrapper)], inImage: testHeader, slide: slide)
         defer {
             CrashHandlerTakeover.deactivate()
-            SymbolRebinder.rebind([.init(name: "_sigaction", replacement: unsafeBitCast(realSigaction, to: UnsafeRawPointer.self))], inImage: testHeader, slide: slide)
+            unhookSigaction(wrapper)
         }
         XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
         SigactionWrapperMock.calls = 0
@@ -452,6 +482,29 @@ class CrashHandlerTakeoverTests: XCTestCase {
 
         // Then
         XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler, "Calls about owned signals are still guarded")
+    }
+
+    func testWhenAnotherLibraryRewroteOnlySomeImagesAndCallsThroughItsOwnImports_theCallsDoNotLoop() throws {
+        // Given (the hook rewrote an image loaded after its own, which the takeover meets first)
+        let index = try XCTUnwrap((0..<_dyld_image_count()).first { String(cString: _dyld_get_image_name($0)).hasSuffix("/DatadogInternal.framework/DatadogInternal") })
+        let hookedHeader = try XCTUnwrap(_dyld_get_image_header(index))
+        let slide = _dyld_get_image_vmaddr_slide(index)
+        let hook = unsafeBitCast(selfCallingHook, to: UnsafeRawPointer.self)
+        XCTAssertGreaterThan(SymbolRebinder.rebind([.init(name: "_sigaction", replacement: hook)], inImage: hookedHeader, slide: slide), 0)
+        defer {
+            CrashHandlerTakeover.deactivate()
+            unhookSigaction(hook)
+        }
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        selfCallingHookLooped = false
+
+        // When
+        var foreign = action(foreignHandler)
+        _ = selfCallingHook(SIGUSR1, &foreign, nil)
+
+        // Then
+        XCTAssertFalse(selfCallingHookLooped)
+        XCTAssertEqual(installedHandler(SIGUSR1), address(of: foreignHandler))
     }
 
     func testWhenAHandlerIsReplacedByAPathTheTakeoverDoesNotSee_itIsReportedDisplaced() {

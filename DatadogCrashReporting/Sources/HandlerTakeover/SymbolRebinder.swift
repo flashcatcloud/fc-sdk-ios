@@ -51,17 +51,65 @@ internal struct SymbolRebinding {
 internal enum SymbolRebinder {
     /// Rewrites the symbol pointers of one image.
     ///
-    /// - Parameter replacing: called with each symbol pointer's value before it is rewritten.
+    /// - Parameter replaced: called with each symbol pointer's previous value once it is rewritten.
     /// - Returns: The number of symbol pointers rewritten.
     @discardableResult
     static func rebind(
         _ rebindings: [SymbolRebinding],
         inImage header: UnsafePointer<mach_header>,
         slide: Int,
-        replacing: ((SymbolRebinding, UnsafeRawPointer?) -> Void)? = nil
+        replaced: ((SymbolRebinding, UnsafeRawPointer?) -> Void)? = nil
     ) -> Int {
+        var rewritten = 0
+        forEachSymbolPointer(of: rebindings, inImage: header, slide: slide) { rebinding, slot, isReadOnlySegment in
+            let previous = slot.pointee
+            if previous == rebinding.replacement {
+                return
+            }
+            if isReadOnlySegment {
+                // `__DATA_CONST` is made read-only once dyld has bound it: made writable for the write, then given its
+                // protection back.
+                let address = vm_address_t(UInt(bitPattern: slot))
+                let size = vm_size_t(MemoryLayout<UnsafeRawPointer>.size)
+                guard
+                    let protection = protection(at: address),
+                    vm_protect(mach_task_self_, address, size, 0, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY) == KERN_SUCCESS
+                else {
+                    return
+                }
+                slot.pointee = rebinding.replacement
+                vm_protect(mach_task_self_, address, size, 0, protection)
+            } else {
+                slot.pointee = rebinding.replacement
+            }
+            rewritten += 1
+            replaced?(rebinding, previous)
+        }
+        return rewritten
+    }
+
+    /// Reads the symbol pointers of one image, without rewriting them.
+    ///
+    /// - Parameter body: called with each symbol pointer's value.
+    static func symbolPointers(
+        of rebindings: [SymbolRebinding],
+        inImage header: UnsafePointer<mach_header>,
+        slide: Int,
+        _ body: (SymbolRebinding, UnsafeRawPointer?) -> Void
+    ) {
+        forEachSymbolPointer(of: rebindings, inImage: header, slide: slide) { rebinding, slot, _ in
+            body(rebinding, slot.pointee)
+        }
+    }
+
+    private static func forEachSymbolPointer(
+        of rebindings: [SymbolRebinding],
+        inImage header: UnsafePointer<mach_header>,
+        slide: Int,
+        _ body: (SymbolRebinding, UnsafeMutablePointer<UnsafeRawPointer?>, Bool) -> Void
+    ) {
         guard header.pointee.magic == MH_MAGIC_64, !isSystemImage(header) else {
-            return 0
+            return
         }
         let header64 = UnsafeRawPointer(header).assumingMemoryBound(to: mach_header_64.self)
 
@@ -92,7 +140,7 @@ internal enum SymbolRebinder {
         }
 
         guard let linkedit, let symtab, let dysymtab, dysymtab.pointee.nindirectsyms > 0 else {
-            return 0
+            return
         }
 
         let linkeditBase = UInt(bitPattern: slide) &+ UInt(linkedit.pointee.vmaddr) &- UInt(linkedit.pointee.fileoff)
@@ -101,54 +149,51 @@ internal enum SymbolRebinder {
             let strings = UnsafePointer<CChar>(bitPattern: linkeditBase + UInt(symtab.pointee.stroff)),
             let indirectSymbols = UnsafePointer<UInt32>(bitPattern: linkeditBase + UInt(dysymtab.pointee.indirectsymoff))
         else {
-            return 0
+            return
         }
 
-        var rewritten = 0
         for segment in pointerSegments {
             var section = UnsafeRawPointer(segment).advanced(by: MemoryLayout<segment_command_64>.size)
                 .assumingMemoryBound(to: section_64.self)
             for _ in 0..<segment.pointee.nsects {
                 let type = section.pointee.flags & UInt32(SECTION_TYPE)
                 if type == UInt32(S_LAZY_SYMBOL_POINTERS) || type == UInt32(S_NON_LAZY_SYMBOL_POINTERS) {
-                    rewritten += rebind(
-                        rebindings,
+                    forEachSymbolPointer(
+                        of: rebindings,
                         in: section,
                         slide: slide,
                         isReadOnlySegment: segmentName(segment) == "__DATA_CONST",
                         symbols: symbols,
                         strings: strings,
                         indirectSymbols: indirectSymbols,
-                        replacing: replacing
+                        body
                     )
                 }
                 section = section.advanced(by: 1)
             }
         }
-        return rewritten
     }
 
     // swiftlint:disable:next function_parameter_count
-    private static func rebind(
-        _ rebindings: [SymbolRebinding],
+    private static func forEachSymbolPointer(
+        of rebindings: [SymbolRebinding],
         in section: UnsafePointer<section_64>,
         slide: Int,
         isReadOnlySegment: Bool,
         symbols: UnsafePointer<nlist_64>,
         strings: UnsafePointer<CChar>,
         indirectSymbols: UnsafePointer<UInt32>,
-        replacing: ((SymbolRebinding, UnsafeRawPointer?) -> Void)?
-    ) -> Int {
+        _ body: (SymbolRebinding, UnsafeMutablePointer<UnsafeRawPointer?>, Bool) -> Void
+    ) {
         let pointerCount = Int(section.pointee.size) / MemoryLayout<UnsafeRawPointer>.size
         guard
             pointerCount > 0,
             let slots = UnsafeMutablePointer<UnsafeRawPointer?>(bitPattern: UInt(bitPattern: slide) &+ UInt(section.pointee.addr))
         else {
-            return 0
+            return
         }
         let indices = indirectSymbols.advanced(by: Int(section.pointee.reserved1))
 
-        var rewritten = 0
         for index in 0..<pointerCount {
             let symbolIndex = indices[index]
             if symbolIndex & UInt32(INDIRECT_SYMBOL_ABS) != 0 || symbolIndex & UInt32(INDIRECT_SYMBOL_LOCAL) != 0 {
@@ -158,30 +203,8 @@ internal enum SymbolRebinder {
             guard let rebinding = rebindings.first(where: { strcmp(name, $0.name) == 0 }) else {
                 continue
             }
-            let slot = slots.advanced(by: index)
-            if slot.pointee == rebinding.replacement {
-                continue
-            }
-            replacing?(rebinding, slot.pointee)
-            if isReadOnlySegment {
-                // `__DATA_CONST` is made read-only once dyld has bound it: made writable for the write, then given its
-                // protection back.
-                let address = vm_address_t(UInt(bitPattern: slot))
-                let size = vm_size_t(MemoryLayout<UnsafeRawPointer>.size)
-                guard
-                    let protection = protection(at: address),
-                    vm_protect(mach_task_self_, address, size, 0, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY) == KERN_SUCCESS
-                else {
-                    continue
-                }
-                slot.pointee = rebinding.replacement
-                vm_protect(mach_task_self_, address, size, 0, protection)
-            } else {
-                slot.pointee = rebinding.replacement
-            }
-            rewritten += 1
+            body(rebinding, slots.advanced(by: index), isReadOnlySegment)
         }
-        return rewritten
     }
 
     /// The current protection of the memory at an address.
