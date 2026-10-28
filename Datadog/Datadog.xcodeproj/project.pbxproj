@@ -1307,8 +1307,10 @@
 		D224430429E9588100274EC7 /* TelemetryReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = D214DAA729E54CB4004D0AE8 /* TelemetryReceiver.swift */; };
 		02A7E6777D3C038F8CF2AC39 /* RemoteSamplingReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DF7CAEB638798A0BBDA46CB /* RemoteSamplingReceiver.swift */; };
 		AE263753BA16DDCF65A0C7F6 /* TrackingConsentReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C1803BA93858B0D1850D21 /* TrackingConsentReceiver.swift */; };
+		C278A35AD158F12093C0C18C /* ActiveDeviceBeacon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5564A773C7917BE67E7382EF /* ActiveDeviceBeacon.swift */; };
 		8BB6657E07CFDC5C252B17E1 /* RemoteSamplingReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DF7CAEB638798A0BBDA46CB /* RemoteSamplingReceiver.swift */; };
 		EF06F86B1AEB5588C8021B41 /* TrackingConsentReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C1803BA93858B0D1850D21 /* TrackingConsentReceiver.swift */; };
+		CCF58ADE75D0AAD678375854 /* ActiveDeviceBeacon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5564A773C7917BE67E7382EF /* ActiveDeviceBeacon.swift */; };
 		D224430529E9588500274EC7 /* TelemetryReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = D214DAA729E54CB4004D0AE8 /* TelemetryReceiver.swift */; };
 		D224430629E95C2C00274EC7 /* MessageBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D214DAA429E072D7004D0AE8 /* MessageBus.swift */; };
 		D224430729E95C2E00274EC7 /* MessageBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D214DAA429E072D7004D0AE8 /* MessageBus.swift */; };
@@ -1531,8 +1533,10 @@
 		D23F8EB329DDCD38001CFAE8 /* ErrorMessageReceiverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21C26ED28AFB65B005DD405 /* ErrorMessageReceiverTests.swift */; };
 		B1A879D1C2D68AD9AA4BB1AE /* RemoteSamplingReceiverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438D79D4085E0220A732CB84 /* RemoteSamplingReceiverTests.swift */; };
 		C7A5221C38B7ED4349B1D897 /* TrackingConsentReceiverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7BCE3B9E5410D59B9004DD /* TrackingConsentReceiverTests.swift */; };
+		56C2C8F2F03E60ACB2905B4B /* ActiveDeviceBeaconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDDA4E1BFE5606F7010A4D7 /* ActiveDeviceBeaconTests.swift */; };
 		224D398714B6DD75DD8044E9 /* RemoteSamplingReceiverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438D79D4085E0220A732CB84 /* RemoteSamplingReceiverTests.swift */; };
 		E5A91E50136127C623E3E001 /* TrackingConsentReceiverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7BCE3B9E5410D59B9004DD /* TrackingConsentReceiverTests.swift */; };
+		5AD43BFF4469FDBD6AD55CB5 /* ActiveDeviceBeaconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDDA4E1BFE5606F7010A4D7 /* ActiveDeviceBeaconTests.swift */; };
 		D23F8EB429DDCD38001CFAE8 /* RUMApplicationScopeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617B953F24BF4DB300E6F443 /* RUMApplicationScopeTests.swift */; };
 		D23F8EB629DDCD38001CFAE8 /* RUMViewsHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D29889C72734136200A4D1A9 /* RUMViewsHandlerTests.swift */; };
 		D23F8EB829DDCD38001CFAE8 /* RUMActionsHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615C3195251DD5080018781C /* RUMActionsHandlerTests.swift */; };
@@ -2111,7 +2115,9 @@
 		D2DC4BF727F484AA00E4FB96 /* DataEncryption.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2DC4BF527F484AA00E4FB96 /* DataEncryption.swift */; };
 		D2DE63532A30A7CA00441A54 /* CoreRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2DE63522A30A7CA00441A54 /* CoreRegistry.swift */; };
 		70B102EEA2DD2A8186D31B62 /* RemoteSampling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784964956777BCDE3B3162A7 /* RemoteSampling.swift */; };
+		6DF987C19FD361A010E10C66 /* DirectRequestSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FB5868D3D7BFDF811C90E83 /* DirectRequestSender.swift */; };
 		3CBF72DC4C4F98B6205D5576 /* RemoteSampling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784964956777BCDE3B3162A7 /* RemoteSampling.swift */; };
+		96D5612497311C5F107E08BF /* DirectRequestSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FB5868D3D7BFDF811C90E83 /* DirectRequestSender.swift */; };
 		D2DE63542A30A7CA00441A54 /* CoreRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2DE63522A30A7CA00441A54 /* CoreRegistry.swift */; };
 		D2E6E8FB2D8039BB00FF1398 /* BenchmarkURLSessionTaskDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E6E8FA2D8039B200FF1398 /* BenchmarkURLSessionTaskDelegate.swift */; };
 		D2E6E8FC2D8039BB00FF1398 /* BenchmarkURLSessionTaskDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E6E8FA2D8039B200FF1398 /* BenchmarkURLSessionTaskDelegate.swift */; };
@@ -3638,6 +3644,7 @@
 		D214DAA729E54CB4004D0AE8 /* TelemetryReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryReceiver.swift; sourceTree = "<group>"; };
 		1DF7CAEB638798A0BBDA46CB /* RemoteSamplingReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSamplingReceiver.swift; sourceTree = "<group>"; };
 		03C1803BA93858B0D1850D21 /* TrackingConsentReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingConsentReceiver.swift; sourceTree = "<group>"; };
+		5564A773C7917BE67E7382EF /* ActiveDeviceBeacon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveDeviceBeacon.swift; sourceTree = "<group>"; };
 		D215ED6A29D2E1080046B721 /* ErrorMessageReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorMessageReceiver.swift; sourceTree = "<group>"; };
 		D2160C9429C0DE5600FAA9A5 /* FirstPartyHosts.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FirstPartyHosts.swift; sourceTree = "<group>"; };
 		D2160C9629C0DE5600FAA9A5 /* TracingHeaderType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TracingHeaderType.swift; sourceTree = "<group>"; };
@@ -3664,6 +3671,7 @@
 		D21C26ED28AFB65B005DD405 /* ErrorMessageReceiverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorMessageReceiverTests.swift; sourceTree = "<group>"; };
 		438D79D4085E0220A732CB84 /* RemoteSamplingReceiverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSamplingReceiverTests.swift; sourceTree = "<group>"; };
 		9A7BCE3B9E5410D59B9004DD /* TrackingConsentReceiverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingConsentReceiverTests.swift; sourceTree = "<group>"; };
+		5FDDA4E1BFE5606F7010A4D7 /* ActiveDeviceBeaconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveDeviceBeaconTests.swift; sourceTree = "<group>"; };
 		D22442C42CA301DA002E71E4 /* UIColor+SessionReplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIColor+SessionReplay.swift"; sourceTree = "<group>"; };
 		D224430C29E95D6600274EC7 /* CrashReportReceiverTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CrashReportReceiverTests.swift; sourceTree = "<group>"; };
 		D22689C22EB12D3D00875E44 /* KSCrashPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KSCrashPlugin.swift; sourceTree = "<group>"; };
@@ -3913,6 +3921,7 @@
 		D2DC4BF527F484AA00E4FB96 /* DataEncryption.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataEncryption.swift; sourceTree = "<group>"; };
 		D2DE63522A30A7CA00441A54 /* CoreRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreRegistry.swift; sourceTree = "<group>"; };
 		784964956777BCDE3B3162A7 /* RemoteSampling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSampling.swift; sourceTree = "<group>"; };
+		8FB5868D3D7BFDF811C90E83 /* DirectRequestSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectRequestSender.swift; sourceTree = "<group>"; };
 		D2E6E8FA2D8039B200FF1398 /* BenchmarkURLSessionTaskDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkURLSessionTaskDelegate.swift; sourceTree = "<group>"; };
 		D2E8A8E62DCBBA5100CF7C63 /* RUMCoreContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RUMCoreContext.swift; sourceTree = "<group>"; };
 		D2E8D59728C7AB90007E5DE1 /* ContextMessageReceiverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextMessageReceiverTests.swift; sourceTree = "<group>"; };
@@ -6078,6 +6087,7 @@
 				D214DAA729E54CB4004D0AE8 /* TelemetryReceiver.swift */,
 				1DF7CAEB638798A0BBDA46CB /* RemoteSamplingReceiver.swift */,
 				03C1803BA93858B0D1850D21 /* TrackingConsentReceiver.swift */,
+				5564A773C7917BE67E7382EF /* ActiveDeviceBeacon.swift */,
 				61DCC84D2C071DCD00CB59E5 /* TelemetryInterceptor.swift */,
 				D2D748222DC0FF7E00C61353 /* FatalErrorContextNotifier.swift */,
 				5B1D02842E8EB78600AB2391 /* FlagEvaluationReceiver.swift */,
@@ -7120,6 +7130,7 @@
 			children = (
 				D2DE63522A30A7CA00441A54 /* CoreRegistry.swift */,
 				784964956777BCDE3B3162A7 /* RemoteSampling.swift */,
+				8FB5868D3D7BFDF811C90E83 /* DirectRequestSender.swift */,
 				D23039B1298D5235001A1FA3 /* DatadogCoreProtocol.swift */,
 				D23039BD298D5235001A1FA3 /* DatadogFeature.swift */,
 				D23039AD298D5234001A1FA3 /* DD.swift */,
@@ -7269,6 +7280,7 @@
 				D21C26ED28AFB65B005DD405 /* ErrorMessageReceiverTests.swift */,
 				438D79D4085E0220A732CB84 /* RemoteSamplingReceiverTests.swift */,
 				9A7BCE3B9E5410D59B9004DD /* TrackingConsentReceiverTests.swift */,
+				5FDDA4E1BFE5606F7010A4D7 /* ActiveDeviceBeaconTests.swift */,
 				9E53889B2773C4B300A7DC42 /* WebViewEventReceiverTests.swift */,
 				D248ED4728081B9B00B315B4 /* TelemetryReceiverTests.swift */,
 				61C453492C0A0BBF00CC4C17 /* TelemetryInterceptorTests.swift */,
@@ -10420,6 +10432,7 @@
 				D2F448E22D43A3DC007BB995 /* CompletionHandler.swift in Sources */,
 				D2DE63532A30A7CA00441A54 /* CoreRegistry.swift in Sources */,
 				3CBF72DC4C4F98B6205D5576 /* RemoteSampling.swift in Sources */,
+				96D5612497311C5F107E08BF /* DirectRequestSender.swift in Sources */,
 				D2D748402DC24F1100C61353 /* Crash.swift in Sources */,
 				E2AA55EA2C32C76A002FEF28 /* WatchKitExtensions.swift in Sources */,
 				D2EBEE2829BA160F00B15732 /* W3CHTTPHeadersWriter.swift in Sources */,
@@ -10551,6 +10564,7 @@
 				D224430529E9588500274EC7 /* TelemetryReceiver.swift in Sources */,
 				02A7E6777D3C038F8CF2AC39 /* RemoteSamplingReceiver.swift in Sources */,
 				AE263753BA16DDCF65A0C7F6 /* TrackingConsentReceiver.swift in Sources */,
+				C278A35AD158F12093C0C18C /* ActiveDeviceBeacon.swift in Sources */,
 				D23F8E7029DDCD28001CFAE8 /* URLSessionRUMResourcesHandler.swift in Sources */,
 				965497062D761FCB006428EE /* SwiftUIViewNameExtractor.swift in Sources */,
 				11F55FDA2DCE183500DE4944 /* RUMDataModels+objc.swift in Sources */,
@@ -10666,6 +10680,7 @@
 				D23F8EB329DDCD38001CFAE8 /* ErrorMessageReceiverTests.swift in Sources */,
 				224D398714B6DD75DD8044E9 /* RemoteSamplingReceiverTests.swift in Sources */,
 				E5A91E50136127C623E3E001 /* TrackingConsentReceiverTests.swift in Sources */,
+				5AD43BFF4469FDBD6AD55CB5 /* ActiveDeviceBeaconTests.swift in Sources */,
 				61C713C12A3C9DAD00FA735A /* RequestBuilderTests.swift in Sources */,
 				D23F8EB429DDCD38001CFAE8 /* RUMApplicationScopeTests.swift in Sources */,
 				6105C5152D0C584F00C4C5EE /* INVMetricTests.swift in Sources */,
@@ -11054,6 +11069,7 @@
 				D224430429E9588100274EC7 /* TelemetryReceiver.swift in Sources */,
 				8BB6657E07CFDC5C252B17E1 /* RemoteSamplingReceiver.swift in Sources */,
 				EF06F86B1AEB5588C8021B41 /* TrackingConsentReceiver.swift in Sources */,
+				CCF58ADE75D0AAD678375854 /* ActiveDeviceBeacon.swift in Sources */,
 				D29A9F5729DD85BB005C54A4 /* URLSessionRUMResourcesHandler.swift in Sources */,
 				965497052D761FCB006428EE /* SwiftUIViewNameExtractor.swift in Sources */,
 				11F55FD92DCE183500DE4944 /* RUMDataModels+objc.swift in Sources */,
@@ -11167,6 +11183,7 @@
 				D29A9FBB29DDB483005C54A4 /* ErrorMessageReceiverTests.swift in Sources */,
 				B1A879D1C2D68AD9AA4BB1AE /* RemoteSamplingReceiverTests.swift in Sources */,
 				C7A5221C38B7ED4349B1D897 /* TrackingConsentReceiverTests.swift in Sources */,
+				56C2C8F2F03E60ACB2905B4B /* ActiveDeviceBeaconTests.swift in Sources */,
 				61C713C02A3C9DAD00FA735A /* RequestBuilderTests.swift in Sources */,
 				D29A9F9F29DDB483005C54A4 /* RUMApplicationScopeTests.swift in Sources */,
 				6105C5142D0C584F00C4C5EE /* INVMetricTests.swift in Sources */,
@@ -11673,6 +11690,7 @@
 				D2F448E12D43A3DC007BB995 /* CompletionHandler.swift in Sources */,
 				D2DE63542A30A7CA00441A54 /* CoreRegistry.swift in Sources */,
 				70B102EEA2DD2A8186D31B62 /* RemoteSampling.swift in Sources */,
+				6DF987C19FD361A010E10C66 /* DirectRequestSender.swift in Sources */,
 				E2AA55EC2C32C78B002FEF28 /* WatchKitExtensions.swift in Sources */,
 				D2EBEE3629BA161100B15732 /* W3CHTTPHeadersWriter.swift in Sources */,
 				D2DA236D298D57AA00C6C7E6 /* DeviceInfo.swift in Sources */,

@@ -741,3 +741,32 @@ extension DatadogCore: RemoteSamplingReader {
         return cachedRemoteSamplingController?.currentRates
     }
 }
+
+extension DatadogCore: DirectRequestSender {
+    /// Sends one request on the uploads' HTTP client, inside a background task of its own.
+    ///
+    /// The background task is taken whatever `backgroundTasksEnabled` says: that option is about
+    /// letting batch uploads stretch the app's time in the background, while a direct request is
+    /// one small request whose whole point is to complete when the user leaves straight away. A
+    /// coordinator per request, because each one holds a single task and would end another's.
+    func sendDirectly(request: URLRequest, completion: @escaping (Result<HTTPURLResponse, Error>) -> Void) {
+        let backgroundTask = directRequestBackgroundTask()
+        backgroundTask?.beginBackgroundTask()
+        httpClient.send(request: request) { result in
+            completion(result)
+            backgroundTask?.endBackgroundTask()
+        }
+    }
+
+    private func directRequestBackgroundTask() -> BackgroundTaskCoordinator? {
+        #if canImport(UIKit)
+        #if os(watchOS)
+        return ExtensionBackgroundTaskCoordinator()
+        #else
+        return isRunFromExtension ? ExtensionBackgroundTaskCoordinator() : AppBackgroundTaskCoordinator()
+        #endif
+        #else
+        return nil
+        #endif
+    }
+}
