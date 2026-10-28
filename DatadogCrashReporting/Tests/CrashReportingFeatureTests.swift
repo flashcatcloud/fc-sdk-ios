@@ -287,6 +287,45 @@ class CrashReportingFeatureTests: XCTestCase {
         }
     }
 
+    func testGivenCrashReportWithMalformedContext_itIsNotAttributedToTheCurrentUserAndTakesTheAppAndOSOfTheReport() throws {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [
+            .mockWith(
+                context: nil,
+                system: .init(appVersion: "1.2.3", appBuild: "45", osName: "iOS", osVersion: "17.4.1", osBuild: "21E236")
+            )
+        ]
+        let current: CrashContext = .mockWith(
+            version: "2.0.0",
+            buildNumber: "60",
+            trackingConsent: .granted,
+            userInfo: .mockRandom(),
+            accountInfo: .mockRandom()
+        )
+        let sender = CrashReportSenderMock()
+        let feature = CrashReportingFeature.mockWith(
+            integration: sender,
+            crashReportingPlugin: plugin,
+            crashContextProvider: CrashContextProviderMock(initialCrashContext: current)
+        )
+
+        // When
+        feature.start()
+        feature.flush()
+
+        // Then
+        let context = try XCTUnwrap(sender.sentCrashContext)
+        XCTAssertNil(context.userInfo, "Another user may have signed in since the crash")
+        XCTAssertNil(context.accountInfo)
+        XCTAssertEqual(context.version, "1.2.3")
+        XCTAssertEqual(context.buildNumber, "45")
+        XCTAssertEqual(context.os.version, "17.4.1")
+        XCTAssertEqual(context.os.versionMajor, "17")
+        XCTAssertEqual(context.os.build, "21E236")
+        XCTAssertEqual(context.trackingConsent, .pending)
+    }
+
     func testGivenCrashReportWithMalformedContext_whenThereIsNoCurrentContextYet_itIsKept() {
         // Given
         let plugin = CrashReportingPluginMock()

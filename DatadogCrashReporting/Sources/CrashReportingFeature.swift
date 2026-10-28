@@ -142,7 +142,7 @@ internal final class CrashReportingFeature: DatadogFeature {
     private func process(crashReport: DDCrashReport) -> Bool {
         // A report whose `CrashContext` is missing or malformed (e.g. a crash before the first context reached the
         // crash reporter) is still reported, with a context built from the current launch. Kept until one exists.
-        guard let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) ?? fallbackCrashContext() else {
+        guard let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) ?? fallbackCrashContext(for: crashReport) else {
             return false
         }
 
@@ -162,27 +162,37 @@ internal final class CrashReportingFeature: DatadogFeature {
     }
 
     /// The context for a crash report whose own context is missing or malformed: the current launch's context
-    /// without anything that belongs to the current process (RUM session, view and attributes, launch date), so
-    /// the crash is not linked to the current session. Its consent is `.pending`: it is written under the current
-    /// consent, never bypassing it.
-    private func fallbackCrashContext() -> CrashContext? {
+    /// without anything that belongs to the current process (RUM session, view and attributes, launch date, user
+    /// and account), so the crash is not linked to the current session or user. The app version and build and the
+    /// OS are the crashed process's, from the report, when it has them. Its consent is `.pending`: it is written
+    /// under the current consent, never bypassing it.
+    private func fallbackCrashContext(for crashReport: DDCrashReport) -> CrashContext? {
         guard let current = crashContextProvider.currentCrashContext else {
             return nil
         }
         DD.logger.debug("Reporting a crash whose context could not be read, with the current launch's context")
+        let system = crashReport.system
+        let os = system?.osVersion.map { version in
+            OperatingSystem(
+                build: system?.osBuild,
+                name: system?.osName ?? current.os.name,
+                version: version,
+                versionMajor: version.split(separator: ".").first.map(String.init) ?? version
+            )
+        }
         return CrashContext(
             serverTimeOffset: current.serverTimeOffset,
             service: current.service,
             env: current.env,
-            version: current.version,
-            buildNumber: current.buildNumber,
+            version: system?.appVersion ?? current.version,
+            buildNumber: system?.appBuild ?? current.buildNumber,
             device: current.device,
-            os: current.os,
+            os: os ?? current.os,
             sdkVersion: current.sdkVersion,
             source: current.source,
             trackingConsent: .pending,
-            userInfo: current.userInfo,
-            accountInfo: current.accountInfo,
+            userInfo: nil,
+            accountInfo: nil,
             networkConnectionInfo: current.networkConnectionInfo,
             carrierInfo: current.carrierInfo,
             lastIsAppInForeground: current.lastIsAppInForeground,

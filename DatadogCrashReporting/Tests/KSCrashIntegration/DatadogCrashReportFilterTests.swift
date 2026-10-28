@@ -46,7 +46,12 @@ class DatadogCrashReportFilterTests: XCTestCase {
                 "process_name": "MyApp",
                 "parent_process_id": 1,
                 "parent_process_name": "launchd",
-                "CFBundleExecutablePath": "/var/containers/Bundle/Application/MyApp"
+                "CFBundleExecutablePath": "/var/containers/Bundle/Application/MyApp",
+                "CFBundleShortVersionString": "1.2.3",
+                "CFBundleVersion": "45",
+                "system_name": "iOS",
+                "system_version": "17.4.1",
+                "os_version": "21E236"
             },
             "crash": {
                 "error": {
@@ -109,6 +114,11 @@ class DatadogCrashReportFilterTests: XCTestCase {
 
         // Verify metadata
         XCTAssertEqual(ddReport.meta.incidentIdentifier, "incident-123", "Should extract incident identifier")
+        XCTAssertEqual(ddReport.system?.appVersion, "1.2.3")
+        XCTAssertEqual(ddReport.system?.appBuild, "45")
+        XCTAssertEqual(ddReport.system?.osName, "iOS")
+        XCTAssertEqual(ddReport.system?.osVersion, "17.4.1")
+        XCTAssertEqual(ddReport.system?.osBuild, "21E236")
         XCTAssertEqual(ddReport.meta.process, "MyApp [12345]", "Should format process as 'name [pid]'")
         XCTAssertEqual(ddReport.meta.parentProcess, "launchd [1]", "Should format parent process as 'name [pid]'")
         XCTAssertEqual(ddReport.meta.path, "/var/containers/Bundle/Application/MyApp", "Should extract executable path")
