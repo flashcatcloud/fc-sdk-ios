@@ -34,8 +34,13 @@ import MachO
 /// the SDK; and one that removed its handler gets the default one installed, rather than its stale handler, which would
 /// ignore the signal and let the crash fault again forever.
 ///
+/// An uncaught `NSException` is also passed, once the crash reporter's handler returns, to the uncaught exception
+/// handler last recorded, unless it is the one installed before the crash reporter (which the crash reporter already
+/// called).
+///
 /// It also installs a C++ terminate handler that records the throw site of an uncaught C++ exception (see
-/// `ThrowSiteRecorder`) before passing it on to the crash reporter's.
+/// `ThrowSiteRecorder`) before passing it on to the crash reporter's. A terminate handler recorded since is not called:
+/// the crash reporter's handler does not return.
 ///
 /// A symbol pointer another library already rewrote to a function of its own (e.g. a wrapper calling the real function)
 /// is chained, not clobbered: the replacement calls that function instead of the real one.
@@ -51,9 +56,15 @@ internal enum CrashHandlerTakeover {
     /// - Parameters:
     ///   - throwSiteFile: where the throw site of an uncaught C++ exception is written.
     ///   - handlesMachExceptions: whether the crash reporter handles Mach exceptions, on threads of its own.
+    ///   - exceptionHandlerBeforeCrashReporter: the uncaught exception handler installed before the crash reporter,
+    ///     which the crash reporter calls itself.
     /// - Returns: `true` if the takeover is active.
     @discardableResult
-    static func activate(throwSiteFile: URL, handlesMachExceptions: Bool = false) -> Bool {
+    static func activate(
+        throwSiteFile: URL,
+        handlesMachExceptions: Bool = false,
+        exceptionHandlerBeforeCrashReporter: UnsafeMutableRawPointer? = nil
+    ) -> Bool {
         guard state.pointee.isActive == 0 else {
             return true
         }
@@ -120,6 +131,7 @@ internal enum CrashHandlerTakeover {
         }
         state.pointee.foreignExceptionHandler = nil
         state.pointee.isForeignExceptionHandlerRecorded = 0
+        state.pointee.exceptionHandlerBeforeCrashReporter = exceptionHandlerBeforeCrashReporter
 
         ThrowSiteRecorder.prepare(file: throwSiteFile)
         let terminate = unsafeBitCast(terminateHandler, to: UnsafeMutableRawPointer.self)
@@ -357,6 +369,7 @@ private struct TakeoverState {
     var ownExceptionHandler: UnsafeMutableRawPointer?
     var foreignExceptionHandler: UnsafeMutableRawPointer?
     var isForeignExceptionHandlerRecorded: Int32 = 0
+    var exceptionHandlerBeforeCrashReporter: UnsafeMutableRawPointer?
     var ownTerminate: UnsafeMutableRawPointer?
     var crashReporterTerminate: UnsafeMutableRawPointer?
     var foreignTerminate: UnsafeMutableRawPointer?
@@ -708,6 +721,14 @@ private let exceptionTrampoline: ExceptionHandlerFunction = { exception in
     noteCrash()
     if let handler = state.pointee.crashReporterExceptionHandler {
         unsafeBitCast(handler, to: ExceptionHandlerFunction.self)(exception)
+    }
+    // The handler another library installed since the crash reporter, which it expects to be called.
+    if state.pointee.isForeignExceptionHandlerRecorded != 0,
+       let foreign = state.pointee.foreignExceptionHandler,
+       foreign != state.pointee.exceptionHandlerBeforeCrashReporter,
+       foreign != state.pointee.crashReporterExceptionHandler,
+       foreign != state.pointee.ownExceptionHandler {
+        unsafeBitCast(foreign, to: ExceptionHandlerFunction.self)(exception)
     }
 }
 

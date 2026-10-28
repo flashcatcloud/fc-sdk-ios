@@ -25,7 +25,8 @@ private func ownHandler(_ signal: Int32) { ownHandlerCalls += 1 }
 private func foreignHandler(_ signal: Int32) {}
 private func otherHandler(_ signal: Int32) {}
 private func ownExceptionHandler(_ exception: NSException) { ownExceptionHandlerCalls += 1 }
-private func foreignExceptionHandler(_ exception: NSException) {}
+private var foreignExceptionHandlerCalls = 0
+private func foreignExceptionHandler(_ exception: NSException) { foreignExceptionHandlerCalls += 1 }
 private let foreignTerminate: @convention(c) () -> Void = { abort() }
 
 private func address(of handler: sig_t?) -> UInt { unsafeBitCast(handler, to: UInt.self) }
@@ -105,6 +106,7 @@ class CrashHandlerTakeoverTests: XCTestCase {
         NSSetUncaughtExceptionHandler(ownExceptionHandler)
         ownHandlerCalls = 0
         ownExceptionHandlerCalls = 0
+        foreignExceptionHandlerCalls = 0
     }
 
     /// Calls the signal handler really installed, as the system does when the signal is raised.
@@ -481,6 +483,21 @@ class CrashHandlerTakeoverTests: XCTestCase {
 
         // Then
         XCTAssertEqual(ownExceptionHandlerCalls, 1, "The exception reaches the crash reporter's handler")
+        XCTAssertEqual(foreignExceptionHandlerCalls, 1, "Then the handler recorded since")
+    }
+
+    func testWhenTheRecordedExceptionHandlerIsTheOneInstalledBeforeTheCrashReporter_itIsNotCalledAgain() {
+        // Given (the crash reporter calls the handler installed before it)
+        let before = unsafeBitCast(foreignExceptionHandler as CExceptionHandler, to: UnsafeMutableRawPointer.self)
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, exceptionHandlerBeforeCrashReporter: before))
+        NSSetUncaughtExceptionHandler(foreignExceptionHandler) // re-installed by its library
+
+        // When
+        unsafeBitCast(CrashHandlerTakeover.exceptionHandler, to: CExceptionHandler.self)(NSException(name: .genericException, reason: nil))
+
+        // Then
+        XCTAssertEqual(ownExceptionHandlerCalls, 1)
+        XCTAssertEqual(foreignExceptionHandlerCalls, 0)
     }
 
     // MARK: - Terminate Handler

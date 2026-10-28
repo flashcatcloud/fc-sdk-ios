@@ -90,6 +90,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         takesOverCrashHandlers: Bool = false
     ) throws {
         let configuration = try KSCrashConfiguration.datadog(handlesMachExceptions: handlesMachExceptions)
+        let exceptionHandlerBeforeInstall = NSGetUncaughtExceptionHandler().map { unsafeBitCast($0, to: UnsafeMutableRawPointer.self) }
         do {
             try kscrash.install(with: configuration)
 
@@ -97,7 +98,11 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
             if takesOverCrashHandlers, let installPath = configuration.installPath {
                 let throwSiteFile = URL(fileURLWithPath: installPath).appendingPathComponent("cpp-throw-site")
                 filters.append(DatadogCppThrowSiteFilter(throwSiteFile: throwSiteFile))
-                if !CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, handlesMachExceptions: handlesMachExceptions) {
+                if !CrashHandlerTakeover.activate(
+                    throwSiteFile: throwSiteFile,
+                    handlesMachExceptions: handlesMachExceptions,
+                    exceptionHandlerBeforeCrashReporter: exceptionHandlerBeforeInstall
+                ) {
                     telemetry.debug("[KSCrash] Crash handler takeover could not be activated")
                 }
             }
