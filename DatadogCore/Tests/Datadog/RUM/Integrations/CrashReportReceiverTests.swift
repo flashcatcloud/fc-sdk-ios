@@ -34,7 +34,7 @@ class CrashReportReceiverTests: XCTestCase {
     func testReceiveCrashAndViewEvent() throws {
         // Given
         let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope)
-        let lastRUMViewEvent: RUMViewEvent = .mockRandom()
+        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true)
 
         // When
         let message: FeatureMessage = .payload(
@@ -61,7 +61,7 @@ class CrashReportReceiverTests: XCTestCase {
         // Given
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         let crashDate: Date = currentDate.secondsAgo(.random(in: 0..<secondsIn4Hours))
-        let activeRUMView: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let activeRUMView: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
 
         let crashReport: DDCrashReport = .mockWith(date: crashDate)
         let crashContext: CrashContext = .mockWith(
@@ -72,8 +72,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: currentDate),
-            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom() // no matter BET
+            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
         )
 
         // When
@@ -97,7 +96,7 @@ class CrashReportReceiverTests: XCTestCase {
         let crashReport: DDCrashReport = .mockWith(date: currentDate.secondsAgo(60))
         let crashContext: CrashContext = .mockWith(
             trackingConsent: .granted,
-            lastRUMViewEvent: .mockRandomWith(crashCount: 0)
+            lastRUMViewEvent: .mockRandomWith(viewIsActive: true, crashCount: 0)
         )
         let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
 
@@ -115,7 +114,7 @@ class CrashReportReceiverTests: XCTestCase {
         let crashReport: DDCrashReport = .mockWith(date: currentDate.secondsAgo(60))
         let crashContext: CrashContext = .mockWith(
             trackingConsent: .pending,
-            lastRUMViewEvent: .mockRandomWith(crashCount: 0)
+            lastRUMViewEvent: .mockRandomWith(viewIsActive: true, crashCount: 0)
         )
         let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
 
@@ -134,7 +133,7 @@ class CrashReportReceiverTests: XCTestCase {
         let crashReport: DDCrashReport = .mockWith(date: currentDate.secondsAgo(5 * 60 * 60))
         let crashContext: CrashContext = .mockWith(
             trackingConsent: .pending,
-            lastRUMViewEvent: .mockRandomWith(crashCount: 0)
+            lastRUMViewEvent: .mockRandomWith(viewIsActive: true, crashCount: 0)
         )
         let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
 
@@ -176,7 +175,7 @@ class CrashReportReceiverTests: XCTestCase {
         // Given
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         let crashDate: Date = currentDate.secondsAgo(.random(in: 0..<secondsIn4Hours))
-        let activeRUMView: RUMViewEvent = .mockRandomWith(crashCount: 1)
+        let activeRUMView: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 1)
 
         let crashReport: DDCrashReport = .mockWith(date: crashDate)
         let crashContext: CrashContext = .mockWith(
@@ -187,8 +186,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: currentDate),
-            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom() // no matter BET
+            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
         )
 
         // When
@@ -205,8 +203,8 @@ class CrashReportReceiverTests: XCTestCase {
     func testGivenCrashesFromSeveralProcesses_whenSendingThemInSequence_eachIsLinkedToItsOwnView() throws {
         // Given
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
-        let firstView: RUMViewEvent = .mockRandomWith(crashCount: 0)
-        let secondView: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let firstView: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
+        let secondView: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
         let crashes = [firstView, secondView].map { view in
             Crash(
                 report: .mockWith(date: currentDate.secondsAgo(60)),
@@ -238,7 +236,7 @@ class CrashReportReceiverTests: XCTestCase {
         // Given
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         let crashDate: Date = currentDate.secondsAgo(.random(in: secondsIn4Hours..<TimeInterval.greatestFiniteMagnitude))
-        let activeRUMView: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let activeRUMView: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
 
         let crashReport: DDCrashReport = .mockWith(date: crashDate)
         let crashContext: CrashContext = .mockWith(
@@ -249,8 +247,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: currentDate),
-            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom() // no matter BET
+            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
         )
 
         // When
@@ -282,8 +279,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: currentDate),
-            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: true // BET enabled
+            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
         )
 
         // When
@@ -316,8 +312,7 @@ class CrashReportReceiverTests: XCTestCase {
 
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
-            dateProvider: RelativeDateProvider(using: currentDate),
-            trackBackgroundEvents: true // BET enabled
+            dateProvider: RelativeDateProvider(using: currentDate)
         )
 
         // When
@@ -363,7 +358,7 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(featureScope.eventsWritten.count, 0, "Crash must not be send as it is rejected by sampler")
     }
 
-    func testGivenCrashDuringAppLaunchInBackgroundAndBETDisabled_whenSending_itIsDropped() throws {
+    func testGivenCrashDuringAppLaunchInBackground_whenSending_itIsSentInBackgroundViewOfNewSession() throws {
         // Given
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
         let crashReport: DDCrashReport = .mockWith(date: crashDate)
@@ -378,8 +373,7 @@ class CrashReportReceiverTests: XCTestCase {
 
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
-            dateProvider: RelativeDateProvider(using: crashDate),
-            trackBackgroundEvents: false // BET disabled
+            dateProvider: RelativeDateProvider(using: crashDate)
         )
 
         // When
@@ -389,8 +383,14 @@ class CrashReportReceiverTests: XCTestCase {
             ), from: NOPDatadogCore())
         )
 
-        // Then
-        XCTAssertEqual(featureScope.eventsWritten.count, 0, "Crash must not be send as it happened in background and BET is disabled")
+        // Then (whether or not Background Events Tracking is enabled)
+        let view = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first, "A crash in background must be sent")
+        let error = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        XCTAssertEqual(view.view.name, RUMOffViewEventsHandlingRule.Constants.backgroundViewName)
+        XCTAssertEqual(view.view.url, RUMOffViewEventsHandlingRule.Constants.backgroundViewURL)
+        XCTAssertEqual(view.view.crash?.count, 1)
+        XCTAssertEqual(error.view.id, view.view.id)
+        XCTAssertEqual(error.session.id, view.session.id)
     }
 
     func testGivenCrashDuringSampledRUMSession_whenSending_itIsDropped() throws {
@@ -414,8 +414,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: currentDate),
-            sessionSampler: .mockRandom(), // no matter current session sampling
-            trackBackgroundEvents: .mockRandom()
+            sessionSampler: .mockRandom() // no matter current session sampling
         )
 
         // When
@@ -429,10 +428,119 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(featureScope.eventsWritten.count, 0, "Crash must not be send as it the session was rejected by sampler")
     }
 
+    // MARK: - Crashes With No Active View
+
+    func testGivenCrashInForegroundAfterTheLastViewStopped_whenSending_itIsLinkedToThatView() throws {
+        // Given (an untracked screen was presented on top of the last tracked view)
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let sessionUUID: UUID = .mockRandom()
+        let lastView: RUMViewEvent = .mockRandomWith(sessionID: sessionUUID, viewIsActive: false, crashCount: 0)
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            lastRUMViewEvent: lastView,
+            lastRUMSessionState: .mockWith(sessionUUID: sessionUUID, isInitialSession: .mockRandom(), hasTrackedAnyView: true),
+            lastIsAppInForeground: true
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        XCTAssertTrue(
+            receiver.receive(message: .payload(
+                Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)
+            ), from: NOPDatadogCore())
+        )
+
+        // Then
+        let view = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first)
+        let error = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        XCTAssertEqual(view.view.id, lastView.view.id, "The crash must be linked to the last view the user saw")
+        XCTAssertEqual(view.view.crash?.count, 1)
+        XCTAssertEqual(view.dd.documentVersion, lastView.dd.documentVersion + 1)
+        XCTAssertEqual(error.view.id, lastView.view.id)
+        XCTAssertEqual(error.session.id, lastView.session.id)
+    }
+
+    func testGivenCrashInBackgroundAfterTheLastViewStopped_whenSending_itIsSentInBackgroundViewOfThatSession() throws {
+        // Given (the view stopped because the app went to background)
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let sessionUUID: UUID = .mockRandom()
+        let lastView: RUMViewEvent = .mockRandomWith(sessionID: sessionUUID, viewIsActive: false, crashCount: 0)
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            lastRUMViewEvent: lastView,
+            lastRUMSessionState: .mockWith(sessionUUID: sessionUUID, isInitialSession: .mockRandom(), hasTrackedAnyView: true),
+            lastIsAppInForeground: false
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        XCTAssertTrue(
+            receiver.receive(message: .payload(
+                Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)
+            ), from: NOPDatadogCore())
+        )
+
+        // Then
+        let view = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first)
+        let error = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        XCTAssertEqual(view.view.name, RUMOffViewEventsHandlingRule.Constants.backgroundViewName)
+        XCTAssertNotEqual(view.view.id, lastView.view.id, "The user had left the last view")
+        XCTAssertEqual(view.session.id, RUMUUID(rawValue: sessionUUID).toRUMDataFormat, "It must stay in the session the crash happened in")
+        XCTAssertEqual(error.view.id, view.view.id)
+    }
+
+    func testGivenCrashInBackgroundOfSessionWithNoActiveView_whenSending_itIsSentInBackgroundViewWhateverTheBETOption() throws {
+        // Given
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let sessionUUID: UUID = .mockRandom()
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            lastRUMViewEvent: nil,
+            lastRUMSessionState: .mockWith(sessionUUID: sessionUUID, isInitialSession: .mockRandom(), hasTrackedAnyView: .mockRandom()),
+            lastIsAppInForeground: false
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        XCTAssertTrue(
+            receiver.receive(message: .payload(
+                Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)
+            ), from: NOPDatadogCore())
+        )
+
+        // Then
+        let view = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first, "A crash in background must be sent")
+        XCTAssertEqual(view.view.name, RUMOffViewEventsHandlingRule.Constants.backgroundViewName)
+        XCTAssertEqual(view.session.id, RUMUUID(rawValue: sessionUUID).toRUMDataFormat)
+        XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self).count, 1)
+    }
+
+    func testControl_givenCrashInForegroundAfterTheSessionWasStopped_whenSending_itIsDropped() throws {
+        // Given (`stopSession()` clears the last view, and no new session started yet)
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            lastRUMViewEvent: nil,
+            lastRUMSessionState: .mockWith(sessionUUID: .mockRandom(), isInitialSession: .mockRandom(), hasTrackedAnyView: true),
+            lastIsAppInForeground: true
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        // When
+        XCTAssertTrue(
+            receiver.receive(message: .payload(
+                Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)
+            ), from: NOPDatadogCore())
+        )
+
+        // Then
+        XCTAssertEqual(featureScope.eventsWritten.count, 0)
+    }
+
     // MARK: - Testing Uploaded Data - Crashes During RUM Session With Active View
 
     func testGivenCrashDuringRUMSessionWithActiveView_whenSendingRUMViewEvent_itIsLinkedToPreviousRUMSessionAndIncludesErrorInformation() throws {
-        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
 
         // Given
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
@@ -447,8 +555,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: crashDate),
-            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom() // no matter BET
+            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
         )
 
         // When
@@ -500,7 +607,7 @@ class CrashReportReceiverTests: XCTestCase {
     }
 
     func testGivenCrashDuringRUMSessionWithActiveView_whenSendingRUMErrorEvent_itIsLinkedToPreviousRUMSessionAndIncludesCrashInformation() throws {
-        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
 
         // Given
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
@@ -548,8 +655,7 @@ class CrashReportReceiverTests: XCTestCase {
                     .mockRandom(min: 10, max: 2 * FatalErrorBuilder.Constants.viewEventAvailabilityThreshold) // simulate restarting app from 10s to 8h later
                 )
             ),
-            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom() // no matter BET
+            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
         )
 
         // When
@@ -615,7 +721,7 @@ class CrashReportReceiverTests: XCTestCase {
 
     func testGivenCrashDuringRUMSessionWithActiveViewAndOverriddenSourceType_whenSendingRUMViewEvent_itSendsOverrideSourceType() throws {
         featureScope.contextMock = .mockWith(nativeSourceOverride: "ios+il2cpp")
-        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
 
         // Given
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
@@ -630,8 +736,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: crashDate),
-            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom() // no matter BET
+            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
         )
 
         // When
@@ -648,7 +753,7 @@ class CrashReportReceiverTests: XCTestCase {
 
     func testGivenCrashDuringRUMSessionWithActiveViewAndEventMapper_whenSendingRUMViewEvent_itSendsMappedEvents() throws {
         // Given
-        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
         let dateCorrectionOffset: TimeInterval = .mockRandom()
         let crashReport: DDCrashReport = .mockWith(date: crashDate)
@@ -664,7 +769,6 @@ class CrashReportReceiverTests: XCTestCase {
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: crashDate),
             sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom(), // no matter BET
             eventsMapper: .mockWith(
                 viewEventMapper: { event in
                     var event = event
@@ -695,7 +799,7 @@ class CrashReportReceiverTests: XCTestCase {
     }
 
     func testGivenCrashDuringRUMSessionWithActiveView_whenErrorMapperReturnsNull_itSendOriginalError() throws {
-        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
 
         // Given
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
@@ -744,7 +848,6 @@ class CrashReportReceiverTests: XCTestCase {
                 )
             ),
             sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom(), // no matter BET
             eventsMapper: .mockWith(
                 errorEventMapper: { _ in
                     return nil
@@ -814,7 +917,7 @@ class CrashReportReceiverTests: XCTestCase {
     }
 
     func testGivenCrashDuringRUMSessionWithActiveViewAndLastRUMAttributesAvailable_itSendsEventsWithOverridingAttributes() throws {
-        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(crashCount: 0)
+        let lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
         let lastRUMAttributes: RUMEventAttributes = .mockRandom()
 
         // Given
@@ -829,8 +932,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
             dateProvider: RelativeDateProvider(using: crashDate),
-            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-            trackBackgroundEvents: .mockRandom() // no matter BET
+            sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
         )
 
         // When
@@ -994,7 +1096,7 @@ class CrashReportReceiverTests: XCTestCase {
         // it was never uploaded, so the crash next launch has a view to hang from.
         let featureScope = FeatureScopeMock()
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
-        let persistedView = edited(RUMViewEvent.mockRandomWith(crashCount: 0)) {
+        let persistedView = edited(RUMViewEvent.mockRandomWith(viewIsActive: true, crashCount: 0)) {
             var session = $0["session"] as! [String: Any]
             session["sampled_for_error"] = true
             $0["session"] = session
@@ -1038,7 +1140,7 @@ class CrashReportReceiverTests: XCTestCase {
         // hangs from a view the backend never sees, and the session never exists.
         let featureScope = FeatureScopeMock()
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
-        let persistedView = edited(RUMViewEvent.mockRandomWith(crashCount: 0)) {
+        let persistedView = edited(RUMViewEvent.mockRandomWith(viewIsActive: true, crashCount: 0)) {
             var session = $0["session"] as! [String: Any]
             session["sampled_for_error"] = true
             $0["session"] = session
@@ -1084,7 +1186,7 @@ class CrashReportReceiverTests: XCTestCase {
                     report: .mockWith(date: crashDate),
                     context: .mockWith(
                         trackingConsent: .granted,
-                        lastRUMViewEvent: .mockRandomWith(crashCount: 0),
+                        lastRUMViewEvent: .mockRandomWith(viewIsActive: true, crashCount: 0),
                         lastRUMSessionState: .mockWith(sampledForError: nil)
                     )
                 )),
@@ -1175,7 +1277,6 @@ class CrashReportReceiverTests: XCTestCase {
         func test(
             lastRUMSessionState: RUMSessionState,
             launchInForeground: Bool,
-            backgroundEventsTrackingEnabled: Bool,
             expectViewName expectedViewName: String,
             expectViewURL expectedViewURL: String
         ) throws {
@@ -1208,7 +1309,6 @@ class CrashReportReceiverTests: XCTestCase {
                 applicationID: randomRUMAppID,
                 dateProvider: RelativeDateProvider(using: crashDate),
                 sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-                trackBackgroundEvents: backgroundEventsTrackingEnabled,
                 uuidGenerator: DefaultRUMUUIDGenerator()
             )
 
@@ -1293,7 +1393,6 @@ class CrashReportReceiverTests: XCTestCase {
         try test(
             lastRUMSessionState: .mockWith(isInitialSession: true, hasTrackedAnyView: false), // when initial session with no views history
             launchInForeground: true, // launch in foreground
-            backgroundEventsTrackingEnabled: .mockRandom(), // no matter BET
             expectViewName: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewName,
             expectViewURL: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewURL
         )
@@ -1301,7 +1400,6 @@ class CrashReportReceiverTests: XCTestCase {
         try test(
             lastRUMSessionState: .mockRandom(), // any sampled session
             launchInForeground: false, // launch in background
-            backgroundEventsTrackingEnabled: true, // BET enabled
             expectViewName: RUMOffViewEventsHandlingRule.Constants.backgroundViewName,
             expectViewURL: RUMOffViewEventsHandlingRule.Constants.backgroundViewURL
         )
@@ -1310,8 +1408,7 @@ class CrashReportReceiverTests: XCTestCase {
     func testGivenCrashDuringRUMSessionWithNoActiveViewAndOverriddenSourceType_whenSendingRUMViewEvent_itSendsOverriddenSourceType() throws {
         func test(
             lastRUMSessionState: RUMSessionState,
-            launchInForeground: Bool,
-            backgroundEventsTrackingEnabled: Bool
+            launchInForeground: Bool
         ) throws {
             let mockApplicationId: String = .mockRandom(among: .alphanumerics)
             let featureScope = FeatureScopeMock()
@@ -1344,7 +1441,6 @@ class CrashReportReceiverTests: XCTestCase {
                 applicationID: mockApplicationId,
                 dateProvider: RelativeDateProvider(using: crashDate),
                 sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-                trackBackgroundEvents: backgroundEventsTrackingEnabled,
                 uuidGenerator: DefaultRUMUUIDGenerator()
             )
 
@@ -1362,22 +1458,19 @@ class CrashReportReceiverTests: XCTestCase {
 
         try test(
             lastRUMSessionState: .mockWith(isInitialSession: true, hasTrackedAnyView: false), // when initial session with no views history
-            launchInForeground: true, // launch in foreground
-            backgroundEventsTrackingEnabled: .mockRandom() // no matter BET
+            launchInForeground: true // launch in foreground
         )
 
         try test(
             lastRUMSessionState: .mockRandom(), // any sampled session
-            launchInForeground: false, // launch in background
-            backgroundEventsTrackingEnabled: true // BET enabled
+            launchInForeground: false // launch in background
         )
     }
 
     func testGivenCrashDuringRUMSessionWithNoActiveViewAndEventMapper_whenSendingRUMViewEvent_itSendsMappedEvents() throws {
         func test(
             lastRUMSessionState: RUMSessionState,
-            launchInForeground: Bool,
-            backgroundEventsTrackingEnabled: Bool
+            launchInForeground: Bool
         ) throws {
             let featureScope = FeatureScopeMock()
 
@@ -1410,7 +1503,6 @@ class CrashReportReceiverTests: XCTestCase {
                 applicationID: .mockRandom(among: .alphanumerics),
                 dateProvider: RelativeDateProvider(using: crashDate),
                 sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-                trackBackgroundEvents: backgroundEventsTrackingEnabled,
                 eventsMapper: .mockWith(
                     viewEventMapper: { event in
                         var event = event
@@ -1442,22 +1534,19 @@ class CrashReportReceiverTests: XCTestCase {
 
         try test(
             lastRUMSessionState: .mockWith(isInitialSession: true, hasTrackedAnyView: false), // when initial session with no views history
-            launchInForeground: true, // launch in foreground
-            backgroundEventsTrackingEnabled: .mockRandom() // no matter BET
+            launchInForeground: true // launch in foreground
         )
 
         try test(
             lastRUMSessionState: .mockRandom(), // any sampled session
-            launchInForeground: false, // launch in background
-            backgroundEventsTrackingEnabled: true // BET enabled
+            launchInForeground: false // launch in background
         )
     }
 
     func testGivenCrashDuringRUMSessionWithNoActiveViewAndLastRUMAttributesAvailable_itSendsEventsWithOverridingAttributes() throws {
         func test(
             lastRUMSessionState: RUMSessionState,
-            launchInForeground: Bool,
-            backgroundEventsTrackingEnabled: Bool
+            launchInForeground: Bool
         ) throws {
             let featureScope = FeatureScopeMock()
 
@@ -1489,8 +1578,7 @@ class CrashReportReceiverTests: XCTestCase {
                 featureScope: featureScope,
                 applicationID: .mockRandom(among: .alphanumerics),
                 dateProvider: RelativeDateProvider(using: crashDate),
-                sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll(), // no matter sampling (as previous session was sampled)
-                trackBackgroundEvents: backgroundEventsTrackingEnabled
+                sessionSampler: Bool.random() ? .mockKeepAll() : .mockRejectAll() // no matter sampling (as previous session was sampled)
             )
 
             // When
@@ -1509,14 +1597,12 @@ class CrashReportReceiverTests: XCTestCase {
 
         try test(
             lastRUMSessionState: .mockWith(isInitialSession: true, hasTrackedAnyView: false), // when initial session with no views history
-            launchInForeground: true, // launch in foreground
-            backgroundEventsTrackingEnabled: .mockRandom() // no matter BET
+            launchInForeground: true // launch in foreground
         )
 
         try test(
             lastRUMSessionState: .mockRandom(), // any sampled session
-            launchInForeground: false, // launch in background
-            backgroundEventsTrackingEnabled: true // BET enabled
+            launchInForeground: false // launch in background
         )
     }
 
@@ -1531,7 +1617,6 @@ class CrashReportReceiverTests: XCTestCase {
 
         func test(
             launchInForeground: Bool,
-            backgroundEventsTrackingEnabled: Bool,
             expectViewName expectedViewName: String,
             expectViewURL expectedViewURL: String
         ) throws {
@@ -1560,7 +1645,6 @@ class CrashReportReceiverTests: XCTestCase {
                 featureScope: featureScope,
                 applicationID: randomRUMAppID,
                 dateProvider: RelativeDateProvider(using: crashDate),
-                trackBackgroundEvents: backgroundEventsTrackingEnabled,
                 uuidGenerator: DefaultRUMUUIDGenerator()
             )
 
@@ -1637,14 +1721,12 @@ class CrashReportReceiverTests: XCTestCase {
 
         try test(
             launchInForeground: true, // launch in foreground
-            backgroundEventsTrackingEnabled: .mockRandom(), // no matter BET
             expectViewName: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewName,
             expectViewURL: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewURL
         )
 
         try test(
             launchInForeground: false, // launch in background
-            backgroundEventsTrackingEnabled: true, // BET enabled
             expectViewName: RUMOffViewEventsHandlingRule.Constants.backgroundViewName,
             expectViewURL: RUMOffViewEventsHandlingRule.Constants.backgroundViewURL
         )
@@ -1653,7 +1735,6 @@ class CrashReportReceiverTests: XCTestCase {
     func testGivenCrashDuringAppLaunchWithNativeSourceType_whenSending_itIsSendsWithNativeSourceType() throws {
         func test(
             launchInForeground: Bool,
-            backgroundEventsTrackingEnabled: Bool,
             expectViewName expectedViewName: String,
             expectViewURL expectedViewURL: String
         ) throws {
@@ -1683,7 +1764,6 @@ class CrashReportReceiverTests: XCTestCase {
                 featureScope: featureScope,
                 applicationID: .mockRandom(),
                 dateProvider: RelativeDateProvider(using: crashDate),
-                trackBackgroundEvents: backgroundEventsTrackingEnabled,
                 uuidGenerator: DefaultRUMUUIDGenerator()
             )
 
@@ -1702,14 +1782,12 @@ class CrashReportReceiverTests: XCTestCase {
 
         try test(
             launchInForeground: true, // launch in foreground
-            backgroundEventsTrackingEnabled: .mockRandom(), // no matter BET
             expectViewName: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewName,
             expectViewURL: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewURL
         )
 
         try test(
             launchInForeground: false, // launch in background
-            backgroundEventsTrackingEnabled: true, // BET enabled
             expectViewName: RUMOffViewEventsHandlingRule.Constants.backgroundViewName,
             expectViewURL: RUMOffViewEventsHandlingRule.Constants.backgroundViewURL
         )
@@ -1718,7 +1796,6 @@ class CrashReportReceiverTests: XCTestCase {
     func testGivenCrashDuringAppLaunchWithEventMappers_whenMapperReturnsNil_itSendsOriginalEvents() throws {
         func test(
             launchInForeground: Bool,
-            backgroundEventsTrackingEnabled: Bool,
             expectViewName expectedViewName: String,
             expectViewURL expectedViewURL: String
         ) throws {
@@ -1751,7 +1828,6 @@ class CrashReportReceiverTests: XCTestCase {
                 featureScope: featureScope,
                 applicationID: .mockRandom(),
                 dateProvider: RelativeDateProvider(using: crashDate),
-                trackBackgroundEvents: backgroundEventsTrackingEnabled,
                 eventsMapper: .mockWith(
                     viewEventMapper: { event in
                         var event = event
@@ -1804,14 +1880,12 @@ class CrashReportReceiverTests: XCTestCase {
 
         try test(
             launchInForeground: true, // launch in foreground
-            backgroundEventsTrackingEnabled: .mockRandom(), // no matter BET
             expectViewName: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewName,
             expectViewURL: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewURL
         )
 
         try test(
             launchInForeground: false, // launch in background
-            backgroundEventsTrackingEnabled: true, // BET enabled
             expectViewName: RUMOffViewEventsHandlingRule.Constants.backgroundViewName,
             expectViewURL: RUMOffViewEventsHandlingRule.Constants.backgroundViewURL
         )
@@ -1819,8 +1893,7 @@ class CrashReportReceiverTests: XCTestCase {
 
     func testGivenCrashDuringAppLaunchAndLastRUMAttributesAvailable_itSendsEventsWithOverridingAttributes() throws {
         func test(
-            launchInForeground: Bool,
-            backgroundEventsTrackingEnabled: Bool
+            launchInForeground: Bool
         ) throws {
             let featureScope = FeatureScopeMock()
             let lastRUMAttributes: RUMEventAttributes = .mockRandom()
@@ -1843,8 +1916,7 @@ class CrashReportReceiverTests: XCTestCase {
             let receiver: CrashReportReceiver = .mockWith(
                 featureScope: featureScope,
                 applicationID: .mockRandom(),
-                dateProvider: RelativeDateProvider(using: crashDate),
-                trackBackgroundEvents: backgroundEventsTrackingEnabled
+                dateProvider: RelativeDateProvider(using: crashDate)
             )
 
             // When
@@ -1862,13 +1934,11 @@ class CrashReportReceiverTests: XCTestCase {
         }
 
         try test(
-            launchInForeground: true, // launch in foreground
-            backgroundEventsTrackingEnabled: .mockRandom() // no matter BET
+            launchInForeground: true // launch in foreground
         )
 
         try test(
-            launchInForeground: false, // launch in background
-            backgroundEventsTrackingEnabled: true // BET enabled
+            launchInForeground: false // launch in background
         )
     }
 }

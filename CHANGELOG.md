@@ -12,6 +12,10 @@
 ### Fixed
 
 - A crash is attributed to the RUM session and view it happened in when `CrashReporting.enable()` is called after `RUM.enable()`. RUM passed its session state, last view and global attributes to crash reporting as one-off messages, which a crash reporter enabled later never received: the crash context lacked the session state until the next session started (and the view until the next view update), so a crash in between was reported in a new session, after a new sampling draw, even when the session it happened in was sampled out. RUM now shares this state through the SDK context, which crash reporting reads whenever it is enabled; it is also included in the crash context written before `enable()` returns. The order in which the two features are enabled no longer matters. Crash reports written by earlier versions are read as before.
+- A crash is no longer dropped because no RUM view was active when it happened.
+  - In foreground, a crash after the last tracked view stopped (for example while a view controller that the views predicate does not track is presented over it) is linked to that view, the last screen the user saw. Previously it was dropped. Fatal App Hangs in this situation are linked to that view as well.
+  - In background, a crash with no active view is reported in a "Background" view of its session whether or not `trackBackgroundEvents` is enabled. Previously it was dropped when `trackBackgroundEvents` was disabled. The option still applies to every other background event.
+  - Crashes in a session that was not sampled are still not reported, and a crash is never linked to a view of an earlier session. A crash after `stopSession()` and before the next session starts is still not reported in foreground.
 
 ---
 

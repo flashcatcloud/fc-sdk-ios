@@ -77,6 +77,98 @@ class SendingCrashReportTests: XCTestCase {
         DDAssertJSONEqual(contextAttributes, lastRUMAttributes.merging(crashReportAttributes) { $1 })
     }
 
+    // MARK: - Crashes With No Active View
+
+    /// Runs the process that crashes - RUM with default configuration (Background Events Tracking disabled) - and
+    /// returns the crash context it leaves for the next process, once that context has reached the state the
+    /// scenario leads to (it is updated asynchronously). Crash Reporting is enabled first, so the crash context
+    /// receives the state of the RUM session from its start.
+    private func crashContextOfAProcessThatCrashes(
+        when scenario: (RUMMonitorProtocol) -> Void,
+        until isReached: (CrashContext) -> Bool
+    ) throws -> CrashContext {
+        let plugin = CrashReporterMock()
+        CrashReporting.enable(with: plugin, in: core)
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+
+        scenario(RUMMonitor.shared(in: core))
+
+        var crashContext: CrashContext?
+        let deadline = Date().addingTimeInterval(5)
+        repeat {
+            core.flush()
+            crashContext = try plugin.injectedContext.map { try CrashReportingFeature.crashContextDecoder.decode(CrashContext.self, from: $0) }
+        } while !(crashContext.map(isReached) ?? false) && Date() < deadline
+        try core.flushAndTearDown()
+
+        let reached = try XCTUnwrap(crashContext)
+        XCTAssertTrue(isReached(reached), "The crash context never reached the state of the scenario")
+        return reached
+    }
+
+    /// Starts the next process with the crash report found and returns the crash as RUM sends it.
+    private func crashSentByTheNextProcess(with crashContext: CrashContext) throws -> RUMErrorEvent? {
+        core = DatadogCoreProxy(context: .mockWith(trackingConsent: .granted))
+        RUM.enable(with: .init(applicationID: "rum-app-id"), in: core)
+        CrashReporting.enable(with: CrashReporterMock(pendingCrashReport: .mockRandomWith(context: crashContext)), in: core)
+
+        return core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self)
+            .first { $0.error.isCrash == true }
+    }
+
+    func testWhenAppCrashesInForegroundAfterTheLastTrackedViewStopped_itSendsTheCrashLinkedToThatView() throws {
+        // Given (an untracked screen is presented on top of the last tracked view, so that view stops)
+        let crashContext = try crashContextOfAProcessThatCrashes(
+            when: { monitor in
+                monitor.startView(key: "home", name: "Home")
+                monitor.stopView(key: "home")
+            },
+            until: { $0.lastRUMSessionState != nil && $0.lastRUMViewEvent?.view.name == "Home" && $0.lastRUMViewEvent?.view.isActive == false }
+        )
+
+        // When
+        let crash = try crashSentByTheNextProcess(with: crashContext)
+
+        // Then
+        XCTAssertNotNil(crash, "The crash must be sent")
+        XCTAssertEqual(crash?.view.name, "Home", "It must be linked to the last screen the user saw")
+        XCTAssertEqual(crash?.session.id, crashContext.lastRUMViewEvent?.session.id)
+    }
+
+    func testWhenAppCrashesInBackgroundAfterTheLastTrackedViewStopped_itSendsTheCrashInBackgroundView() throws {
+        // Given (the app goes to background, which stops the view; Background Events Tracking is disabled)
+        let crashContext = try crashContextOfAProcessThatCrashes(
+            when: { monitor in
+                monitor.startView(key: "home", name: "Home")
+                monitor.stopView(key: "home")
+                core.context.applicationStateHistory = .mockAppInBackground()
+            },
+            until: { $0.lastRUMSessionState != nil && $0.lastRUMViewEvent?.view.isActive == false && !$0.lastIsAppInForeground }
+        )
+
+        // When
+        let crash = try crashSentByTheNextProcess(with: crashContext)
+
+        // Then
+        XCTAssertNotNil(crash, "The crash must be sent although Background Events Tracking is disabled")
+        XCTAssertEqual(crash?.view.name, RUMOffViewEventsHandlingRule.Constants.backgroundViewName)
+        XCTAssertEqual(crash?.session.id, crashContext.lastRUMSessionState.map { RUMUUID(rawValue: $0.sessionUUID).toRUMDataFormat })
+    }
+
+    func testControl_whenAppCrashesInForegroundOnAnActiveView_itSendsTheCrashLinkedToThatView() throws {
+        // Given
+        let crashContext = try crashContextOfAProcessThatCrashes(
+            when: { monitor in monitor.startView(key: "home", name: "Home") },
+            until: { $0.lastRUMSessionState != nil && $0.lastRUMViewEvent?.view.name == "Home" }
+        )
+
+        // When
+        let crash = try crashSentByTheNextProcess(with: crashContext)
+
+        // Then
+        XCTAssertEqual(crash?.view.name, "Home")
+    }
+
     func testWhenCrashReportingIsEnabled_itWritesTheCrashContextBeforeReturning() throws {
         // Given
         let plugin = CrashReporterMock()
