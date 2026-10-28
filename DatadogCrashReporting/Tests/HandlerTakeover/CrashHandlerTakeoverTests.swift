@@ -187,6 +187,35 @@ class CrashHandlerTakeoverTests: XCTestCase {
         XCTAssertEqual(installedHandler(signal), CrashHandlerTakeover.signalHandler)
     }
 
+    func testWhenAnOlderRecordIsPublishedLast_theNewerOneStaysRecorded() {
+        // Given
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let older = writeForeignAction(action(foreignHandler), for: ownedSignal)
+        let newer = writeForeignAction(action(otherHandler), for: ownedSignal)
+
+        // When (the older record is delayed between writing and publishing)
+        publishForeignAction(ticket: newer, for: ownedSignal)
+        publishForeignAction(ticket: older, for: ownedSignal)
+
+        // Then
+        XCTAssertEqual(recordedForeignAction(for: ownedSignal).map(address(of:)), address(of: otherHandler))
+    }
+
+    func testWhenTheSlotOfThePublishedRecordIsRewrittenByANewerOne_theNewerOneIsRead() {
+        // Given
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let published = writeForeignAction(action(foreignHandler), for: ownedSignal)
+        publishForeignAction(ticket: published, for: ownedSignal)
+
+        // When (a full turn of records, not published yet, reuses the published record's slot)
+        for _ in 0..<8 {
+            _ = writeForeignAction(action(otherHandler), for: ownedSignal)
+        }
+
+        // Then
+        XCTAssertEqual(recordedForeignAction(for: ownedSignal).map(address(of:)), address(of: otherHandler))
+    }
+
     func testWhenActive_resettingToTheDefaultHandlerIsNotApplied() {
         // Given
         XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))

@@ -406,19 +406,20 @@ private let crashReporterActions: UnsafeMutablePointer<sigaction> = {
 }()
 
 /// The actions other callers tried to install for each owned signal. Each one is recorded in a slot of its own
-/// (`slotsPerSignal` slots per signal, used in turn), then the slot is published. Every access is atomic, and a slot's
-/// sequence number is odd while it is written: a reader, e.g. the crash-time redirect interrupting a recording on the
-/// same thread, copies a complete action or retries.
+/// (`slotsPerSignal` slots per signal, used in turn) under a ticket, the claim number plus one, then the ticket is
+/// published unless a newer one already is: concurrent records cannot leave an older action published last. Every
+/// access is atomic, and a slot's sequence number is odd while it is written: a reader, e.g. the crash-time redirect
+/// interrupting a recording on the same thread, copies a complete action or retries.
 private let slotsPerSignal = 8
 /// The words of each slot.
 private enum SlotWord: Int, CaseIterable {
-    case sequence, handler, maskAndFlags
+    case sequence, ticket, handler, maskAndFlags
 }
 
 private let foreignActionSlots = atomicWords(count: signalCapacity * slotsPerSignal * SlotWord.allCases.count)
 /// How many slots were claimed for each signal (as an integer).
 private let foreignActionClaims = atomicWords(count: signalCapacity)
-/// The index of the slot of the last action recorded for each signal, plus one; `nil` if none.
+/// The ticket of the newest action published for each signal; `nil` if none.
 private let foreignActionPublished = atomicWords(count: signalCapacity)
 
 /// Whether the first handler installed for each owned signal while handling a crash was replaced by the recorded one
@@ -473,35 +474,53 @@ private func slotWord(_ slot: Int, _ word: SlotWord) -> UnsafeMutablePointer<Uns
 
 /// Records the action another caller tried to install for a signal.
 private func recordForeignAction(_ action: sigaction, for signal: Int32) {
+    publishForeignAction(ticket: writeForeignAction(action, for: signal), for: signal)
+}
+
+/// Writes an action to a slot of its own. Returns its ticket.
+internal func writeForeignAction(_ action: sigaction, for signal: Int32) -> UInt {
     // Take a slot no other record is writing (its sequence is even) by making its sequence odd; a slot being written,
     // e.g. by a record this call interrupts on the same thread, is skipped rather than waited for.
+    var claim: UInt
     var slot: Int
     var sequence: UInt
     repeat {
-        let claim = atomicIncrement(foreignActionClaims.advanced(by: Int(signal)))
+        claim = atomicIncrement(foreignActionClaims.advanced(by: Int(signal)))
         slot = Int(signal) * slotsPerSignal + Int(claim % UInt(slotsPerSignal))
         sequence = atomicLoad(slotWord(slot, .sequence))
     } while sequence % 2 != 0 || !atomicCompareExchange(slotWord(slot, .sequence), sequence, sequence + 1)
+    atomicExchange(slotWord(slot, .ticket), claim + 1)
     atomicExchange(slotWord(slot, .handler), handlerAddress(of: action))
     atomicExchange(slotWord(slot, .maskAndFlags), UInt(action.sa_mask) | UInt(UInt32(bitPattern: action.sa_flags)) << 32)
     atomicIncrement(slotWord(slot, .sequence)) // even: complete
-    atomicExchange(foreignActionPublished.advanced(by: Int(signal)), UInt(slot + 1))
+    return claim + 1
+}
+
+/// Publishes a written action, unless a newer one is published already.
+internal func publishForeignAction(ticket: UInt, for signal: Int32) {
+    let published = foreignActionPublished.advanced(by: Int(signal))
+    var current = atomicLoad(published)
+    while current < ticket, !atomicCompareExchange(published, current, ticket) {
+        current = atomicLoad(published)
+    }
 }
 
 /// The last action recorded for a signal, if any.
 internal func recordedForeignAction(for signal: Int32) -> sigaction? {
-    // A slot is rewritten only after `slotsPerSignal` more records: retrying covers concurrent records, and an
-    // unbounded wait is never needed.
+    // A slot is rewritten only after `slotsPerSignal` more claims, by a newer action: one found complete in the
+    // published ticket's slot with that ticket or a newer one is at least as recent as the published one. Retrying
+    // covers concurrent records, and an unbounded wait is never needed.
     for _ in 0..<64 {
         let published = atomicLoad(foreignActionPublished.advanced(by: Int(signal)))
         guard published != 0 else {
             return nil
         }
-        let slot = Int(published) - 1
+        let slot = Int(signal) * slotsPerSignal + Int((published - 1) % UInt(slotsPerSignal))
         let sequence = atomicLoad(slotWord(slot, .sequence))
+        let ticket = atomicLoad(slotWord(slot, .ticket))
         let handler = atomicLoad(slotWord(slot, .handler))
         let maskAndFlags = atomicLoad(slotWord(slot, .maskAndFlags))
-        guard sequence % 2 == 0, atomicLoad(slotWord(slot, .sequence)) == sequence else {
+        guard sequence % 2 == 0, ticket >= published, atomicLoad(slotWord(slot, .sequence)) == sequence else {
             continue
         }
         var action = sigaction()
