@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `RUM.Configuration.trackActiveDevices` (default `true`, also `DDRUMConfiguration.trackActiveDevices`): the SDK sends one small request to `{intake}/api/v2/rum/active` when the app is in use, at most once per local day, device and user, so a session too short to upload its events (they are only sent on the next launch) still counts the device as active that day. Sent straight away, not with the event batches, only while the app is active in the foreground with tracking consent granted, and regardless of session sampling; it carries the app, OS and device fields with the anonymous and user ids. One that cannot be delivered is kept and sent later with its age, up to 72 hours after the app was used. Withdrawing consent or turning the option off deletes what was kept.
+
 ---
 
 ## [0.8.0] - 2026-10-26

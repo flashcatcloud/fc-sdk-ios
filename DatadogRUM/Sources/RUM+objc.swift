@@ -519,6 +519,15 @@ public class objc_RUMConfiguration: NSObject {
         get { swiftConfig.sessionOnError }
     }
 
+    /// FLASHCAT FORK - reports that the app is in use, once per local day, device and user.
+    /// See `RUM.Configuration.trackActiveDevices`.
+    ///
+    /// Default: `YES`.
+    public var trackActiveDevices: Bool {
+        set { swiftConfig.trackActiveDevices = newValue }
+        get { swiftConfig.trackActiveDevices }
+    }
+
     /// FLASHCAT FORK - enables the remote configuration of sampling rates from the console.
     ///
     /// Default: `NO` — no extra requests are made and behaviour is unchanged.

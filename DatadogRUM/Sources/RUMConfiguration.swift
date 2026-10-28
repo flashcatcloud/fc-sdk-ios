@@ -350,6 +350,22 @@ extension RUM {
         /// Default: `nil` — the draw is exactly what the console and this configuration say.
         public var beforeSampling: BeforeSamplingCallback?
 
+        /// Reports that the app is in use: at most one small request per local day, device and user.
+        ///
+        /// Sent straight away rather than with the event batches, so a session too short to upload
+        /// its events still counts the device as active that day. It is sent when the app is active
+        /// in the foreground with tracking consent granted - at launch, on returning to the
+        /// foreground, when consent is granted and when a new user is set - and carries the app,
+        /// OS and device fields with the anonymous and user ids, nothing else. Session sampling does
+        /// not apply. One that cannot be delivered is kept and sent later, up to 72 hours after
+        /// the app was used. Turning it off also deletes what was kept.
+        ///
+        /// With `trackAnonymousUser` off, the device has no anonymous id, so nothing is sent until
+        /// a user id is set.
+        ///
+        /// Default: `true`.
+        public var trackActiveDevices: Bool
+
         /// Feature flags to preview features in RUM.
         public var featureFlags: FeatureFlags
 
@@ -512,6 +528,7 @@ extension RUM.Configuration {
     ///   - remoteConfigurationEnabled: Enables remote configuration of sampling rates from the console. Default: `false`.
     ///   - beforeSampling: Has the last word on session sampling. Default: `nil`.
     ///   - sessionOnError: Keeps the sessions `sessionSampleRate` does not collect in case they report an error. Default: `false`.
+    ///   - trackActiveDevices: Reports that the app is in use, once per local day, device and user. Default: `true`.
     ///   - featureFlags: Experimental feature flags.
     public init(
         applicationID: String,
@@ -544,6 +561,7 @@ extension RUM.Configuration {
         remoteConfigurationEnabled: Bool = false,
         beforeSampling: BeforeSamplingCallback? = nil,
         sessionOnError: Bool = false,
+        trackActiveDevices: Bool = true,
         featureFlags: FeatureFlags = .defaults
     ) {
         self.applicationID = applicationID
@@ -576,6 +594,7 @@ extension RUM.Configuration {
         self.collectAccessibility = collectAccessibility
         self.remoteConfigurationEnabled = remoteConfigurationEnabled
         self.beforeSampling = beforeSampling
+        self.trackActiveDevices = trackActiveDevices
         self.featureFlags = featureFlags
     }
 }
