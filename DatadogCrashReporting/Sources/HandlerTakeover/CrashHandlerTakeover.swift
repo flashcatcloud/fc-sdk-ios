@@ -566,16 +566,34 @@ private func recordForeignAction(_ action: sigaction, for signal: Int32) {
 
 /// Writes an action to a slot of its own. Returns its ticket.
 internal func writeForeignAction(_ action: sigaction, for signal: Int32) -> UInt {
+    writeForeignAction(action, for: signal, claim: takeForeignActionClaim(for: signal))
+}
+
+/// Takes the next claim on the slots of a signal: the order of the records.
+internal func takeForeignActionClaim(for signal: Int32) -> UInt {
+    atomicIncrement(foreignActionClaims.advanced(by: Int(signal)))
+}
+
+/// Writes an action to the slot of a claim taken earlier. Returns its ticket, or 0 when a newer record holds the slot
+/// already (the caller was paused for a full turn of claims): the action it records is older than that one.
+internal func writeForeignAction(_ action: sigaction, for signal: Int32, claim firstClaim: UInt) -> UInt {
     // Take a slot no other record is writing (its sequence is even) by making its sequence odd; a slot being written,
     // e.g. by a record this call interrupts on the same thread, is skipped rather than waited for.
-    var claim: UInt
+    var claim = firstClaim
     var slot: Int
     var sequence: UInt
-    repeat {
-        claim = atomicIncrement(foreignActionClaims.advanced(by: Int(signal)))
+    while true {
         slot = Int(signal) * slotsPerSignal + Int(claim % UInt(slotsPerSignal))
         sequence = atomicLoad(slotWord(slot, .sequence))
-    } while sequence % 2 != 0 || !atomicCompareExchange(slotWord(slot, .sequence), sequence, sequence + 1)
+        if sequence % 2 == 0, atomicCompareExchange(slotWord(slot, .sequence), sequence, sequence + 1) {
+            break
+        }
+        claim = takeForeignActionClaim(for: signal)
+    }
+    guard atomicLoad(slotWord(slot, .ticket)) < claim + 1 else {
+        atomicIncrement(slotWord(slot, .sequence)) // even: left as the newer record wrote it
+        return 0
+    }
     atomicExchange(slotWord(slot, .ticket), claim + 1)
     atomicExchange(slotWord(slot, .handler), handlerAddress(of: action))
     atomicExchange(slotWord(slot, .maskAndFlags), UInt(action.sa_mask) | UInt(UInt32(bitPattern: action.sa_flags)) << 32)

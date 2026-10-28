@@ -248,6 +248,23 @@ class CrashHandlerTakeoverTests: XCTestCase {
         XCTAssertEqual(recordedForeignAction(for: ownedSignal).map(address(of:)), address(of: otherHandler))
     }
 
+    func testWhenARecordPausedForAFullTurnOfClaimsWritesLast_theNewerPublishedOneStaysRecorded() {
+        // Given (a record takes its claim, then pauses before taking its slot)
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let pausedClaim = takeForeignActionClaim(for: ownedSignal)
+
+        // When (a full turn of newer records reuses that slot and publishes, then the paused record resumes)
+        for _ in 0..<8 {
+            publishForeignAction(ticket: writeForeignAction(action(otherHandler), for: ownedSignal), for: ownedSignal)
+        }
+        let ticket = writeForeignAction(action(foreignHandler), for: ownedSignal, claim: pausedClaim)
+        publishForeignAction(ticket: ticket, for: ownedSignal)
+
+        // Then
+        XCTAssertEqual(ticket, 0, "The older record is discarded")
+        XCTAssertEqual(recordedForeignAction(for: ownedSignal).map(address(of:)), address(of: otherHandler))
+    }
+
     func testWhenActive_resettingToTheDefaultHandlerIsNotApplied() {
         // Given
         XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
