@@ -47,6 +47,8 @@ extension CrashReportingFeature {
 public class CrashReportingPluginMock: CrashReportingPlugin {
     /// The value of `crashedLastLaunch`.
     public var crashedLastLaunch = false
+    /// The value of `unreadLaunches`.
+    public var unreadLaunches = 0
     /// The crash reports held by this plugin, oldest first. A report is removed once processed, as by `KSCrashPlugin`.
     @ReadWriteLock
     public var pendingCrashReports: [DDCrashReport] = []

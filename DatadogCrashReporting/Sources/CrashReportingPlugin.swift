@@ -20,6 +20,13 @@ public protocol CrashReportingPlugin: AnyObject {
     /// `readPendingCrashReports(process:)`) do not count.
     var crashedLastLaunch: Bool { get }
 
+    /// How many launches in a row, before this one, found pending crash reports and ended before reading them (e.g.
+    /// crash loops and processes ended by the system within seconds).
+    ///
+    /// The SDK reads it once, right after `crashedLastLaunch`; reading pending reports resets it. Without a value, the
+    /// SDK always waits for the app to settle before reading reports.
+    var unreadLaunches: Int { get }
+
     /// Reads the pending crash reports one at a time, oldest first.
     /// - Parameter process: called with each report in turn. It returns `true` once the report is processed and can be
     /// deleted, or `false` to keep it for a later read. The next report is read only after `process` returns. A report
@@ -38,4 +45,8 @@ public protocol CrashReportingPlugin: AnyObject {
 
     /// An instance conforming to `BacktraceReporting` capable of generating backtrace reports.
     var backtraceReporter: BacktraceReporting? { get }
+}
+
+extension CrashReportingPlugin {
+    public var unreadLaunches: Int { 0 }
 }

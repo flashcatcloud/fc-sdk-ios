@@ -230,6 +230,43 @@ class KSCrashPluginTests: XCTestCase {
         XCTAssertTrue(plugin.crashedLastLaunch)
     }
 
+    // MARK: - Unread Launches Tests
+
+    func testItCountsTheLaunchesInARowThatEndedBeforeReadingThePendingReports() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "pending"}"#)
+
+        // When
+        let counts = try (0..<3).map { _ in try createPlugin().0.unreadLaunches }
+
+        // Then
+        XCTAssertEqual(counts, [0, 1, 2])
+    }
+
+    func testWhenThePendingReportsAreRead_itResetsTheUnreadLaunches() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "kept"}"#)
+        _ = try createPlugin().0.unreadLaunches
+        _ = try createPlugin().0.unreadLaunches
+
+        // When
+        try createPlugin().0.readPendingCrashReports { _ in false }
+
+        // Then
+        XCTAssertEqual(try createPlugin().0.unreadLaunches, 0)
+    }
+
+    func testWhenThereIsNoPendingReport_itCountsNoUnreadLaunch() throws {
+        // Given
+        _ = try createPlugin().0.unreadLaunches
+
+        // When
+        let (plugin, _) = try createPlugin()
+
+        // Then
+        XCTAssertEqual(plugin.unreadLaunches, 0)
+    }
+
     func testWhenReportsWereDeleted_theLastLaunchDidNotCrash() throws {
         // Given
         try writeReport(id: 5, contents: #"{"message": "processed"}"#)

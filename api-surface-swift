@@ -571,9 +571,12 @@ public static func enable(symbolicateInProcess: Bool, handlesMachExceptions: Boo
 public static func enable(symbolicateInProcess: Bool, handlesMachExceptions: Bool, takesOverCrashHandlers: Bool)
 public protocol CrashReportingPlugin: AnyObject
     var crashedLastLaunch: Bool
+    var unreadLaunches: Int
     func readPendingCrashReports(process: @escaping (DDCrashReport) -> Bool)
     func inject(context: Data)
     var backtraceReporter: BacktraceReporting?
+[?] extension CrashReportingPlugin
+    public var unreadLaunches: Int
 
 # ----------------------------------
 # API surface for DatadogWebViewTracking:

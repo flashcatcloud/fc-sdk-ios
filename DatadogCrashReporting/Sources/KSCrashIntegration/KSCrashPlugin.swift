@@ -29,6 +29,8 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     private let knownReportIDsFile: URL
     /// Held the ID of the most recent report found at the previous launch, before `knownReportIDsFile` replaced it.
     private let legacyLatestReportIDFile: URL
+    /// Holds `unreadLaunches`, counting this launch while its reports are not read.
+    private let unreadLaunchesFile: URL
 
     /// A report that was not there at the previous launch was written by the previous process.
     ///
@@ -51,6 +53,22 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         }
         return crashed
     }()
+
+    /// Computed once, on first access (from the Feature queue), before any report is read. This launch is counted as one
+    /// more unread launch until `readPendingCrashReports(process:)` is called.
+    private(set) lazy var unreadLaunches: Int = {
+        let unreadLaunches = (try? String(contentsOf: unreadLaunchesFile, encoding: .utf8)).flatMap { Int($0) } ?? 0
+        recordUnreadLaunches(store.reportIDs.isEmpty ? 0 : unreadLaunches + 1)
+        return unreadLaunches
+    }()
+
+    private func recordUnreadLaunches(_ count: Int) {
+        do {
+            try String(count).write(to: unreadLaunchesFile, atomically: true, encoding: .utf8)
+        } catch {
+            telemetry.error("[KSCrash] Fails to record the unread launches", error: error)
+        }
+    }
 
     /// The report IDs recorded at the previous launch. After an upgrade, only the most recent one was recorded: the
     /// reports up to it count as known, this once.
@@ -116,12 +134,15 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         self.store = store
         self.knownReportIDsFile = stateDirectory.appendingPathComponent("known-report-ids")
         self.legacyLatestReportIDFile = stateDirectory.appendingPathComponent("latest-report-id")
+        self.unreadLaunchesFile = stateDirectory.appendingPathComponent("unread-launches")
         super.init()
     }
 
     // MARK: - CrashReportingPlugin
 
     func readPendingCrashReports(process: @escaping (DDCrashReport) -> Bool) {
+        _ = unreadLaunches // counts this launch first, if it was not
+        recordUnreadLaunches(0)
         let reportIDs = store.reportIDs.map { $0.int64Value } // sorted by ID, which grows with time: oldest first
         readReports(with: reportIDs[...], process: process)
     }

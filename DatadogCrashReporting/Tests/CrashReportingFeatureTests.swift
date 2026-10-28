@@ -68,6 +68,47 @@ class CrashReportingFeatureTests: XCTestCase {
         XCTAssertTrue(sender.sentCrashReports.isEmpty)
     }
 
+    func testGivenReportsUnreadForTwoLaunches_whenStarted_itReadsThemWithoutWaiting() {
+        // Given (e.g. a crash loop: each launch crashed before the processing delay passed)
+        let plugin = CrashReportingPluginMock()
+        plugin.unreadLaunches = 2
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
+        let sender = CrashReportSenderMock()
+        let telemetry = TelemetryMock()
+        let feature = CrashReportingFeature.mockWith(
+            integration: sender,
+            crashReportingPlugin: plugin,
+            telemetry: telemetry,
+            processingDelay: 60
+        )
+
+        // When
+        feature.start()
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(plugin.readCount, 1)
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+        XCTAssertEqual(telemetry.messages.firstDebug()?.message, "[CrashReporting] Pending crash reports were not read for 2 launches")
+    }
+
+    func testGivenReportsUnreadForOneLaunch_whenStarted_itStillWaits() {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        plugin.unreadLaunches = 1
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
+        let telemetry = TelemetryMock()
+        let feature = CrashReportingFeature.mockWith(integration: CrashReportSenderMock(), crashReportingPlugin: plugin, telemetry: telemetry, processingDelay: 60)
+
+        // When
+        feature.start()
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(plugin.readCount, 0)
+        XCTAssertTrue(telemetry.messages.isEmpty)
+    }
+
     func testGivenACrashReportKeptFromAnOlderLaunch_whenTheLastLaunchDidNotCrash_itReportsNoCrash() {
         // Given (a crash recorded while consent was pending, kept since: the last launch ended without a crash)
         let plugin = CrashReportingPluginMock()

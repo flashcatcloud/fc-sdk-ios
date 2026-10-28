@@ -18,6 +18,10 @@ internal final class CrashReportingFeature: DatadogFeature {
     /// that window has passed.
     static let defaultProcessingDelay: TimeInterval = 5
 
+    /// After this many launches in a row that ended before reading the pending reports, they are read without waiting:
+    /// waiting loses them for good when every launch ends within `processingDelay`.
+    static let maxUnreadLaunches = 2
+
     /// Queue for synchronizing internal operations.
     private let queue: DispatchQueue
 
@@ -70,15 +74,32 @@ internal final class CrashReportingFeature: DatadogFeature {
     // MARK: - Interaction with `DatadogCrashReporting` plugin
 
     /// Tells other features whether the previous process crashed, then sends the pending crash reports once
-    /// `processingDelay` has passed.
+    /// `processingDelay` has passed, or right away when earlier launches ended before reading them.
     func start() {
         queue.async {
             self.sender.send(launch: .init(didCrash: self.plugin.crashedLastLaunch))
+
+            let unreadLaunches = self.plugin.unreadLaunches
+            if unreadLaunches >= Self.maxUnreadLaunches {
+                self.telemetry.debug(
+                    "[CrashReporting] Pending crash reports were not read for \(unreadLaunches) launches",
+                    attributes: ["unread_launches": unreadLaunches]
+                )
+                self.startReadingCrashReports()
+            }
         }
         queue.asyncAfter(deadline: .now() + processingDelay) { [weak self] in
-            self?.canReadCrashReports = true
-            self?.sendPendingCrashReports()
+            self?.startReadingCrashReports()
         }
+    }
+
+    /// Reads the pending crash reports, once. Called on `queue`.
+    private func startReadingCrashReports() {
+        guard !canReadCrashReports else {
+            return
+        }
+        canReadCrashReports = true
+        sendPendingCrashReports()
     }
 
     /// Writes the crash context before returning, on the Feature queue (the plugin is always called from it).
