@@ -122,6 +122,14 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 // See https://github.com/DataDog/dd-sdk-ios/pull/1834 for more context.
                 lastRUMViewEvent.context = lastRUMAttributes
             }
+            if let userInfo = context.userInfo {
+                // FLASHCAT FORK - the crash context holds the user and account of the moment of the crash, while the
+                // view only holds those of its last update: a user set after it (e.g. right after `RUM.enable`) would
+                // be missing from the crash, and a cleared one would still be on it. A context that carries no user info
+                // knows nothing of them, so the view keeps its own.
+                lastRUMViewEvent.usr = RUMUser(nonEmpty: userInfo)
+                lastRUMViewEvent.account = context.accountInfo.map { RUMAccount(accountInfo: $0) }
+            }
             if lastRUMViewEvent.view.crash?.count ?? 0 < 1 {
                 sendCrashReportLinkedToLastViewInPreviousSession(
                     report,

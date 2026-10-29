@@ -755,7 +755,7 @@ class CrashReportReceiverTests: XCTestCase {
             "The `RUMViewEvent` sent must be linked to the same RUM Session as the last `RUMViewEvent`."
         )
         DDAssertJSONEqual(sendRUMViewEvent.connectivity, lastRUMViewEvent.connectivity)
-        DDAssertJSONEqual(sendRUMViewEvent.usr, lastRUMViewEvent.usr)
+        DDAssertJSONEqual(sendRUMViewEvent.usr, crashContext.userInfo.flatMap { RUMUser(nonEmpty: $0) })
         XCTAssertEqual(
             sendRUMViewEvent.view.crash?.count, 1, "The `RUMViewEvent` must include incremented crash count."
         )
@@ -1127,6 +1127,76 @@ class CrashReportReceiverTests: XCTestCase {
         let sentRUMErrorAttributes = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self)[0].context?.contextInfo)
         DDAssertJSONEqual(sentRUMViewAttributes, lastRUMAttributes)
         DDAssertJSONEqual(sentRUMErrorAttributes, lastRUMAttributes)
+    }
+
+    // MARK: - FLASHCAT FORK - user and account of the moment of the crash
+
+    private func sendCrashLinkedToView(
+        _ lastRUMViewEvent: RUMViewEvent,
+        userInfo: UserInfo?,
+        accountInfo: AccountInfo?
+    ) throws -> (view: RUMViewEvent, error: RUMErrorEvent) {
+        let crashDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            userInfo: userInfo,
+            accountInfo: accountInfo,
+            lastRUMViewEvent: lastRUMViewEvent
+        )
+        let receiver: CrashReportReceiver = .mockWith(
+            featureScope: featureScope,
+            dateProvider: RelativeDateProvider(using: crashDate)
+        )
+        XCTAssertTrue(
+            receiver.receive(message: .payload(
+                Crash(report: .mockWith(date: crashDate), context: crashContext)
+            ), from: NOPDatadogCore())
+        )
+        return (
+            try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first),
+            try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        )
+    }
+
+    func testGivenUserSetAfterTheLastViewUpdate_whenSendingTheCrash_itCarriesTheUserOfTheCrashContext() throws {
+        var lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
+        lastRUMViewEvent.usr = nil
+        lastRUMViewEvent.account = nil
+        let userInfo = UserInfo(id: "user-id", name: "user-name", email: nil, extraInfo: [:])
+        let accountInfo = AccountInfo(id: "account-id", name: "account-name")
+
+        let sent = try sendCrashLinkedToView(lastRUMViewEvent, userInfo: userInfo, accountInfo: accountInfo)
+
+        XCTAssertEqual(sent.error.usr?.id, "user-id")
+        XCTAssertEqual(sent.error.usr?.name, "user-name")
+        XCTAssertEqual(sent.view.usr?.id, "user-id")
+        XCTAssertEqual(sent.error.account?.id, "account-id")
+        XCTAssertEqual(sent.view.account?.id, "account-id")
+    }
+
+    func testGivenUserClearedAfterTheLastViewUpdate_whenSendingTheCrash_itCarriesNoUser() throws {
+        var lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
+        lastRUMViewEvent.usr = RUMUser(userInfo: UserInfo(id: "old-user", name: nil, email: nil, extraInfo: [:]))
+        lastRUMViewEvent.account = RUMAccount(accountInfo: AccountInfo(id: "old-account"))
+
+        let sent = try sendCrashLinkedToView(lastRUMViewEvent, userInfo: .mockEmpty(), accountInfo: nil)
+
+        XCTAssertNil(sent.error.usr)
+        XCTAssertNil(sent.view.usr)
+        XCTAssertNil(sent.error.account)
+        XCTAssertNil(sent.view.account)
+    }
+
+    func testControl_givenCrashContextWithoutUserInfo_whenSendingTheCrash_itKeepsTheUserOfTheView() throws {
+        var lastRUMViewEvent: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
+        lastRUMViewEvent.usr = RUMUser(userInfo: UserInfo(id: "view-user", name: nil, email: nil, extraInfo: [:]))
+        lastRUMViewEvent.account = RUMAccount(accountInfo: AccountInfo(id: "view-account"))
+
+        let sent = try sendCrashLinkedToView(lastRUMViewEvent, userInfo: nil, accountInfo: nil)
+
+        XCTAssertEqual(sent.error.usr?.id, "view-user")
+        XCTAssertEqual(sent.view.usr?.id, "view-user")
+        XCTAssertEqual(sent.error.account?.id, "view-account")
     }
 
     // MARK: - Testing Uploaded Data - Crashes During RUM Session With No Active View
