@@ -13,6 +13,8 @@ internal struct VitalsReaders {
     var cpu: SamplingBasedVitalReader
     var memory: SamplingBasedVitalReader
     var refreshRate: ContinuousVitalReader
+    // FLASHCAT FORK - process and main thread CPU usage, see `VitalCPUUsageReader`.
+    var cpuUsage: CPUUsageReader
 
     init(
         frequency: TimeInterval,
@@ -22,6 +24,7 @@ internal struct VitalsReaders {
         self.cpu = VitalCPUReader(notificationCenter: .default, telemetry: telemetry)
         self.memory = VitalMemoryReader()
         self.refreshRate = VitalRefreshRateReader()
+        self.cpuUsage = VitalCPUUsageReader(notificationCenter: .default, telemetry: telemetry)
     }
 }
 
