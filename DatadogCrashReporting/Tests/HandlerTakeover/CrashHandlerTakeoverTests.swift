@@ -498,12 +498,33 @@ class CrashHandlerTakeoverTests: XCTestCase {
     }
 
     func testWhenTheCrashReporterStartedNoMachThread_activationDoesNotWaitForThem() {
+        // Given (two threads that are not the crash reporter's: none would ever be found)
+        let (threads, started) = startThreads(named: ["App Worker", "Other Exception Handler (Primary)"])
+        defer { threads.forEach { $0.stop() } }
+
         // When
         let start = Date()
-        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: [], isBeingTraced: { false }))
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: started, isBeingTraced: { false }))
+
+        // Then (well under the time the search for them may take, whatever the load of the machine)
+        XCTAssertLessThan(Date().timeIntervalSince(start), CrashHandlerTakeover.machThreadsNamingTimeout / 2)
+        XCTAssertEqual(CrashHandlerTakeover.crashReporterMachThreads, [])
+    }
+
+    func testWhenASearchForTheMachThreadsOutlivesItsActivation_itPublishesNothingForTheNextOne() {
+        // Given (a search still running when the takeover is deactivated and activated again)
+        let (threads, started) = startThreads(named: ["Unnamed A", "Unnamed B"])
+        defer { threads.forEach { $0.stop() } }
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: started, isBeingTraced: { false }))
+        CrashHandlerTakeover.deactivate()
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+
+        // When (the threads of the first activation are named like the crash reporter's while that search runs)
+        threads[0].run { pthread_setname_np("KSCrash Exception Handler (Primary)") }
+        threads[1].run { pthread_setname_np("KSCrash Exception Handler (Secondary)") }
+        usleep(300_000)
 
         // Then
-        XCTAssertLessThan(Date().timeIntervalSince(start), 0.1)
         XCTAssertEqual(CrashHandlerTakeover.crashReporterMachThreads, [])
     }
 

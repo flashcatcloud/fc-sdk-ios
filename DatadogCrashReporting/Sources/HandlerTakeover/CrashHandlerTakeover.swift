@@ -99,9 +99,13 @@ internal enum CrashHandlerTakeover {
         // Globals are initialized on first access: not in a signal handler.
         _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActionSlots, foreignActionClaims, foreignActionPublished, crashRestoreRedirected, crashThread, machThreadPorts)
         atomicExchange(crashThread, 0)
+        machThreadsSearchLock.lock()
+        machThreadsSearchGeneration += 1
         atomicExchange(machThreadPorts, 0)
+        let machThreadsSearch = machThreadsSearchGeneration
+        machThreadsSearchLock.unlock()
         if let threadsStartedByCrashReporter, !isBeingTraced() {
-            findCrashReporterMachThreads(among: threadsStartedByCrashReporter)
+            findCrashReporterMachThreads(among: threadsStartedByCrashReporter, search: machThreadsSearch)
         }
 
         // Own the crash signals the crash reporter handles. SIGPIPE is left alone: apps commonly ignore it.
@@ -358,7 +362,7 @@ internal enum CrashHandlerTakeover {
     /// (Primary)" and "(Secondary)" are looked for in the background, as each one names itself once running. Threads
     /// of other names are never taken, even when exactly two were started. Activation never waits for them: until they
     /// are known, their calls are guarded like any other thread's.
-    private static func findCrashReporterMachThreads(among threads: [thread_t]) {
+    private static func findCrashReporterMachThreads(among threads: [thread_t], search: Int) {
         if threads.count >= 2 {
             DispatchQueue.global(qos: .utility).async {
                 let deadline = Date(timeIntervalSinceNow: machThreadsNamingTimeout)
@@ -368,7 +372,7 @@ internal enum CrashHandlerTakeover {
                     found = threads.filter { name(of: $0)?.hasPrefix(machThreadNamePrefix) == true }
                 }
                 if found.count == 2 {
-                    publishMachThreads(found)
+                    publishMachThreads(found, search: search)
                 }
             }
         }
@@ -377,8 +381,17 @@ internal enum CrashHandlerTakeover {
     private static let machThreadNamePrefix = "KSCrash Exception Handler ("
     static let machThreadsNamingTimeout: TimeInterval = 1
 
-    private static func publishMachThreads(_ threads: [thread_t]) {
-        atomicExchange(machThreadPorts, UInt(threads[0]) | UInt(threads[1]) << 32)
+    /// Counts the searches for the crash reporter's Mach threads, one per activation, under `machThreadsSearchLock`.
+    /// A search that outlived its activation must not publish: its threads may be gone, their port names reused.
+    private static var machThreadsSearchGeneration = 0
+    private static let machThreadsSearchLock = NSLock()
+
+    private static func publishMachThreads(_ threads: [thread_t], search: Int) {
+        machThreadsSearchLock.lock()
+        defer { machThreadsSearchLock.unlock() }
+        if search == machThreadsSearchGeneration {
+            atomicExchange(machThreadPorts, UInt(threads[0]) | UInt(threads[1]) << 32)
+        }
     }
 
     /// The threads on which the crash reporter handles Mach exceptions, once known.
