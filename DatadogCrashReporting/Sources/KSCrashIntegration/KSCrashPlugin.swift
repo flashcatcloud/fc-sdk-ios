@@ -60,8 +60,9 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     }()
 
     /// Computed once, on first access (from the Feature queue), before any report is read. This launch is counted as one
-    /// more unread launch until a pending report is processed (`process` returns `.processed`): a read that processes none,
-    /// e.g. as no feature receives crashes yet, does not count.
+    /// more unread launch until it outlives the processing delay (`resetUnreadLaunches()`) or a pending report is processed
+    /// (`process` returns `.processed`): an early read that processes none, e.g. as no feature receives crashes yet, does
+    /// not count.
     private(set) lazy var unreadLaunches: Int = {
         let unreadLaunches = (try? String(contentsOf: unreadLaunchesFile, encoding: .utf8)).flatMap { Int($0) } ?? 0
         recordUnreadLaunches(store.reportIDs.isEmpty ? 0 : unreadLaunches + 1)
@@ -162,10 +163,19 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
 
     /// Whether the takeover's handlers were checked in this process.
     private var checkedHandlerTakeover = false
-    /// Whether a pending report was processed in this process, which resets `unreadLaunches`.
-    private var processedReportThisLaunch = false
+    /// Whether `unreadLaunches` was reset in this process.
+    private var unreadLaunchesWereReset = false
     /// How many times the error of each pending report could not be written, while reports are read.
     private var writeAttempts: [Int64: Int] = [:]
+
+    func resetUnreadLaunches() {
+        guard !unreadLaunchesWereReset else {
+            return
+        }
+        unreadLaunchesWereReset = true
+        _ = unreadLaunches // counts this launch first, if it was not, so the reset is not undone
+        recordUnreadLaunches(0)
+    }
 
     func readPendingCrashReports(process: @escaping (DDCrashReport) -> CrashReportOutcome) {
         if !checkedHandlerTakeover {
@@ -205,10 +215,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         case .processed:
             store.deleteReport(with: id)
             writeAttempts[id] = nil
-            if !processedReportThisLaunch {
-                processedReportThisLaunch = true
-                recordUnreadLaunches(0)
-            }
+            resetUnreadLaunches()
         case .kept:
             break
         case .writeFailed:

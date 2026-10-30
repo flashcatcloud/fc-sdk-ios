@@ -51,6 +51,9 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
     public var crashedLastLaunch = false
     /// The value of `unreadLaunches`.
     public var unreadLaunches = 0
+    /// How many times `resetUnreadLaunches()` was called.
+    @ReadWriteLock
+    public var resetUnreadLaunchesCount = 0
     /// The crash reports held by this plugin, oldest first. A report is removed once processed, as by `KSCrashPlugin`.
     @ReadWriteLock
     public var pendingCrashReports: [DDCrashReport] = []
@@ -66,6 +69,10 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
     public var injectedBacktraceReporter: BacktraceReporting?
 
     public init() {}
+
+    public func resetUnreadLaunches() {
+        resetUnreadLaunchesCount += 1
+    }
 
     public func readPendingCrashReports(process: (DDCrashReport) -> CrashReportOutcome) {
         readCount += 1

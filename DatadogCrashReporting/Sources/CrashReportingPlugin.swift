@@ -23,9 +23,15 @@ public protocol CrashReportingPlugin: AnyObject {
     /// How many launches in a row, before this one, found pending crash reports and ended before reading them (e.g.
     /// crash loops and processes ended by the system within seconds).
     ///
-    /// The SDK reads it once, right after `crashedLastLaunch`; processing a pending report resets it. Without a value, the
-    /// SDK always waits for the app to settle before reading reports.
+    /// The SDK reads it once, right after `crashedLastLaunch`. It is reset by `resetUnreadLaunches()` and by processing a
+    /// pending report. Without a value, the SDK always waits for the app to settle before reading reports.
     var unreadLaunches: Int { get }
+
+    /// Tells that this launch lasted until the SDK read the pending crash reports after waiting for the app to settle: it
+    /// does not count as an unread launch, whatever becomes of the reports (e.g. kept while consent is pending).
+    ///
+    /// The SDK calls it once, right before that read.
+    func resetUnreadLaunches()
 
     /// Reads the pending crash reports one at a time, oldest first.
     /// - Parameter process: called with each report in turn. It returns `.processed` once the report is processed and
@@ -50,4 +56,5 @@ public protocol CrashReportingPlugin: AnyObject {
 
 extension CrashReportingPlugin {
     public var unreadLaunches: Int { 0 }
+    public func resetUnreadLaunches() {}
 }

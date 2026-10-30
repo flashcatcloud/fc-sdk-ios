@@ -109,6 +109,7 @@ internal final class CrashReportingFeature: DatadogFeature {
             return
         }
         canReadCrashReports = true
+        plugin.resetUnreadLaunches() // this launch outlived the delay, whatever becomes of the reports
         sendPendingCrashReports()
     }
 

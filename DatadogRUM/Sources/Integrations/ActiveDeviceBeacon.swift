@@ -249,8 +249,9 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
             return nil
         }()
         let delivered = statusCode.map { (200..<300).contains($0) } ?? false
-        // A refusal is final: the same body gets the same answer. 429 only means "not now".
-        let refused = statusCode.map { (400..<500).contains($0) && $0 != 429 } ?? false
+        // A refusal is final: the same body gets the same answer. 429 only means "not now", and 404 that the intake does
+        // not serve this endpoint yet (e.g. an on-premise intake upgraded after the app): both are kept and sent later.
+        let refused = statusCode.map { (400..<500).contains($0) && $0 != 429 && $0 != 404 } ?? false
 
         if delivered || refused {
             if refused {

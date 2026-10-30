@@ -302,6 +302,38 @@ class KSCrashPluginTests: XCTestCase {
         XCTAssertEqual(try createPlugin().0.unreadLaunches, 3)
     }
 
+    func testWhenTheLaunchOutlivesTheProcessingDelay_itResetsTheUnreadLaunches() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "kept"}"#)
+        _ = try createPlugin().0.unreadLaunches
+        _ = try createPlugin().0.unreadLaunches
+
+        // When (the reports are kept, e.g. as consent is still pending)
+        let (plugin, _) = try createPlugin()
+        plugin.resetUnreadLaunches()
+        plugin.readPendingCrashReports { _ in .kept }
+
+        // Then
+        XCTAssertEqual(try createPlugin().0.unreadLaunches, 0)
+    }
+
+    func testGivenReportsKeptAtEveryLaunch_launchesThatOutliveTheDelayNeverCountAsUnread() throws {
+        // Given (consent stays pending: every read keeps the report)
+        try writeReport(id: 1, contents: #"{"message": "kept"}"#)
+
+        // When
+        let counts = try (0..<3).map { _ -> Int in
+            let (plugin, _) = try createPlugin()
+            let unreadLaunches = plugin.unreadLaunches
+            plugin.resetUnreadLaunches()
+            plugin.readPendingCrashReports { _ in .kept }
+            return unreadLaunches
+        }
+
+        // Then
+        XCTAssertEqual(counts, [0, 0, 0], "reports must not be read early when no launch ended before the delay")
+    }
+
     func testWhenThereIsNoPendingReport_itCountsNoUnreadLaunch() throws {
         // Given
         _ = try createPlugin().0.unreadLaunches

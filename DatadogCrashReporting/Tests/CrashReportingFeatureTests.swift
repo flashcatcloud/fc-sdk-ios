@@ -90,6 +90,30 @@ class CrashReportingFeatureTests: XCTestCase {
         XCTAssertEqual(plugin.readCount, 1)
         XCTAssertEqual(sender.sentCrashReports.count, 1)
         XCTAssertEqual(telemetry.messages.firstDebug()?.message, "[CrashReporting] Pending crash reports were not read for 2 launches")
+        XCTAssertEqual(plugin.resetUnreadLaunchesCount, 0, "the launch has not outlived the delay yet")
+    }
+
+    func testWhenTheProcessingDelayPasses_itResetsTheUnreadLaunchesBeforeReading() {
+        // Given (the read keeps the report, e.g. as consent is pending)
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [.mockRandomWith(context: .mockWith(trackingConsent: .granted))]
+        let sender = CrashReportSenderMock()
+        sender.crashReportOutcome = .kept
+        var resetsWhenRead: Int?
+        let read = expectation(description: "read")
+        plugin.didReadPendingCrashReports = {
+            resetsWhenRead = plugin.resetUnreadLaunchesCount
+            read.fulfill()
+        }
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, processingDelay: 0.2)
+
+        // When
+        feature.start()
+
+        // Then
+        wait(for: [read], timeout: 5)
+        XCTAssertEqual(resetsWhenRead, 1)
+        XCTAssertEqual(plugin.pendingCrashReports.count, 1, "the report is still kept")
     }
 
     func testGivenReportsUnreadForTwoLaunches_whenTheImmediateReadProcessesNone_theyAreReadAgainAfterTheDelay() {
