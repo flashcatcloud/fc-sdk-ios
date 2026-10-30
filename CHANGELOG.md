@@ -9,6 +9,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- RUM view events report CPU usage as percentages, comparable across devices with different core counts: `view.cpu_usage_average` / `view.cpu_usage_max` for the app process (percentage of all cores) and `view.main_thread_cpu_usage_average` / `view.main_thread_cpu_usage_max` for the main thread (percentage of one core). Time spent while the app is inactive is not counted, and nothing is reported for views shorter than 1 second in foreground.
+
+### Fixed
+
+- A crash in the CPU vital when the system CPU tick counter wraps around (from upstream [DataDog/dd-sdk-ios#2968](https://github.com/DataDog/dd-sdk-ios/pull/2968)).
+
 ---
 
 ## [0.8.0] - 2026-10-26
