@@ -12,7 +12,11 @@ extension RUMUser {
         guard let userInfo = context.userInfo else {
             return nil
         }
+        self.init(nonEmpty: userInfo)
+    }
 
+    /// The user of given `UserInfo`, or `nil` if it carries nothing: no user was set, or it was cleared.
+    init?(nonEmpty userInfo: UserInfo) {
         if userInfo.id == nil
             && userInfo.anonymousId == nil
             && userInfo.name == nil

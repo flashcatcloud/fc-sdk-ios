@@ -24,29 +24,45 @@ extension CrashReportingFeature {
         )
     }
 
+    /// Pending crash reports are read right after `start()` (no `processingDelay`), unless specified otherwise.
     public static func mockWith(
         integration: CrashReportSender,
         crashReportingPlugin: CrashReportingPlugin = NOPCrashReportingPlugin(),
         crashContextProvider: CrashContextProvider = CrashContextProviderMock(),
         messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver(),
-        telemetry: Telemetry = NOPTelemetry()
+        telemetry: Telemetry = NOPTelemetry(),
+        processingDelay: TimeInterval = 0,
+        bundleVersion: String? = nil
     ) -> Self {
         .init(
             crashReportingPlugin: crashReportingPlugin,
             crashContextProvider: crashContextProvider,
             sender: integration,
             messageReceiver: messageReceiver,
-            telemetry: telemetry
+            telemetry: telemetry,
+            processingDelay: processingDelay,
+            bundleVersion: bundleVersion
         )
     }
 }
 
 public class CrashReportingPluginMock: CrashReportingPlugin {
-    /// The crash reports loaded by this plugin.
-    public var pendingCrashReports: [DDCrashReport] = []
-    /// If the plugin was asked to delete the crash reports.
+    /// The value of `crashedLastLaunch`.
+    public var crashedLastLaunch = false
+    /// The value of `unreadLaunches`.
+    public var unreadLaunches = 0
+    /// How many times `resetUnreadLaunches()` was called.
     @ReadWriteLock
-    public var hasPurgedCrashReports: Bool?
+    public var resetUnreadLaunchesCount = 0
+    /// The crash reports held by this plugin, oldest first. A report is removed once processed, as by `KSCrashPlugin`.
+    @ReadWriteLock
+    public var pendingCrashReports: [DDCrashReport] = []
+    /// The crash reports deleted once processed, in order.
+    @ReadWriteLock
+    public var deletedCrashReports: [DDCrashReport] = []
+    /// How many times the pending crash reports were read.
+    @ReadWriteLock
+    public var readCount = 0
     /// Custom app state data injected to the plugin.
     public var injectedContextData: Data?
     /// Custom backtrace reporter injected to the plugin.
@@ -54,12 +70,25 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
 
     public init() {}
 
-    public func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) {
-        hasPurgedCrashReports = completion(pendingCrashReports)
+    public func resetUnreadLaunches() {
+        resetUnreadLaunchesCount += 1
+    }
+
+    public func readPendingCrashReports(process: (DDCrashReport) -> CrashReportOutcome) {
+        readCount += 1
+        var kept: [DDCrashReport] = []
+        for report in pendingCrashReports {
+            if process(report) == .processed {
+                deletedCrashReports.append(report)
+            } else {
+                kept.append(report)
+            }
+        }
+        pendingCrashReports = kept
         didReadPendingCrashReports?()
     }
 
-    /// Notifies the `readPendingCrashReports(completion:)` return.
+    /// Notifies the `readPendingCrashReports(process:)` return.
     public var didReadPendingCrashReports: (() -> Void)?
 
     public func inject(context: Data) {
@@ -74,7 +103,8 @@ public class CrashReportingPluginMock: CrashReportingPlugin {
 }
 
 public class NOPCrashReportingPlugin: CrashReportingPlugin {
-    public func readPendingCrashReports(completion: ([DDCrashReport]) -> Bool) {}
+    public var crashedLastLaunch: Bool { false }
+    public func readPendingCrashReports(process: (DDCrashReport) -> CrashReportOutcome) {}
     public func inject(context: Data) {}
     public var backtraceReporter: BacktraceReporting? { nil }
 
@@ -85,7 +115,7 @@ public class CrashContextProviderMock: CrashContextProvider {
     public private(set) var currentCrashContext: CrashContext?
     public var onCrashContextChange: (CrashContext) -> Void
 
-    public init(initialCrashContext: CrashContext = .mockAny()) {
+    public init(initialCrashContext: CrashContext? = .mockAny()) {
         self.currentCrashContext = initialCrashContext
         self.onCrashContextChange = { _ in }
     }
@@ -100,12 +130,15 @@ public class CrashReportSenderMock: CrashReportSender {
     public var sentCrashContext: CrashContext? { sentCrashReports.last?.context }
     /// All launch reports sent, in order.
     public private(set) var sentLaunchReports: [LaunchReport] = []
+    /// What `send(report:with:)` returns.
+    public var crashReportOutcome: CrashReportOutcome = .processed
 
     public init() {}
 
-    public func send(report: DDCrashReport, with context: CrashContext) {
+    public func send(report: DDCrashReport, with context: CrashContext) -> CrashReportOutcome {
         sentCrashReports.append((report, context))
         didSendCrashReport?()
+        return crashReportOutcome
     }
 
     public var didSendCrashReport: (() -> Void)?
@@ -117,12 +150,15 @@ public class CrashReportSenderMock: CrashReportSender {
 
 public class CrashReceiverMock: FeatureMessageReceiver {
     public var receivedCrash: Crash?
+    /// What the receiver reports through the crash completion.
+    public var outcome: CrashReportOutcome = .processed
 
     public func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
         guard case let .payload(crash as Crash) = message else {
             return false
         }
         receivedCrash = crash
+        crash.completion(outcome)
         return true
     }
 
@@ -206,4 +242,19 @@ extension CrashContext {
     }
 
     public var data: Data { try! JSONEncoder.dd.default().encode(self) }
+}
+
+/// A `sigaction` wrapper of the kind another library installs by rewriting symbol pointers: it counts the calls and
+/// passes them to the real function. It lives in this framework, an image of its own.
+public enum SigactionWrapperMock {
+    public typealias Function = @convention(c) (Int32, UnsafePointer<sigaction>?, UnsafeMutablePointer<sigaction>?) -> Int32
+
+    public static var calls = 0
+
+    public static let function: Function = { signal, action, oldAction in
+        calls += 1
+        return real(signal, action, oldAction)
+    }
+
+    private static let real = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "sigaction"), to: Function.self)
 }

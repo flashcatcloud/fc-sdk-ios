@@ -208,8 +208,44 @@ class DatadogCoreTests: XCTestCase {
         )
         defer { core.flushAndTearDown() }
 
+        // The core queues context updates when it starts; let them run first, so the bounded read below measures
+        // the read itself rather than the work queued ahead of it on a busy machine.
+        _ = contextProvider.read()
+
         // Then
         XCTAssertEqual(core.currentContext()?.service, "current-context-service")
+    }
+
+    func testSendDirectly_itSendsOnTheUploadsHTTPClientAndHandsBackTheAnswer() throws {
+        // Given
+        let httpClient = HTTPClientMock(responseCode: 202)
+        let core = DatadogCore(
+            directory: temporaryCoreDirectory,
+            dateProvider: SystemDateProvider(),
+            initialConsent: .mockRandom(),
+            performance: .mockRandom(),
+            httpClient: httpClient,
+            encryption: nil,
+            contextProvider: .mockAny(),
+            applicationVersion: .mockAny(),
+            maxBatchesPerUpload: .mockRandom(min: 1, max: 100),
+            backgroundTasksEnabled: false
+        )
+        defer { core.flushAndTearDown() }
+        let request = URLRequest(url: URL(string: "https://intake.test/api/v2/rum/active")!)
+
+        // When
+        let answered = expectation(description: "answered")
+        var statusCode: Int?
+        core.sendDirectly(request: request) { result in
+            statusCode = try? result.get().statusCode
+            answered.fulfill()
+        }
+
+        // Then
+        wait(for: [answered], timeout: 1)
+        XCTAssertEqual(statusCode, 202)
+        XCTAssertEqual(httpClient.requestsSent().map { $0.url }, [request.url])
     }
 
     func testCurrentContext_whenContextQueueIsBlocked_itReturnsNilInsteadOfWaitingForIt() throws {

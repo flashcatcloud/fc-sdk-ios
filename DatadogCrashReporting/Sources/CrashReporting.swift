@@ -46,13 +46,32 @@ public final class CrashReporting {
         ///   of the process, so a later real crash is not recorded.
         public var handlesMachExceptions: Bool
 
+        /// Keep the crash handlers in place once crash reporting is enabled: other code in the app (for example
+        /// another crash reporter) can no longer replace or reset the crash signal handlers, the uncaught
+        /// `NSException` handler or the C++ terminate handler; its attempts are recorded instead, and it is told
+        /// that its handler is installed. Uncaught C++ exceptions are also reported with the stack of their throw
+        /// site when the crash reporter could not capture it at throw time.
+        ///
+        /// Crash reporting still passes each crash on, once recorded, to the handler that was installed before it
+        /// was enabled or, if another one was installed since, to that one: another crash reporter still receives
+        /// crashes, after this one.
+        ///
+        /// Disabled by default. `SIGPIPE` is not affected.
+        ///
+        /// - Important: do not enable it in an app that installs its own handler for crash signals after crash
+        ///   reporting is enabled and relies on it at runtime (for example a runtime that recovers from invalid
+        ///   memory accesses): that handler is no longer installed.
+        public var takesOverCrashHandlers: Bool
+
         /// Creates a Crash Reporting configuration.
         /// - Parameters:
         ///   - symbolicateInProcess: see ``symbolicateInProcess``. Defaults to `true`.
         ///   - handlesMachExceptions: see ``handlesMachExceptions``. Defaults to `false`.
-        public init(symbolicateInProcess: Bool = true, handlesMachExceptions: Bool = false) {
+        ///   - takesOverCrashHandlers: see ``takesOverCrashHandlers``. Defaults to `false`.
+        public init(symbolicateInProcess: Bool = true, handlesMachExceptions: Bool = false, takesOverCrashHandlers: Bool = false) {
             self.symbolicateInProcess = symbolicateInProcess
             self.handlesMachExceptions = handlesMachExceptions
+            self.takesOverCrashHandlers = takesOverCrashHandlers
         }
     }
 
@@ -68,7 +87,8 @@ public final class CrashReporting {
             with: try KSCrashPlugin(
                 telemetry: core.telemetry,
                 symbolicateInProcess: configuration.symbolicateInProcess,
-                handlesMachExceptions: configuration.handlesMachExceptions
+                handlesMachExceptions: configuration.handlesMachExceptions,
+                takesOverCrashHandlers: configuration.takesOverCrashHandlers
             ),
             in: core
         )
@@ -92,7 +112,11 @@ public final class CrashReporting {
         }
     }
 
-    internal static func enableOrThrow(with plugin: CrashReportingPlugin, in core: DatadogCoreProtocol) throws {
+    internal static func enableOrThrow(
+        with plugin: CrashReportingPlugin,
+        in core: DatadogCoreProtocol,
+        processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay
+    ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
                 description: "Datadog SDK must be initialized before calling `CrashReporting.enable()`."
@@ -106,7 +130,8 @@ public final class CrashReporting {
             crashContextProvider: contextProvider,
             sender: MessageBusSender(core: core),
             messageReceiver: contextProvider,
-            telemetry: core.telemetry
+            telemetry: core.telemetry,
+            processingDelay: processingDelay
         )
 
         // The crash context otherwise reaches the crash reporter through several asynchronous hops after the
@@ -114,13 +139,7 @@ public final class CrashReporting {
         // then dropped. Write the first one now, before registering, so later updates always replace it. Skipped
         // when crash reporting is already enabled: this call fails to register and must not replace the live context.
         if core.get(feature: CrashReportingFeature.self) == nil, let context = core.currentContext() {
-            reporter.inject(initialCrashContext: CrashContext(
-                context,
-                lastRUMViewEvent: nil,
-                lastRUMSessionState: nil,
-                lastRUMAttributes: nil,
-                lastLogAttributes: nil
-            ))
+            reporter.inject(initialCrashContext: CrashContext(context, lastLogAttributes: nil))
         }
 
         try core.register(feature: reporter)
@@ -129,7 +148,7 @@ public final class CrashReporting {
             try core.register(backtraceReporter: backtraceReporter)
         }
 
-        reporter.sendCrashReportIfFound()
+        reporter.start()
 
         core.telemetry.configuration(trackErrors: true)
     }
@@ -172,5 +191,22 @@ public final class objc_CrashReporting: NSObject {
     @objc
     public static func enable(symbolicateInProcess: Bool, handlesMachExceptions: Bool) {
         CrashReporting.enable(with: .init(symbolicateInProcess: symbolicateInProcess, handlesMachExceptions: handlesMachExceptions))
+    }
+
+    /// Initializes the Datadog Crash Reporter.
+    /// - Parameters:
+    ///   - symbolicateInProcess: resolve stack frames to function names on-device,
+    ///     at crash time, without requiring a dSYM upload.
+    ///   - handlesMachExceptions: also catch crashes through a Mach exception handler,
+    ///     see `CrashReporting.Configuration.handlesMachExceptions`.
+    ///   - takesOverCrashHandlers: keep the crash handlers in place once crash reporting is enabled,
+    ///     see `CrashReporting.Configuration.takesOverCrashHandlers`.
+    @objc
+    public static func enable(symbolicateInProcess: Bool, handlesMachExceptions: Bool, takesOverCrashHandlers: Bool) {
+        CrashReporting.enable(with: .init(
+            symbolicateInProcess: symbolicateInProcess,
+            handlesMachExceptions: handlesMachExceptions,
+            takesOverCrashHandlers: takesOverCrashHandlers
+        ))
     }
 }

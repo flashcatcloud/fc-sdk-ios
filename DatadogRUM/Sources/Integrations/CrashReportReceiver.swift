@@ -28,7 +28,6 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     /// FLASHCAT FORK - the console's rates as they stand right now; always nil when the
     /// application did not opt in to remote configuration.
     let remoteSamplingRates: () -> RemoteSamplingRates?
-    let trackBackgroundEvents: Bool
     let uuidGenerator: RUMUUIDGenerator
     /// Integration with CIApp tests. It contains the CIApp test context when active.
     let ciTest: RUMCITest?
@@ -64,7 +63,6 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         dateProvider: DateProvider,
         sessionSampler: Sampler,
         remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
-        trackBackgroundEvents: Bool,
         uuidGenerator: RUMUUIDGenerator,
         ciTest: RUMCITest?,
         syntheticsTest: RUMSyntheticsTest?,
@@ -75,7 +73,6 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         self.dateProvider = dateProvider
         self.sessionSampler = sessionSampler
         self.remoteSamplingRates = remoteSamplingRates
-        self.trackBackgroundEvents = trackBackgroundEvents
         self.uuidGenerator = uuidGenerator
         self.ciTest = ciTest
         self.syntheticsTest = syntheticsTest
@@ -87,10 +84,13 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             return false
         }
 
-        return send(report: crash.report, with: crash.context)
+        return send(report: crash.report, with: crash.context, completion: crash.completion)
     }
 
-    private func send(report: DDCrashReport, with context: CrashContext) -> Bool {
+    /// - Parameter completion: called once the crash events are written, or once it is decided not to write any.
+    /// - Returns: always `true` for a crash: declining it on purpose is a decision, and the sender keeps a crash only
+    ///   when no receiver handles it at all.
+    private func send(report: DDCrashReport, with context: CrashContext, completion: @escaping (CrashReportOutcome) -> Void) -> Bool {
         // The `crashReport.crashDate` uses system `Date` collected at the moment of crash, so we need to adjust it
         // to the server time before processing. Following use of the current correction is not ideal (it's not the correction
         // from the moment of crash), but this is the best approximation we can get.
@@ -115,23 +115,32 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         let remoteRates = remoteSamplingRates()
 
         // RUMM-2516 if a cross-platform crash was reported, do not send its native version
-        if var lastRUMViewEvent = context.lastRUMViewEvent {
+        if var lastRUMViewEvent = lastViewSeen(in: context) {
             if let lastRUMAttributes = context.lastRUMAttributes {
                 // RUM-3588: If last RUM attributes are available, use them to replace view attributes as we know that
                 // global RUM attributes can be updated more often than attributes in `lastRUMView`.
                 // See https://github.com/DataDog/dd-sdk-ios/pull/1834 for more context.
                 lastRUMViewEvent.context = lastRUMAttributes
             }
+            if let userInfo = context.userInfo {
+                // FLASHCAT FORK - the crash context holds the user and account of the moment of the crash, while the
+                // view only holds those of its last update: a user set after it (e.g. right after `RUM.enable`) would
+                // be missing from the crash, and a cleared one would still be on it. A context that carries no user info
+                // knows nothing of them, so the view keeps its own.
+                lastRUMViewEvent.usr = RUMUser(nonEmpty: userInfo)
+                lastRUMViewEvent.account = context.accountInfo.map { RUMAccount(accountInfo: $0) }
+            }
             if lastRUMViewEvent.view.crash?.count ?? 0 < 1 {
                 sendCrashReportLinkedToLastViewInPreviousSession(
                     report,
                     lastRUMViewEventInPreviousSession: lastRUMViewEvent,
                     using: adjustedCrashTimings,
-                    bypassConsent: canBypassConsent(context)
+                    bypassConsent: canBypassConsent(context),
+                    completion: completion
                 )
             } else {
                 DD.logger.debug("There was a crash in previous session, but it is ignored due to another crash already present in the last view.")
-                return false
+                completion(.processed)
             }
         } else if let lastRUMSessionState = context.lastRUMSessionState {
             sendCrashReportToPreviousSession(
@@ -139,13 +148,14 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 crashContext: context,
                 lastRUMSessionStateInPreviousSession: lastRUMSessionState,
                 using: adjustedCrashTimings,
-                under: remoteRates
+                under: remoteRates,
+                completion: completion
             )
         } else if Sampler(samplingRate: drawnSessionSampleRate(under: remoteRates)).sample() { // before producing a new RUM session, we must consider sampling
-            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates)
+            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates, completion: completion)
         } else {
             DD.logger.debug("There was a crash in previous session, but it is ignored due to sampling.")
-            return false
+            completion(.processed)
         }
 
         return true
@@ -157,10 +167,11 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         _ crashReport: DDCrashReport,
         lastRUMViewEventInPreviousSession lastRUMViewEvent: RUMViewEvent,
         using crashTimings: AdjustedCrashTimings,
-        bypassConsent: Bool
+        bypassConsent: Bool,
+        completion: @escaping (CrashReportOutcome) -> Void
     ) {
         if FatalErrorBuilder.canSendView(lastRUMViewEvent, errorDate: crashTimings.realCrashDate, now: crashTimings.realDateNow) {
-            send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings, bypassConsent: bypassConsent)
+            send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings, bypassConsent: bypassConsent, completion: completion)
         } else {
             // We know it is too late for sending RUM view to previous RUM session as it is now stale on backend.
             // To avoid inconsistency, we only send the RUM error.
@@ -170,30 +181,35 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 let rumError = builder.createRUMError(with: lastRUMViewEvent)
 
                 if let mappedError = self.eventsMapper.map(event: rumError) {
-                    writer.write(value: mappedError)
+                    writer.write(value: mappedError, metadata: Data?.none, onResult: { completion(self.outcome(ofWritingError: $0)) })
                 } else {
                     DD.logger.warn("errorEventMapper returned 'nil' for a crash. Discarding crashes is not supported. The unmodified event will be sent.")
-                    writer.write(value: rumError)
+                    writer.write(value: rumError, metadata: Data?.none, onResult: { completion(self.outcome(ofWritingError: $0)) })
                 }
             }
         }
     }
 
-    /// If the crash occurred in an existing RUM session and we know its `lastRUMSessionState` but there was no `lastRUMViewEvent` we can
-    /// still send the error using that session UUID. Lack of `lastRUMViewEvent` means that there was no **active** view, but the presence of
-    /// `lastRUMSessionState` indicates that some views were tracked before.
+    /// If the crash occurred in an existing RUM session and we know its `lastRUMSessionState` but there was no view to link it to, we can
+    /// still send the error using that session UUID. No view means the session has not tracked one yet, the app was in background (see
+    /// `lastViewSeen(in:)`) or the session was stopped.
     private func sendCrashReportToPreviousSession(
         _ crashReport: DDCrashReport,
         crashContext: CrashContext,
         lastRUMSessionStateInPreviousSession lastRUMSessionState: RUMSessionState,
         using crashTimings: AdjustedCrashTimings,
-        under remoteRates: RemoteSamplingRates?
+        under remoteRates: RemoteSamplingRates?,
+        completion: @escaping (CrashReportOutcome) -> Void
     ) {
         let handlingRule = RUMOffViewEventsHandlingRule(
             applicationState: nil,
             sessionState: lastRUMSessionState,
             isAppInForeground: crashContext.lastIsAppInForeground,
-            isBETEnabled: trackBackgroundEvents,
+            // FLASHCAT FORK - a crash is reported whether or not Background Events Tracking is
+            // enabled. The option decides whether ordinary background activity is collected; a
+            // crash is the one background event the application cannot afford to lose, so it is
+            // always reported in a "Background" view of the session it happened in.
+            isBETEnabled: true,
             command: nil
         )
 
@@ -228,12 +244,14 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 under: remoteRates
             )
         case .doNotHandle:
-            DD.logger.debug("There was a crash in background, but it is ignored due to Background Event Tracking disabled or sampling.")
+            DD.logger.debug("There was a crash in previous session, but it is ignored due to sampling or the session being stopped.")
             newRUMView = nil
         }
 
         if let newRUMView = newRUMView {
-            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext))
+            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
+        } else {
+            completion(.processed)
         }
     }
 
@@ -243,60 +261,43 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         _ crashReport: DDCrashReport,
         crashContext: CrashContext,
         using crashTimings: AdjustedCrashTimings,
-        under remoteRates: RemoteSamplingRates?
+        under remoteRates: RemoteSamplingRates?,
+        completion: @escaping (CrashReportOutcome) -> Void
     ) {
-        // We can ignore `sessionState` for building the rule as we can assume there was no session sent - otherwise,
-        // the `lastRUMSessionState` would have been set in `CrashContext` and we could be sending the crash to previous session
-        // through `sendCrashReportToPreviousSession()`.
-        let handlingRule = RUMOffViewEventsHandlingRule(
-            applicationState: nil,
-            sessionState: nil,
-            isAppInForeground: crashContext.lastIsAppInForeground,
-            isBETEnabled: trackBackgroundEvents,
-            command: nil
+        // There was no session, so there is no history of views: a crash in foreground happened during the
+        // application launch, a crash in background happened in background. FLASHCAT FORK - it is reported in
+        // background too, whether or not Background Events Tracking is enabled (see `sendCrashReportToPreviousSession()`).
+        // The new session it creates was drawn by the sampler before getting here.
+        let isAppInForeground = crashContext.lastIsAppInForeground
+        let newRUMView = createNewRUMViewEvent(
+            named: isAppInForeground
+                ? RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewName
+                : RUMOffViewEventsHandlingRule.Constants.backgroundViewName,
+            url: isAppInForeground
+                ? RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewURL
+                : RUMOffViewEventsHandlingRule.Constants.backgroundViewURL,
+            startDate: crashTimings.realCrashDate,
+            sessionUUID: uuidGenerator.generateUnique(), // create new RUM session
+            context: crashContext,
+            // As the crash occurred after initializing SDK but before starting the first view,
+            // we can't know if Session Replay was configured. However, lack of view implies
+            // that there must be no replay collected:
+            hasReplay: false,
+            under: remoteRates
         )
 
-        let newRUMView: RUMViewEvent?
-
-        switch handlingRule {
-        case .handleInApplicationLaunchView:
-            newRUMView = createNewRUMViewEvent(
-                named: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewName,
-                url: RUMOffViewEventsHandlingRule.Constants.applicationLaunchViewURL,
-                startDate: crashTimings.realCrashDate,
-                sessionUUID: uuidGenerator.generateUnique(), // create new RUM session
-                context: crashContext,
-                // As the crash occurred after initializing SDK but before starting the first view,
-                // we can't know if Session Replay was configured. However, lack of view implies
-                // that there must be no replay collected:
-                hasReplay: false,
-                under: remoteRates
-            )
-        case .handleInBackgroundView:
-            newRUMView = createNewRUMViewEvent(
-                named: RUMOffViewEventsHandlingRule.Constants.backgroundViewName,
-                url: RUMOffViewEventsHandlingRule.Constants.backgroundViewURL,
-                startDate: crashTimings.realCrashDate,
-                sessionUUID: uuidGenerator.generateUnique(), // create new RUM session
-                context: crashContext,
-                // As the crash occurred after initializing SDK but before starting the first view,
-                // we can't know if Session Replay was configured. However, lack of view implies
-                // that there must be no replay collected:
-                hasReplay: false,
-                under: remoteRates
-            )
-        case .doNotHandle:
-            DD.logger.debug("There was a crash in background, but it is ignored due to Background Event Tracking disabled.")
-            newRUMView = nil
-        }
-
-        if let newRUMView = newRUMView {
-            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext))
-        }
+        send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
     }
 
     /// Sends given `CrashReport` by linking it to given `rumView` and updating view counts accordingly.
-    private func send(crashReport: DDCrashReport, to rumView: RUMViewEvent, using crashTimings: AdjustedCrashTimings, bypassConsent: Bool) {
+    /// - Parameter completion: called once the events are written.
+    private func send(
+        crashReport: DDCrashReport,
+        to rumView: RUMViewEvent,
+        using crashTimings: AdjustedCrashTimings,
+        bypassConsent: Bool,
+        completion: @escaping (CrashReportOutcome) -> Void
+    ) {
         DD.logger.debug("Updating RUM view with crash report.")
 
         featureScope.eventWriteContext(bypassConsent: bypassConsent) { context, writer in
@@ -304,23 +305,63 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             let updatedRUMView = builder.updateRUMViewWithError(rumView)
             let rumError = builder.createRUMError(with: updatedRUMView)
 
+            let errorToWrite: RUMErrorEvent
             if let mappedError = self.eventsMapper.map(event: rumError) {
-                writer.write(value: mappedError)
+                errorToWrite = mappedError
             } else {
                 DD.logger.warn("errorEventMapper returned 'nil' for a crash. Discarding crashes is not supported. The unmodified event will be sent.")
-                writer.write(value: rumError)
+                errorToWrite = rumError
             }
+            // Writes run in order, so `completion` goes with the last one. It reports what became of the error only: once
+            // the error is written, writing the crash again would report it twice, so a failed view update is let go.
             if let mappedView = self.eventsMapper.map(event: updatedRUMView) {
-                writer.write(value: self.eventsMapper.map(event: mappedView))
+                let errorOutcome = WriteResult()
+                writer.write(value: errorToWrite, metadata: Data?.none, onResult: { errorOutcome.value = $0 })
+                writer.write(value: self.eventsMapper.map(event: mappedView), metadata: Data?.none, onResult: { _ in
+                    completion(self.outcome(ofWritingError: errorOutcome.value))
+                })
+            } else {
+                writer.write(value: errorToWrite, metadata: Data?.none, onResult: { completion(self.outcome(ofWritingError: $0)) })
             }
         }
     }
 
+    /// FLASHCAT FORK - the view the crash is linked to, if any.
+    ///
+    /// While its session lasts, the crash context keeps the last view even after that view stopped, because in
+    /// foreground it is the last screen the user saw: a crash under a screen that is not tracked (a presented
+    /// controller the predicate ignores, a system sheet) belongs to it rather than to no view at all.
+    ///
+    /// In background it is not: the user left that screen, and the view stopped because the app went away. A
+    /// crash there has no view of its own, so it goes to the "Background" view of its session, exactly as it
+    /// did while the context still dropped stopped views.
+    private func lastViewSeen(in context: CrashContext) -> RUMViewEvent? {
+        guard let view = context.lastRUMViewEvent else {
+            return nil
+        }
+        let isStoppedView = view.view.isActive == false
+        return isStoppedView && !context.lastIsAppInForeground ? nil : view
+    }
+
     // MARK: - Building RUM events
 
+    /// What became of the crash, given what became of its error event: a crash whose error can never be written is
+    /// dropped, as reading it again would fail again.
+    private func outcome(ofWritingError outcome: WriteOutcome) -> CrashReportOutcome {
+        switch outcome {
+        case .written:
+            return .processed
+        case .failedPermanently:
+            featureScope.telemetry.error("[RUM] A crash cannot be written and is dropped")
+            return .processed
+        case .failedTransiently:
+            return .writeFailed
+        }
+    }
+
     /// A crash recorded with `.granted` consent is written regardless of the current consent. A crash recorded
-    /// with `.pending` consent is written under the current consent, so it is uploaded only once the user grants it
-    /// and is discarded if they decline, like any other event collected while consent is pending.
+    /// with `.pending` consent is written under the current consent: Crash Reporting sends it only once consent is
+    /// granted.
     private func canBypassConsent(_ crashContext: CrashContext) -> Bool {
         crashContext.trackingConsent == .granted
     }
@@ -480,4 +521,9 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             )
         )
     }
+}
+
+/// The result of a write, read by the write that follows it on the same serial writer queue.
+private final class WriteResult {
+    var value: WriteOutcome = .written
 }

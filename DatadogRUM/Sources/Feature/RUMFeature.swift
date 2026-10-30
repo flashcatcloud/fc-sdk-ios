@@ -149,7 +149,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
             accessibilityReader: accessibilityReader,
             onSessionStart: configuration.onSessionStart,
             viewCache: ViewCache(dateProvider: configuration.dateProvider),
-            fatalErrorContext: FatalErrorContextNotifier(messageBus: featureScope),
+            fatalErrorContext: FatalErrorContextNotifier(featureScope: featureScope),
             sessionEndedMetric: sessionEndedMetric,
             viewEndedMetricFactory: {
                 let viewEndedController = ViewEndedController(
@@ -279,7 +279,6 @@ internal final class RUMFeature: DatadogRemoteFeature {
                 // reported at the rate the console set, exactly as an ordinary session would be.
                 // Without it an operator who set the rate to zero would still be sent crashes.
                 remoteSamplingRates: { [weak remoteSamplingReader] in remoteSamplingReader?.remoteSamplingRates },
-                trackBackgroundEvents: configuration.trackBackgroundEvents,
                 uuidGenerator: configuration.uuidGenerator,
                 ciTest: configuration.ciTestExecutionID.map { RUMCITest(testExecutionId: $0) },
                 syntheticsTest: {
@@ -295,6 +294,22 @@ internal final class RUMFeature: DatadogRemoteFeature {
 
         if let watchdogTermination = watchdogTermination {
             messageReceivers.append(watchdogTermination)
+        }
+
+        // FLASHCAT FORK - the active-device beacon goes out on the core's own HTTP client, so the
+        // proxy configured at initialisation applies to it as it does to the uploads.
+        if !configuration.trackActiveDevices {
+            ActiveDeviceBeacon.discardStored(in: featureScope) // it names the device and the user
+        } else if let sender = core as? DirectRequestSender {
+            messageReceivers.append(
+                ActiveDeviceBeacon(
+                    featureScope: featureScope,
+                    sender: sender,
+                    customEndpoint: configuration.customEndpoint,
+                    trackAnonymousUser: configuration.trackAnonymousUser,
+                    dateProvider: configuration.dateProvider
+                )
+            )
         }
 
         self.messageReceiver = CombinedFeatureMessageReceiver(messageReceivers)

@@ -225,7 +225,11 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             )
         }
 
-        // Update fatal error context with recent RUM session state:
+        // Update fatal error context with recent RUM session state. FLASHCAT FORK - and forget the view of the
+        // previous session: the context keeps a view after it stops (see `process(command:)`), and a crash in this
+        // session must never be linked to a view of another one - least of all when this session is sampled out,
+        // as it never processes a command that could replace it.
+        dependencies.fatalErrorContext.view = nil
         dependencies.fatalErrorContext.sessionState = state
 
         // Every session creation is one opportunity to ask the console for the sampling
@@ -437,12 +441,14 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
             settleWithheldEvents(writer: storageWriter, context: context)
         }
 
-        if (isActive || deactivating) && !hasActiveView {
-            // If this session is active and there is no active view, update fatal error context accordingly, so eventual
-            // error won't be associated to an inactive view and instead we will consider starting background view to track it.
-            // We also want to send this as a session is being stopped.
-            // It means that with Background Events Tracking disabled, eventual off-view crashes will be dropped
-            // similar to how we drop other events.
+        if deactivating && !hasActiveView {
+            // FLASHCAT FORK - a session stopped with `stopSession()` is over, and so is its last view: an eventual
+            // crash must not be linked to it.
+            //
+            // While the session is active, the fatal error context keeps the last view even after it stopped. In
+            // foreground it is the last screen the user saw, so a crash under an untracked screen is linked to it
+            // rather than dropped for lack of an active view. In background the crash reporter ignores a stopped
+            // view and reports the crash in a "Background" view instead (see `CrashReportReceiver`).
             dependencies.fatalErrorContext.view = nil
         }
 

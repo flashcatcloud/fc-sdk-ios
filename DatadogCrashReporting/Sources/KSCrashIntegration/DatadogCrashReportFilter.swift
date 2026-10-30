@@ -223,7 +223,15 @@ internal final class DatadogCrashReportFilter: NSObject, CrashReportFilter {
                 meta: meta,
                 wasTruncated: wasTruncated,
                 context: context,
-                additionalAttributes: nil
+                additionalAttributes: nil,
+                // Optional details: a malformed one is left out rather than failing the report.
+                system: DDCrashReport.System(
+                    appVersion: try? system.valueIfPresent(forKey: .bundleShortVersion),
+                    appBuild: try? system.valueIfPresent(forKey: .bundleVersion),
+                    osName: try? system.valueIfPresent(forKey: .systemName),
+                    osVersion: try? system.valueIfPresent(forKey: .systemVersion),
+                    osBuild: try? system.valueIfPresent(forKey: .osVersion)
+                )
             )
         )
     }

@@ -21,43 +21,107 @@ internal protocol FatalErrorContextNotifying: AnyObject {
 }
 
 /// Manages RUM information necessary for building context of fatal errors such as Crashes or Fatal App Hangs.
-/// It tracks value changes and notifies updates on message bus.
+/// It shares every change in the core context as `RUMFatalErrorContext`, read by Crash Reporting.
 internal final class FatalErrorContextNotifier: FatalErrorContextNotifying {
-    /// Message bus interface to send context updates to Crash Reporting.
-    private let messageBus: MessageSending
+    private struct State {
+        /// The current value, replaced by a new instance on every change.
+        var context = RUMFatalErrorContext(sessionState: nil, view: nil, globalAttributes: nil)
+        /// Whether a write to the core context is requested and has not read `context` yet: changes made meanwhile
+        /// are written by it, without requesting another.
+        var isWritePending = false
+    }
 
-    init(messageBus: MessageSending) {
-        self.messageBus = messageBus
+    /// The scope to share the fatal error context through.
+    private let featureScope: FeatureScope
+
+    @ReadWriteLock
+    private var state = State()
+
+    private var context: RUMFatalErrorContext { state.context }
+
+    init(featureScope: FeatureScope) {
+        self.featureScope = featureScope
     }
 
     /// The state of the current RUM session.
     /// Can be `nil` if no session was yet started. Never gets `nil` after starting first session.
-    @ReadWriteLock
     var sessionState: RUMSessionState? {
-        didSet {
-            if let sessionState {
-                messageBus.send(message: .payload(sessionState))
+        get { context.sessionState }
+        set {
+            update { current in
+                current.sessionState == newValue ? nil : RUMFatalErrorContext(sessionState: newValue, view: current.view, globalAttributes: current.globalAttributes)
             }
         }
     }
 
     /// The active RUM view in current session.
     /// Can be `nil` if no view is yet started. Will become `nil` if view was stopped without starting the new one.
-    @ReadWriteLock
     var view: RUMViewEvent? {
-        didSet {
-            if let view {
-                messageBus.send(message: .payload(view))
-            } else {
-                messageBus.send(message: .payload(RUMPayloadMessages.viewReset))
+        get { context.view }
+        set {
+            update { current in
+                newValue == nil && current.view == nil ? nil : RUMFatalErrorContext(sessionState: current.sessionState, view: newValue, globalAttributes: current.globalAttributes)
             }
         }
     }
 
-    @ReadWriteLock
-    var globalAttributes: [String: Encodable] = [:] {
-        didSet {
-            messageBus.send(message: .payload(RUMEventAttributes(contextInfo: globalAttributes)))
+    var globalAttributes: [String: Encodable] {
+        get { context.globalAttributes?.contextInfo ?? [:] }
+        set {
+            update {
+                RUMFatalErrorContext(
+                    sessionState: $0.sessionState,
+                    view: $0.view,
+                    globalAttributes: RUMEventAttributes(contextInfo: newValue)
+                )
+            }
+        }
+    }
+
+    /// - Parameter change: the new value, or `nil` if it would not change.
+    private func update(_ change: (RUMFatalErrorContext) -> RUMFatalErrorContext?) {
+        var requestsWrite = false
+        _state.mutate { state in
+            guard let changed = change(state.context) else {
+                return
+            }
+            state.context = changed
+            requestsWrite = !state.isWritePending
+            state.isWritePending = true
+        }
+        guard requestsWrite else {
+            return
+        }
+        // The value is read when the core context is written, on its queue: a change made before that is written
+        // by this write, and one made after requests the next. A request the core drops without running it (e.g.
+        // once it is stopped or released) ends the pending write too, so later changes are not held back by it.
+        let request = WriteRequest { [weak self] in
+            self?._state.mutate { $0.isWritePending = false }
+        }
+        featureScope.set(context: { [weak self] in
+            request.didRun = true
+            var context: RUMFatalErrorContext?
+            self?._state.mutate { state in
+                state.isWritePending = false
+                context = state.context
+            }
+            return context
+        })
+    }
+}
+
+/// A requested write of the core context, which calls `onDrop` if it is released without having run.
+private final class WriteRequest {
+    var didRun = false
+    private let onDrop: () -> Void
+
+    init(onDrop: @escaping () -> Void) {
+        self.onDrop = onDrop
+    }
+
+    deinit {
+        if !didRun {
+            onDrop()
         }
     }
 }

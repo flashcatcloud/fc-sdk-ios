@@ -416,6 +416,7 @@ public enum RUM
         public var trackSlowFrames: Bool
         public var telemetrySampleRate: SampleRate
         public var collectAccessibility: Bool
+        public var trackActiveDevices: Bool
         public var featureFlags: FeatureFlags
         public struct URLSessionTracking
             public var firstPartyHostsTracing: FirstPartyHostsTracing?
@@ -561,16 +562,22 @@ public final class CrashReporting
     public struct Configuration
         public var symbolicateInProcess: Bool
         public var handlesMachExceptions: Bool
-        public init(symbolicateInProcess: Bool = true, handlesMachExceptions: Bool = false)
+        public var takesOverCrashHandlers: Bool
+        public init(symbolicateInProcess: Bool = true, handlesMachExceptions: Bool = false, takesOverCrashHandlers: Bool = false)
     public static func enable(with configuration: CrashReporting.Configuration = .init(),in core: DatadogCoreProtocol = CoreRegistry.default)
     public static func enable(with plugin: @autoclosure () throws -> CrashReportingPlugin, in core: DatadogCoreProtocol = CoreRegistry.default)
 public static func enable()
 public static func enable(symbolicateInProcess: Bool)
 public static func enable(symbolicateInProcess: Bool, handlesMachExceptions: Bool)
+public static func enable(symbolicateInProcess: Bool, handlesMachExceptions: Bool, takesOverCrashHandlers: Bool)
 public protocol CrashReportingPlugin: AnyObject
-    func readPendingCrashReports(completion: @escaping ([DDCrashReport]) -> Bool)
+    var crashedLastLaunch: Bool
+    var unreadLaunches: Int
+    func readPendingCrashReports(process: @escaping (DDCrashReport) -> CrashReportOutcome)
     func inject(context: Data)
     var backtraceReporter: BacktraceReporting?
+[?] extension CrashReportingPlugin
+    public var unreadLaunches: Int
 
 # ----------------------------------
 # API surface for DatadogWebViewTracking:

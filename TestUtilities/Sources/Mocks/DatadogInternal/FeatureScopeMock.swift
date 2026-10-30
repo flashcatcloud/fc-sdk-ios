@@ -16,7 +16,19 @@ public final class FeatureScopeMock: FeatureScope, @unchecked Sendable {
             scope?.events.append((value, metadata, bypassConsent))
             completion()
         }
+
+        func write<T, M>(value: T, metadata: M?, onResult: @escaping (WriteOutcome) -> Void) where T: Encodable, M: Encodable {
+            let outcome = scope?.writeOutcome(value) ?? .written
+            if outcome == .written {
+                scope?.events.append((value, metadata, bypassConsent))
+            }
+            onResult(outcome)
+        }
     }
+
+    /// What becomes of each value given to a write that reports its outcome; a value not written is not recorded.
+    @ReadWriteLock
+    public var writeOutcome: (Encodable) -> WriteOutcome = { _ in .written }
 
     @ReadWriteLock
     public var contextMock: DatadogContext
@@ -45,7 +57,31 @@ public final class FeatureScopeMock: FeatureScope, @unchecked Sendable {
         messages.append(message)
     }
     public func set<Context>(context: @escaping () -> Context?) where Context: AdditionalContext {
-        contextMock.set(additionalContext: context())
+        contextWriteRequests += 1
+        let write = { self.contextMock.set(additionalContext: context()) }
+        if defersContextWrites {
+            pendingContextWrites.append(write)
+        } else {
+            write()
+        }
+    }
+
+    /// How many times `set(context:)` was called.
+    public var contextWriteRequests = 0
+    /// When `true`, `set(context:)` writes the context only once `runPendingContextWrites()` is called, as the core
+    /// does later on its own queue.
+    public var defersContextWrites = false
+    private var pendingContextWrites: [() -> Void] = []
+
+    public func runPendingContextWrites() {
+        let writes = pendingContextWrites
+        pendingContextWrites = []
+        writes.forEach { $0() }
+    }
+
+    /// Releases the pending context writes without running them, as a core that is stopped or released does.
+    public func dropPendingContextWrites() {
+        pendingContextWrites = []
     }
 
     public func set(anonymousId: String?) {
