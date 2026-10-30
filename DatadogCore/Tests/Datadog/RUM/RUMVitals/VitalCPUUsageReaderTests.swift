@@ -119,6 +119,21 @@ class VitalCPUUsageReaderTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(info.mainThreadUsageMax), 0.05 / 0.3 * 100, accuracy: 0.001)
     }
 
+    func testWhenTheTrailingIntervalIsBusiestThePeakIsNotBelowTheAverage() throws {
+        var info = CPUUsageInfo(processorCount: 1)
+        info.addSample(.init(processCPUTime: 0, mainThreadCPUTime: 0, wallTime: 0))
+        info.addSample(.init(processCPUTime: 0.03, mainThreadCPUTime: 0.03, wallTime: 0.3)) // 10%
+        info.addSample(.init(processCPUTime: 0.06, mainThreadCPUTime: 0.06, wallTime: 0.6)) // 10%
+        info.addSample(.init(processCPUTime: 0.09, mainThreadCPUTime: 0.09, wallTime: 0.9)) // 10%
+        info.addSample(.init(processCPUTime: 0.29, mainThreadCPUTime: 0.29, wallTime: 1.1)) // 100%, but only 0.2s
+
+        let processAverage = try XCTUnwrap(info.processUsageAverage)
+        let mainThreadAverage = try XCTUnwrap(info.mainThreadUsageAverage)
+        XCTAssertEqual(processAverage, 0.29 / 1.1 * 100, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(info.processUsageMax), processAverage, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(info.mainThreadUsageMax), mainThreadAverage, accuracy: 0.001)
+    }
+
     func testItClampsValuesBetween0And100() {
         var info = CPUUsageInfo(processorCount: 1)
         info.addSample(.init(processCPUTime: 0, mainThreadCPUTime: 0, wallTime: 0))

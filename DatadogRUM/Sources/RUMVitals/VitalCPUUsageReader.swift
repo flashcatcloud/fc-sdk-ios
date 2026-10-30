@@ -158,8 +158,8 @@ internal struct CPUUsageInfo {
     private(set) var firstSample: CPUUsageSample?
     private(set) var lastSample: CPUUsageSample?
     private var peakIntervalStart: CPUUsageSample?
-    private(set) var processUsageMax: Double?
-    private(set) var mainThreadUsageMax: Double?
+    private var processIntervalPeak: Double?
+    private var mainThreadIntervalPeak: Double?
 
     init(processorCount: Int) {
         self.processorCount = max(processorCount, 1)
@@ -178,10 +178,10 @@ internal struct CPUUsageInfo {
         }
         peakIntervalStart = sample
         if let usage = processUsage(over: interval) {
-            processUsageMax = max(processUsageMax ?? 0, usage)
+            processIntervalPeak = max(processIntervalPeak ?? 0, usage)
         }
         if let usage = mainThreadUsage(over: interval) {
-            mainThreadUsageMax = max(mainThreadUsageMax ?? 0, usage)
+            mainThreadIntervalPeak = max(mainThreadIntervalPeak ?? 0, usage)
         }
     }
 
@@ -193,6 +193,20 @@ internal struct CPUUsageInfo {
     /// Main thread CPU usage over the view, as a percentage of one core (0-100).
     var mainThreadUsageAverage: Double? {
         return viewTotal.flatMap { mainThreadUsage(over: $0) }
+    }
+
+    // A trailing interval shorter than `minimumPeakInterval` counts in the average but not in the peaks,
+    // so a busy tail could put the average above the peak. The average over the whole view is never above
+    // the real peak, so it is a safe lower bound.
+
+    /// Process CPU usage peak over the view, as a percentage of all cores (0-100).
+    var processUsageMax: Double? {
+        return [processIntervalPeak, processUsageAverage].compactMap { $0 }.max()
+    }
+
+    /// Main thread CPU usage peak over the view, as a percentage of one core (0-100).
+    var mainThreadUsageMax: Double? {
+        return [mainThreadIntervalPeak, mainThreadUsageAverage].compactMap { $0 }.max()
     }
 
     /// Whether the view has been in foreground long enough to report any value.
