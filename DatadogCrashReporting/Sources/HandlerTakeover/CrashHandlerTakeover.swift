@@ -7,6 +7,16 @@
 import Foundation
 import MachO
 
+// swiftlint:disable duplicate_imports
+#if SPM_BUILD
+    #if swift(>=6.0)
+    internal import DatadogCrashReportingPrivate
+    #else
+    @_implementationOnly import DatadogCrashReportingPrivate
+    #endif
+#endif
+// swiftlint:enable duplicate_imports
+
 /// Keeps the crash handlers installed by the crash reporter in place once it is installed.
 ///
 /// Another crash reporter in the same app can install its own signal handler, uncaught `NSException` handler or C++
@@ -872,6 +882,11 @@ private let signalTrampoline: SignalActionFunction = { signal, info, context in
     } else {
         action.__sigaction_u.__sa_handler?(signal)
     }
+    // FLASHCAT FORK - the crash beacon. Its handler sits behind the crash reporter, which restores it
+    // and re-raises, but the handler another library recorded since is restored in its place
+    // (`crashRestoreRedirect`), and that one forwards to the default action. So the beacon runs from
+    // here, once the report is written; its handler then lets the signal through if it does run.
+    dd_crash_beacon_handle_crash(signal)
 }
 
 private let signalTrampolineAddress = unsafeBitCast(signalTrampoline, to: UInt.self)

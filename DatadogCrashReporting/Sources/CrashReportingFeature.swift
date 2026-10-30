@@ -39,6 +39,8 @@ internal final class CrashReportingFeature: DatadogFeature {
     private let processingDelay: TimeInterval
     /// The app version the bundle declares, as the SDK takes it when no other version is set.
     private let bundleVersion: String?
+    /// FLASHCAT FORK - where crashed processes recorded what became of their crash beacons.
+    private let beaconDirectory: URL?
 
     /// The current tracking consent. Only accessed from `queue`.
     private var trackingConsent: TrackingConsent?
@@ -53,7 +55,8 @@ internal final class CrashReportingFeature: DatadogFeature {
         telemetry: Telemetry,
         processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay,
         bundleVersion: String? = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+        beaconDirectory: URL? = nil
     ) {
         self.queue = DispatchQueue(
             label: "com.datadoghq.crash-reporter",
@@ -66,6 +69,7 @@ internal final class CrashReportingFeature: DatadogFeature {
         self.telemetry = telemetry
         self.processingDelay = processingDelay
         self.bundleVersion = bundleVersion
+        self.beaconDirectory = beaconDirectory
 
         // Inject current `CrashContext`
         if let context = crashContextProvider.currentCrashContext {
@@ -110,6 +114,7 @@ internal final class CrashReportingFeature: DatadogFeature {
         }
         canReadCrashReports = true
         plugin.resetUnreadLaunches() // this launch outlived the delay, whatever becomes of the reports
+        beaconDirectory.map { CrashBeaconResults(directory: $0).removeExpired() }
         sendPendingCrashReports()
     }
 
@@ -153,10 +158,22 @@ internal final class CrashReportingFeature: DatadogFeature {
     private func process(crashReport: DDCrashReport) -> CrashReportOutcome {
         // A report whose `CrashContext` is missing or malformed (e.g. a crash before the first context reached the
         // crash reporter) is still reported, with a context built from the current launch. Kept until one exists.
-        guard let crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) ?? fallbackCrashContext(for: crashReport) else {
+        guard var crashContext = crashReport.context.flatMap({ self.decode(crashContextData: $0) }) ?? fallbackCrashContext(for: crashReport) else {
             return .kept
         }
 
+        // FLASHCAT FORK - the beacon result stays on disk until its report is processed: a report can
+        // be kept across launches, and each attempt has to send the same result.
+        let beaconResults = beaconDirectory.map { CrashBeaconResults(directory: $0) }
+        crashContext.crashBeaconResult = crashContext.crashId.flatMap { beaconResults?.result(forCrashId: $0) }
+        let outcome = send(crashReport, with: crashContext)
+        if outcome == .processed, let crashId = crashContext.crashId {
+            beaconResults?.remove(crashId: crashId)
+        }
+        return outcome
+    }
+
+    private func send(_ crashReport: DDCrashReport, with crashContext: CrashContext) -> CrashReportOutcome {
         switch (crashContext.trackingConsent, trackingConsent ?? .pending) {
         case (.granted, _), (.pending, .granted):
             // A crash recorded with `.pending` consent is written under the current consent, now `.granted`.
@@ -194,7 +211,7 @@ internal final class CrashReportingFeature: DatadogFeature {
                 versionMajor: version.split(separator: ".").first.map(String.init) ?? version
             )
         }
-        return CrashContext(
+        var context = CrashContext(
             serverTimeOffset: current.serverTimeOffset,
             service: current.service,
             env: current.env,
@@ -216,6 +233,12 @@ internal final class CrashReportingFeature: DatadogFeature {
             lastRUMAttributes: nil,
             lastLogAttributes: nil
         )
+        // FLASHCAT FORK - the context carried the crash id, and a beacon may have been sent with it:
+        // find it through the beacon's result, or the crash counts twice.
+        context.crashId = beaconDirectory.flatMap { directory in
+            crashReport.date.flatMap { CrashBeaconResults(directory: directory).crashId(recordedAround: $0) }
+        }
+        return context
     }
 
     // MARK: - CrashContext Encoding and Decoding

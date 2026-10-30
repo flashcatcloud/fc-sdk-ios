@@ -133,6 +133,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             if lastRUMViewEvent.view.crash?.count ?? 0 < 1 {
                 sendCrashReportLinkedToLastViewInPreviousSession(
                     report,
+                    crashContext: context,
                     lastRUMViewEventInPreviousSession: lastRUMViewEvent,
                     using: adjustedCrashTimings,
                     bypassConsent: canBypassConsent(context),
@@ -165,19 +166,20 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     /// the crash to that view. The error event can be preceded with a view update based on `Constants.viewEventAvailabilityThreshold` condition.
     private func sendCrashReportLinkedToLastViewInPreviousSession(
         _ crashReport: DDCrashReport,
+        crashContext: CrashContext,
         lastRUMViewEventInPreviousSession lastRUMViewEvent: RUMViewEvent,
         using crashTimings: AdjustedCrashTimings,
         bypassConsent: Bool,
         completion: @escaping (CrashReportOutcome) -> Void
     ) {
         if FatalErrorBuilder.canSendView(lastRUMViewEvent, errorDate: crashTimings.realCrashDate, now: crashTimings.realDateNow) {
-            send(crashReport: crashReport, to: lastRUMViewEvent, using: crashTimings, bypassConsent: bypassConsent, completion: completion)
+            send(crashReport: crashReport, crashContext: crashContext, to: lastRUMViewEvent, using: crashTimings, bypassConsent: bypassConsent, completion: completion)
         } else {
             // We know it is too late for sending RUM view to previous RUM session as it is now stale on backend.
             // To avoid inconsistency, we only send the RUM error.
             DD.logger.debug("Sending crash as RUM error.")
             featureScope.eventWriteContext(bypassConsent: bypassConsent) { context, writer in
-                let builder = createFatalErrorBuilder(context: context, crash: crashReport, crashDate: crashTimings.realCrashDate, timeSinceAppStart: crashTimings.timeSinceAppStart)
+                let builder = createFatalErrorBuilder(context: context, crash: crashReport, crashContext: crashContext, crashDate: crashTimings.realCrashDate, timeSinceAppStart: crashTimings.timeSinceAppStart)
                 let rumError = builder.createRUMError(with: lastRUMViewEvent)
 
                 if let mappedError = self.eventsMapper.map(event: rumError) {
@@ -249,7 +251,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         }
 
         if let newRUMView = newRUMView {
-            send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
+            send(crashReport: crashReport, crashContext: crashContext, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
         } else {
             completion(.processed)
         }
@@ -286,13 +288,14 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             under: remoteRates
         )
 
-        send(crashReport: crashReport, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
+        send(crashReport: crashReport, crashContext: crashContext, to: newRUMView, using: crashTimings, bypassConsent: canBypassConsent(crashContext), completion: completion)
     }
 
     /// Sends given `CrashReport` by linking it to given `rumView` and updating view counts accordingly.
     /// - Parameter completion: called once the events are written.
     private func send(
         crashReport: DDCrashReport,
+        crashContext: CrashContext,
         to rumView: RUMViewEvent,
         using crashTimings: AdjustedCrashTimings,
         bypassConsent: Bool,
@@ -301,7 +304,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         DD.logger.debug("Updating RUM view with crash report.")
 
         featureScope.eventWriteContext(bypassConsent: bypassConsent) { context, writer in
-            let builder = createFatalErrorBuilder(context: context, crash: crashReport, crashDate: crashTimings.realCrashDate, timeSinceAppStart: crashTimings.timeSinceAppStart)
+            let builder = createFatalErrorBuilder(context: context, crash: crashReport, crashContext: crashContext, crashDate: crashTimings.realCrashDate, timeSinceAppStart: crashTimings.timeSinceAppStart)
             let updatedRUMView = builder.updateRUMViewWithError(rumView)
             let rumError = builder.createRUMError(with: updatedRUMView)
 
@@ -371,11 +374,20 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         crashContext.trackingConsent == .granted
     }
 
-    private func createFatalErrorBuilder(context: DatadogContext, crash: DDCrashReport, crashDate: Date, timeSinceAppStart: TimeInterval?) -> FatalErrorBuilder {
-        return FatalErrorBuilder(
+    private func createFatalErrorBuilder(
+        context: DatadogContext,
+        crash: DDCrashReport,
+        crashContext: CrashContext,
+        crashDate: Date,
+        timeSinceAppStart: TimeInterval?
+    ) -> FatalErrorBuilder {
+        // FLASHCAT FORK - the crash id drawn when the crashed process started is the error id, so
+        // the engine counts this report and the crash beacon it sent as one crash. Reports from
+        // SDKs that predate it keep a random id.
+        var builder = FatalErrorBuilder(
             context: context,
             error: .crash,
-            errorUUID: uuidGenerator.generateUnique(),
+            errorUUID: crashContext.crashId.flatMap { UUID(uuidString: $0) }.map { RUMUUID(rawValue: $0) } ?? uuidGenerator.generateUnique(),
             errorDate: crashDate,
             errorType: crash.type,
             errorMessage: crash.message,
@@ -387,6 +399,10 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             additionalAttributes: crash.additionalAttributes.dd.decode(),
             timeSinceAppStart: timeSinceAppStart
         )
+        builder.errorBeacon = crashContext.crashBeaconResult.map {
+            RUMErrorEvent.Error.Beacon(status: $0.status.rawValue, duration: $0.duration)
+        }
+        return builder
     }
 
     /// Creates new RUM view event.

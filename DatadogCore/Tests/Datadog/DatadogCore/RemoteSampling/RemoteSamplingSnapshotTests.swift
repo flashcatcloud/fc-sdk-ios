@@ -44,6 +44,40 @@ class RemoteSamplingSnapshotTests: XCTestCase {
         XCTAssertNil(response.snapshot.custom)
     }
 
+    // FLASHCAT FORK - crash beacon knobs.
+    func testReadsCrashBeaconKnobs() throws {
+        let body = #"""
+        { "schema_version": 1, "version": 7, "enabled": true, "rum": { "crashBeaconEnabled": false, "crashBeaconTimeoutMs": 1500 } }
+        """#.data(using: .utf8)!
+
+        let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
+
+        XCTAssertEqual(response.snapshot.rates.crashBeaconEnabled, false)
+        XCTAssertEqual(response.snapshot.rates.crashBeaconTimeoutMs, 1_500)
+    }
+
+    func testDropsACrashBeaconTimeoutOutOfRange() throws {
+        for value in ["499", "2001", "1000.5", "true", "\"1000\""] {
+            let body = #"{ "schema_version": 1, "version": 7, "enabled": true, "rum": { "sessionSampleRate": 30, "crashBeaconTimeoutMs": \#(value) } }"#
+                .data(using: .utf8)!
+
+            let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
+
+            XCTAssertNil(response.snapshot.crashBeaconTimeoutMs, "\(value) must be dropped")
+            XCTAssertEqual(response.snapshot.sessionSampleRate, 30, "and the rest of the response still applies")
+        }
+    }
+
+    func testTheKillSwitchClearsCrashBeaconKnobs() throws {
+        let body = #"""
+        { "schema_version": 1, "version": 7, "enabled": false, "rum": { "crashBeaconEnabled": false } }
+        """#.data(using: .utf8)!
+
+        let response = try RemoteSamplingResponse.parse(body: body, etag: .mockAny())
+
+        XCTAssertNil(response.snapshot.rates.crashBeaconEnabled, "Beacons fall back to what the app was initialised with")
+    }
+
     func testIgnoresUnknownKeys() throws {
         let body = #"""
         { "schema_version": 1, "version": 7, "enabled": true, "future-field": { "anything": 1 }, "rum": { "sessionSampleRate": 30, "futureKnob": 9 } }

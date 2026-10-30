@@ -741,3 +741,10 @@ extension DatadogCore: RemoteSamplingReader {
         return cachedRemoteSamplingController?.currentRates
     }
 }
+
+// FLASHCAT FORK - the crash beacon is sent on the uploads' HTTP client.
+extension DatadogCore: CrashBeaconRequestSender {
+    func sendFromCrashingProcess(request: URLRequest, completion: @escaping (Result<HTTPURLResponse, Error>) -> Void) {
+        httpClient.send(request: request, completion: completion)
+    }
+}

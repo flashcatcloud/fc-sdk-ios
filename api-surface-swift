@@ -562,7 +562,8 @@ public final class CrashReporting
         public var symbolicateInProcess: Bool
         public var handlesMachExceptions: Bool
         public var takesOverCrashHandlers: Bool
-        public init(symbolicateInProcess: Bool = true, handlesMachExceptions: Bool = false, takesOverCrashHandlers: Bool = false)
+        public var crashBeaconEnabled: Bool
+        public init(symbolicateInProcess: Bool = true,handlesMachExceptions: Bool = false,takesOverCrashHandlers: Bool = false,crashBeaconEnabled: Bool = true)
     public static func enable(with configuration: CrashReporting.Configuration = .init(),in core: DatadogCoreProtocol = CoreRegistry.default)
     public static func enable(with plugin: @autoclosure () throws -> CrashReportingPlugin, in core: DatadogCoreProtocol = CoreRegistry.default)
 public static func enable()

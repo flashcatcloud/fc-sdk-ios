@@ -240,6 +240,13 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
            let url = remoteSamplingConfigurationURL(customEndpoint: dependencies.customEndpoint, context: context) {
             dependencies.featureScope.set(context: { RemoteSamplingSource(configurationURL: url) })
         }
+
+        // FLASHCAT FORK - tell Crash Reporting where a crash beacon goes. Published whatever the
+        // remote configuration option, since the beacon is on by default without it.
+        if let url = crashBeaconURL(customEndpoint: dependencies.customEndpoint, context: context) {
+            let source = CrashBeaconSource(url: url, applicationID: dependencies.rumApplicationID)
+            dependencies.featureScope.set(context: { source })
+        }
     }
 
     /// Creates a new Session upon expiration of the previous one.

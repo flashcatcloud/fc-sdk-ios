@@ -31,6 +31,33 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(featureScope.eventsWritten(ofType: RUMErrorEvent.self).count, 1, "It should send error event")
     }
 
+    // MARK: - FLASHCAT FORK - crash beacon
+
+    func testGivenCrashContextWithCrashId_whenSending_itIsTheErrorId() throws {
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope)
+        var context: CrashContext = .mockWith(lastRUMViewEvent: .mockRandomWith(crashCount: 0))
+        context.crashId = "6f9619ff-8b86-d011-b42d-00c04fc964ff"
+        context.crashBeaconResult = CrashBeaconResult(status: .timeout, duration: 1_000)
+
+        XCTAssertTrue(receiver.receive(message: .payload(Crash(report: .mockWith(date: Date()), context: context)), from: NOPDatadogCore()))
+
+        let error = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        XCTAssertEqual(error.error.id, "6f9619ff-8b86-d011-b42d-00c04fc964ff", "The late report must carry the beacon's crash id")
+        XCTAssertEqual(error.error.beacon?.status, "timeout")
+        XCTAssertEqual(error.error.beacon?.duration, 1_000)
+    }
+
+    func testGivenCrashContextWithoutCrashId_whenSending_itDrawsARandomErrorIdAndNoBeacon() throws {
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope)
+        let context: CrashContext = .mockWith(lastRUMViewEvent: .mockRandomWith(crashCount: 0))
+
+        XCTAssertTrue(receiver.receive(message: .payload(Crash(report: .mockWith(date: Date()), context: context)), from: NOPDatadogCore()))
+
+        let error = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        XCTAssertNotNil(error.error.id.flatMap { UUID(uuidString: $0) })
+        XCTAssertNil(error.error.beacon)
+    }
+
     func testReceiveCrashAndViewEvent() throws {
         // Given
         let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope)

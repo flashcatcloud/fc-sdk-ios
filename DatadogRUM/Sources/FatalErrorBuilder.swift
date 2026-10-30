@@ -62,6 +62,9 @@ internal struct FatalErrorBuilder {
 
     var timeSinceAppStart: TimeInterval?
 
+    /// FLASHCAT FORK - what became of the crash beacon, for crashes that sent one.
+    var errorBeacon: RUMErrorEvent.Error.Beacon? = nil
+
     /// Creates RUM error linked to given view.
     func createRUMError(with lastRUMView: RUMViewEvent) -> RUMErrorEvent {
         let msSinceAppStart = timeSinceAppStart.map { max(0, $0.dd.toInt64Milliseconds) }
@@ -101,6 +104,7 @@ internal struct FatalErrorBuilder {
             device: lastRUMView.device,
             display: nil,
             error: .init(
+                beacon: errorBeacon,
                 binaryImages: errorBinaryImages,
                 category: {
                     switch error {
