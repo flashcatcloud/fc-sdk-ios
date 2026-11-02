@@ -509,6 +509,22 @@ class ActiveDeviceBeaconTests: XCTestCase {
         XCTAssertEqual(sender.requests.count, 2)
     }
 
+    func testAnIntakeWithoutTheEndpointKeepsTheBeaconForLater() throws {
+        publish(context())
+        respond(404)
+        runScheduledRetry()
+        respond(404)
+        runScheduledRetry()
+        respond(404)
+        XCTAssertNotNil(storedPending, "kept until the intake serves the endpoint")
+
+        publish(context(state: .background))
+        dateProvider.now.addTimeInterval(3_600)
+        publish(context(state: .active))
+        XCTAssertEqual(sender.requests.count, 4)
+        XCTAssertEqual(try sender.body(3)["age_ms"] as? Int, 3_600_000)
+    }
+
     func testAClientErrorIsNotRetriedOrKept() {
         publish(context())
         respond(400)
