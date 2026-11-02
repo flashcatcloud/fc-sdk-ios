@@ -20,7 +20,6 @@
   - It does not remove a known hang in KSCrash: its crash handler formats text with `snprintf`, which takes a libc lock, so a crash while another thread holds that lock can still make the app hang until the system ends it, and that crash is lost.
   - Do not enable it in an app that installs its own handler for crash signals after crash reporting is enabled and relies on it at runtime (for example a runtime that recovers from invalid memory accesses): that handler is no longer installed.
 - Recommended setup for the most complete crash reporting: call `CrashReporting.enable()` first, before any other crash reporter is started and before `RUM.enable()`.
-- `RUM.Configuration.trackActiveDevices` (default `true`, also `DDRUMConfiguration.trackActiveDevices`): the SDK sends one small request to `{intake}/api/v2/rum/active` when the app is in use, at most once per local day, device and user, so a session too short to upload its events (they are only sent on the next launch) still counts the device as active that day. Sent straight away, not with the event batches, only while the app is active in the foreground with tracking consent granted, and regardless of session sampling; it carries the app, OS and device fields with the anonymous and user ids. One that cannot be delivered is kept and sent later with its age, up to 72 hours after the app was used. Withdrawing consent or turning the option off deletes what was kept.
 
 ### Fixed
 
