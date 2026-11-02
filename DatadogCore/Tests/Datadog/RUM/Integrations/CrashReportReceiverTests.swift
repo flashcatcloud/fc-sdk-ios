@@ -2268,4 +2268,29 @@ class CrashReportReceiverTests: XCTestCase {
         }
         XCTAssertEqual(featureScope.eventsWritten.count, 0)
     }
+
+    // MARK: - Session renewal, stop and kept-on-error sessions
+
+    /// A session kept only in case it errors: a background crash after its view stopped goes to a Background view of that same session, flagged as kept on error.
+    func testKeptOnErrorSession_backgroundCrashAfterViewStopped_goesToBackgroundViewOfThatSession() throws {
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let sessionID: UUID = .mockRandom()
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            lastRUMViewEvent: .mockRandomWith(sessionID: sessionID, viewIsActive: false, crashCount: 0),
+            lastRUMSessionState: .mockWith(sessionUUID: sessionID, isInitialSession: false, hasTrackedAnyView: true, sampledForError: true),
+            lastIsAppInForeground: false
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+        _ = receiver.receive(message: .payload(Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)), from: NOPDatadogCore())
+        let views = featureScope.eventsWritten(ofType: RUMViewEvent.self)
+        let errors = featureScope.eventsWritten(ofType: RUMErrorEvent.self)
+        XCTAssertEqual(views.count, 1)
+        XCTAssertEqual(errors.count, 1)
+        XCTAssertEqual(views.first?.view.name, "Background")
+        XCTAssertEqual(views.first?.session.id, sessionID.uuidString.lowercased())
+        XCTAssertEqual(views.first?.session.sampledForError, true)
+        XCTAssertEqual(views.first?.dd.configuration?.sessionSampleRate, 0)
+    }
+
 }
