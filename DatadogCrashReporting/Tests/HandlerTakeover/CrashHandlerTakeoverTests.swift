@@ -1272,3 +1272,180 @@ extension CrashHandlerTakeoverTests {
         }
     }
 }
+
+// MARK: - Type names, reordered activation, second crashing thread
+
+private let faultSemaphore = DispatchSemaphore(value: 0)
+/// Stands in for the crash reporter when the code under test faults: records the fault and parks the faulting thread.
+private let faultHandler: @convention(c) (Int32, UnsafeMutablePointer<__siginfo>?, UnsafeMutableRawPointer?) -> Void = { _, _, _ in
+    faultSemaphore.signal()
+    while true { sleep(1_000) }
+}
+
+/// Runs a block on a thread of its own with SIGSEGV and SIGBUS caught: the thread is parked on a fault, so a fault
+/// fails a test instead of ending the test process. Returns `(completed, faulted)`.
+private func runCatchingFaults(timeout: TimeInterval = 5, _ body: @escaping () -> Void) -> (completed: Bool, faulted: Bool) {
+    var saved: [Int32: sigaction] = [:]
+    var handler = sigaction()
+    handler.__sigaction_u.__sa_sigaction = faultHandler
+    handler.sa_flags = SA_SIGINFO
+    for signal in [SIGSEGV, SIGBUS] {
+        var old = sigaction()
+        _ = realSigaction(signal, &handler, &old)
+        saved[signal] = old
+    }
+    defer {
+        for (signal, var old) in saved { _ = realSigaction(signal, &old, nil) }
+    }
+    while faultSemaphore.wait(timeout: .now()) == .success {}
+    let done = DispatchSemaphore(value: 0)
+    Thread { body(); done.signal() }.start()
+    let deadline = Date(timeIntervalSinceNow: timeout)
+    while Date() < deadline {
+        if done.wait(timeout: .now() + 0.01) == .success { return (true, false) }
+        if faultSemaphore.wait(timeout: .now()) == .success { return (false, true) }
+    }
+    return (false, false)
+}
+
+private final class EdgeException: NSException {}
+private typealias ObjCThrow = @convention(c) (AnyObject?) -> Void
+private let objcExceptionThrow = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "objc_exception_throw").map { unsafeBitCast($0, to: ObjCThrow.self) }
+
+extension CrashHandlerTakeoverTests {
+    // MARK: Type names
+
+    /// On arm64 the C++ runtime sets the high bit of the type name pointer of a type that may be defined in several images
+    /// (a class with vague linkage, e.g. an app's own exception class), and `std::type_info::name()` clears it.
+    func testShouldRecordReadsTheNameOfATypeWhoseNamePointerHasTheNonUniqueBitSet() throws {
+        #if arch(arm64)
+        let name = try XCTUnwrap(strdup("9PlainError"))
+        defer { free(name) }
+        let typeInfo = UnsafeMutablePointer<UInt>.allocate(capacity: 2)
+        defer { typeInfo.deallocate() }
+        typeInfo[0] = 0
+        typeInfo[1] = UInt(bitPattern: name) | (1 << 63)
+        var recorded: Bool?
+        let outcome = runCatchingFaults { recorded = ThrowSiteRecorder.shouldRecord(exceptionType: UnsafeRawPointer(typeInfo)) }
+        XCTAssertFalse(outcome.faulted, "reading the type name faults on the non-unique bit")
+        XCTAssertTrue(outcome.completed)
+        XCTAssertEqual(recorded, true)
+        #else
+        throw XCTSkip("arm64 only")
+        #endif
+    }
+
+    func testControl_shouldRecordReadsTheNameOfATypeWithAPlainNamePointer() {
+        var recorded: Bool?
+        let outcome = runCatchingFaults {
+            "9PlainError".withCString { name in
+                var typeInfo: (UnsafeRawPointer?, UnsafePointer<CChar>?) = (nil, name)
+                recorded = withUnsafeBytes(of: &typeInfo) { ThrowSiteRecorder.shouldRecord(exceptionType: $0.baseAddress!) }
+            }
+        }
+        XCTAssertTrue(outcome.completed)
+        XCTAssertEqual(recorded, true)
+    }
+
+    // MARK: Objective-C exceptions through terminate
+
+    func testAnUncaughtNSExceptionSubclassReachesTheCrashReporter() throws {
+        try withParkingTerminate {
+            XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+            let outcome = runCatchingFaults(timeout: 3) { EdgeException(name: .genericException, reason: "subclass", userInfo: nil).raise() }
+            XCTAssertFalse(outcome.faulted)
+            XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 2), .success)
+        }
+    }
+
+    func testAnUncaughtObjectiveCObjectThatIsNoNSExceptionReachesTheCrashReporter() throws {
+        let throwObject = try XCTUnwrap(objcExceptionThrow)
+        try withParkingTerminate {
+            XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+            let outcome = runCatchingFaults(timeout: 3) { throwObject("not an exception" as NSString) }
+            XCTAssertFalse(outcome.faulted)
+            XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 2), .success)
+        }
+    }
+
+    // MARK: Second crashing thread
+
+    func testWhenASecondCrashingThreadRestoresFirst_theCrashThreadIsStillRedirectedOnce() {
+        var own = action(ownHandler)
+        _ = realSigaction(SIGSYS, &own, nil)
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        _ = signal(SIGSYS, otherHandler) // recorded
+        let first = NamedThread(name: "crash A")
+        let second = NamedThread(name: "crash B")
+        defer { first.stop(); second.stop() }
+        first.run { self.raiseInstalledHandler(SIGSYS) } // the crash thread
+        second.run { self.raiseInstalledHandler(SIGSYS) } // a second crash
+        var saved = action(sh2)
+
+        second.run { _ = sigaction(SIGSYS, &saved, nil) } // the crash reporter's uninstall, on the second thread
+        XCTAssertEqual(installedHandler(SIGSYS), address(of: sh2), "not redirected: it is not the crash thread")
+        var savedByCrashReporter = action(sh1)
+        first.run { _ = sigaction(SIGSYS, &savedByCrashReporter, nil) }
+        XCTAssertEqual(installedHandler(SIGSYS), address(of: otherHandler), "the redirection was not used up by the second thread")
+    }
+
+    func testWhenTheCrashThreadAndAMachThreadRestore_onlyTheFirstIsRedirected() {
+        var own = action(ownHandler)
+        _ = realSigaction(SIGSYS, &own, nil)
+        let machThread = NamedThread(name: "KSCrash Exception Handler (Primary)")
+        let otherMachThread = NamedThread(name: "KSCrash Exception Handler (Secondary)")
+        defer { machThread.stop(); otherMachThread.stop() }
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile, threadsStartedByCrashReporter: [machThread.port, otherMachThread.port]))
+        _ = signal(SIGSYS, otherHandler)
+        usleep(100_000) // the threads are named and found in the background
+        var saved = action(sh2)
+        machThread.run { _ = sigaction(SIGSYS, &saved, nil) }
+        XCTAssertEqual(installedHandler(SIGSYS), address(of: otherHandler))
+        var again = action(sh1)
+        otherMachThread.run { _ = sigaction(SIGSYS, &again, nil) }
+        XCTAssertEqual(installedHandler(SIGSYS), address(of: sh1), "a second restore is applied as requested")
+    }
+
+    // MARK: Reordered activation
+
+    func testWhenTwoImagesWereRewrittenByTheSameLibrary_theWrapperSeesEachLetThroughCallOnce() throws {
+        // Given
+        let (testHeader, testSlide) = try testHeaderAndSlide()
+        let index = try XCTUnwrap((0..<_dyld_image_count()).first { String(cString: _dyld_get_image_name($0)).hasSuffix("/DatadogInternal.framework/DatadogInternal") })
+        let internalHeader = try XCTUnwrap(_dyld_get_image_header(index))
+        let wrapper = unsafeBitCast(SigactionWrapperMock.function, to: UnsafeRawPointer.self)
+        let rewriting = [SymbolRebinding(name: "_sigaction", replacement: wrapper)]
+        SymbolRebinder.rebind(rewriting, inImage: testHeader, slide: testSlide)
+        SymbolRebinder.rebind(rewriting, inImage: internalHeader, slide: _dyld_get_image_vmaddr_slide(index))
+        defer {
+            CrashHandlerTakeover.deactivate()
+            unhookSigaction(wrapper)
+        }
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        SigactionWrapperMock.calls = 0
+
+        // When (the callback replays every image, twice)
+        for _ in 0..<2 {
+            for imageIndex in 0..<_dyld_image_count() {
+                if let header = _dyld_get_image_header(imageIndex) { rebindAddedImage(header, _dyld_get_image_vmaddr_slide(imageIndex)) }
+            }
+        }
+        var foreign = action(foreignHandler)
+        _ = sigaction(SIGUSR1, &foreign, nil)
+
+        // Then
+        XCTAssertEqual(SigactionWrapperMock.calls, 1, "the wrapper is called once, not once per rewritten image or per replay")
+        XCTAssertEqual(installedHandler(SIGUSR1), address(of: foreignHandler))
+        _ = sigaction(ownedSignal, &foreign, nil)
+        XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler)
+    }
+
+    func testTheUncaughtExceptionHandlerPassesOnAnObjectThatIsNoNSException() {
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        NSSetUncaughtExceptionHandler(foreignExceptionHandler) // recorded
+        let handler = unsafeBitCast(CrashHandlerTakeover.exceptionHandler, to: (@convention(c) (AnyObject) -> Void).self)
+        handler("not an exception" as NSString)
+        XCTAssertEqual(ownExceptionHandlerCalls, 1)
+        XCTAssertEqual(foreignExceptionHandlerCalls, 1)
+    }
+}

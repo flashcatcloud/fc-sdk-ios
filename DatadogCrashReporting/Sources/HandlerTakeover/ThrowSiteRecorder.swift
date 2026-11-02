@@ -71,8 +71,10 @@ internal enum ThrowSiteRecorder {
     /// Objective-C exception, which the uncaught exception handler reports with its own stack. The check is the crash
     /// reporter's own (the type name), and it reads two pointers.
     static func shouldRecord(exceptionType: UnsafeRawPointer) -> Bool {
-        // `std::type_info` is a vtable pointer followed by a pointer to the type name.
-        guard let name = exceptionType.load(fromByteOffset: MemoryLayout<UnsafeRawPointer>.size, as: UnsafePointer<CChar>?.self) else {
+        // `std::type_info` is a vtable pointer followed by a pointer to the type name. On arm64, libc++ sets the top bit
+        // of that pointer for a type that may have several `type_info`s; `std::type_info::name()` clears it, as here.
+        let namePointer = exceptionType.load(fromByteOffset: MemoryLayout<UnsafeRawPointer>.size, as: UInt.self) & ~(UInt(1) << 63)
+        guard let name = UnsafePointer<CChar>(bitPattern: namePointer) else {
             return true
         }
         return strcmp(name, "NSException") != 0
