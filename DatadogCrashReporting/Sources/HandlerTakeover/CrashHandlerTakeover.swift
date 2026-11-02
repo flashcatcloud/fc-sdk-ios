@@ -95,9 +95,8 @@ internal enum CrashHandlerTakeover {
             [sigactionFunction, signalFunction, setExceptionHandler, getExceptionHandler, setTerminate, getTerminate].compactMap(imageBase)
         )
 
-        state.pointee.isHandlingCrash = 0
         // Globals are initialized on first access: not in a signal handler.
-        _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActionSlots, foreignActionClaims, foreignActionPublished, crashRestoreRedirected, crashThread, machThreadPorts)
+        _ = (signalTrampolineAddress, exceptionTrampoline, abortingTerminate, foreignActionSlots, foreignActionClaims, foreignActionPublished, crashRestoreRedirected, crashThread, machThreadPorts, foreignExceptionHandler, foreignTerminate)
         atomicExchange(crashThread, 0)
         machThreadsSearchLock.lock()
         machThreadsSearchGeneration += 1
@@ -137,16 +136,14 @@ internal enum CrashHandlerTakeover {
         } else {
             state.pointee.ownExceptionHandler = nil
         }
-        state.pointee.foreignExceptionHandler = nil
-        state.pointee.isForeignExceptionHandlerRecorded = 0
+        atomicExchange(foreignExceptionHandler, 0)
         state.pointee.exceptionHandlerBeforeCrashReporter = exceptionHandlerBeforeCrashReporter
 
         ThrowSiteRecorder.prepare(file: throwSiteFile)
         let terminate = unsafeBitCast(terminateHandler, to: UnsafeMutableRawPointer.self)
         state.pointee.crashReporterTerminate = unsafeBitCast(setTerminate, to: SetPointerFunction.self)(terminate)
         state.pointee.ownTerminate = terminate
-        state.pointee.foreignTerminate = nil
-        state.pointee.isForeignTerminateRecorded = 0
+        atomicExchange(foreignTerminate, 0)
 
         state.pointee.isActive = 1
 
@@ -190,7 +187,7 @@ internal enum CrashHandlerTakeover {
         if state.pointee.ownExceptionHandler != nil, originalGetExceptionHandler() == state.pointee.ownExceptionHandler {
             originalSetExceptionHandler(state.pointee.crashReporterExceptionHandler)
         }
-        state.pointee.isHandlingCrash = 0
+        atomicExchange(crashThread, 0)
         let originals: [SymbolRebinding] = [
             ("_sigaction", state.pointee.originalSigaction),
             ("_signal", state.pointee.originalSignal),
@@ -467,8 +464,6 @@ private typealias SignalActionFunction = @convention(c) (Int32, UnsafeMutablePoi
 /// Plain values only: it is read from signal handlers.
 private struct TakeoverState {
     var isActive: Int32 = 0
-    /// Set once a crash reaches the crash reporter's handlers; never reset while active.
-    var isHandlingCrash: Int32 = 0
     var ownedSignals: UInt32 = 0
     var originalSigaction: UnsafeMutableRawPointer?
     var originalSignal: UnsafeMutableRawPointer?
@@ -479,13 +474,9 @@ private struct TakeoverState {
     var currentExceptionType: UnsafeMutableRawPointer?
     var crashReporterExceptionHandler: UnsafeMutableRawPointer?
     var ownExceptionHandler: UnsafeMutableRawPointer?
-    var foreignExceptionHandler: UnsafeMutableRawPointer?
-    var isForeignExceptionHandlerRecorded: Int32 = 0
     var exceptionHandlerBeforeCrashReporter: UnsafeMutableRawPointer?
     var ownTerminate: UnsafeMutableRawPointer?
     var crashReporterTerminate: UnsafeMutableRawPointer?
-    var foreignTerminate: UnsafeMutableRawPointer?
-    var isForeignTerminateRecorded: Int32 = 0
 }
 
 private let signalCapacity = 32 // signals are numbered 1...31 on Darwin
@@ -710,25 +701,25 @@ private func isCrashReporterMachThread(_ thread: thread_t) -> Bool {
     return thread != 0 && ports != 0 && (UInt(thread) == ports & 0xFFFF_FFFF || UInt(thread) == ports >> 32)
 }
 
-/// The first thread that reached the crash reporter's handlers (0 until then), set atomically.
+/// The first thread that reached the crash reporter's handlers (0 until then, and never reset while active), set
+/// atomically: it also tells whether a crash is being handled.
 private let crashThread = atomicWords(count: 1)
 
 /// Marks that a crash is being handled, on the calling thread. Called by the handlers in front of the crash reporter's.
 private func noteCrash() {
-    state.pointee.isHandlingCrash = 1
     _ = atomicCompareExchange(crashThread, 0, UInt(currentThread()))
 }
 
 /// Whether a crash is being handled: it reached the crash reporter's handlers, or this is one of the threads on which
 /// the crash reporter handles Mach exceptions.
 private func isHandlingCrash() -> Bool {
-    state.pointee.isHandlingCrash != 0 || isCrashReporterMachThread(currentThread())
+    atomicLoad(crashThread) != 0 || isCrashReporterMachThread(currentThread())
 }
 
 /// Whether the calling thread is the one the crash reporter handles the crash on.
 private func isCrashHandlingThread() -> Bool {
     let thread = currentThread()
-    return isCrashReporterMachThread(thread) || (state.pointee.isHandlingCrash != 0 && UInt(thread) == atomicLoad(crashThread))
+    return isCrashReporterMachThread(thread) || UInt(thread) == atomicLoad(crashThread)
 }
 
 /// Whether the takeover applies to a call about this signal: it is active, owns the signal, its handler is still the
@@ -792,6 +783,26 @@ private let signalReplacement: SignalFunction = { signal, handler in
     return unsafeBitCast(previous.__sigaction_u, to: UnsafeMutableRawPointer?.self)
 }
 
+/// The uncaught exception handler and the terminate handler other libraries installed since the takeover, as recorded
+/// handlers: 0 when none was installed, `recordedNil` when `nil` was. The handler and whether one was recorded are a
+/// single atomic word, so a crash on another thread never sees one without the other.
+private let foreignExceptionHandler = atomicWords(count: 1)
+private let foreignTerminate = atomicWords(count: 1)
+private let recordedNil: UInt = 1 // not a valid function address
+
+private func recordHandler(_ handler: UnsafeMutableRawPointer?, in word: UnsafeMutablePointer<UnsafeRawPointer?>) {
+    atomicExchange(word, handler.map { UInt(bitPattern: $0) } ?? recordedNil)
+}
+
+/// The recorded handler: `.none` if none was recorded, `.some(nil)` if `nil` was.
+private func recordedHandler(in word: UnsafeMutablePointer<UnsafeRawPointer?>) -> UnsafeMutableRawPointer?? {
+    switch atomicLoad(word) {
+    case 0: return .none
+    case recordedNil: return .some(nil)
+    case let address: return .some(UnsafeMutableRawPointer(bitPattern: address))
+    }
+}
+
 private func isGuardingExceptionHandler() -> Bool {
     guard state.pointee.isActive != 0, !isHandlingCrash() else {
         return false
@@ -804,15 +815,14 @@ private let setExceptionHandlerReplacement: SetVoidFunction = { handler in
     guard isGuardingExceptionHandler() else {
         return originalSetExceptionHandler(handler)
     }
-    state.pointee.foreignExceptionHandler = handler
-    state.pointee.isForeignExceptionHandlerRecorded = 1
+    recordHandler(handler, in: foreignExceptionHandler)
 }
 
 private let getExceptionHandlerReplacement: GetPointerFunction = {
     guard isGuardingExceptionHandler() else {
         return originalGetExceptionHandler()
     }
-    return state.pointee.foreignExceptionHandler
+    return recordedHandler(in: foreignExceptionHandler) ?? nil
 }
 
 private func isGuardingTerminate() -> Bool {
@@ -827,9 +837,7 @@ private func isGuardingTerminate() -> Bool {
 private let abortingTerminate: TerminateFunction = { abort() }
 
 private func recordedTerminate() -> UnsafeMutableRawPointer? {
-    state.pointee.isForeignTerminateRecorded != 0
-        ? state.pointee.foreignTerminate
-        : unsafeBitCast(abortingTerminate, to: UnsafeMutableRawPointer.self)
+    recordedHandler(in: foreignTerminate) ?? unsafeBitCast(abortingTerminate, to: UnsafeMutableRawPointer.self)
 }
 
 private let setTerminateReplacement: SetPointerFunction = { handler in
@@ -837,8 +845,7 @@ private let setTerminateReplacement: SetPointerFunction = { handler in
         return originalSetTerminate(handler)
     }
     let previous = recordedTerminate()
-    state.pointee.foreignTerminate = handler
-    state.pointee.isForeignTerminateRecorded = 1
+    recordHandler(handler, in: foreignTerminate)
     return previous
 }
 
@@ -874,8 +881,7 @@ private let exceptionTrampoline: ExceptionHandlerFunction = { exception in
         unsafeBitCast(handler, to: ExceptionHandlerFunction.self)(exception)
     }
     // The handler another library installed since the crash reporter, which it expects to be called.
-    if state.pointee.isForeignExceptionHandlerRecorded != 0,
-       let foreign = state.pointee.foreignExceptionHandler,
+    if let foreign = recordedHandler(in: foreignExceptionHandler) ?? nil,
        foreign != state.pointee.exceptionHandlerBeforeCrashReporter,
        foreign != state.pointee.crashReporterExceptionHandler,
        foreign != state.pointee.ownExceptionHandler {
@@ -893,8 +899,10 @@ private let terminateHandler: TerminateFunction = {
         abort()
     }
     noteCrash()
-    // The exception was not caught, so the stack has not been unwound: the throw site is still on it.
-    if ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType) {
+    // The exception was not caught, so the stack has not been unwound: the throw site is still on it. Only the thread the
+    // crash is reported for records it: the recorder has a single buffer, and another thread terminating at the same time
+    // would mix its stack into the record.
+    if isCrashHandlingThread(), ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType) {
         ThrowSiteRecorder.record()
     }
     if let crashReporterTerminate = state.pointee.crashReporterTerminate {

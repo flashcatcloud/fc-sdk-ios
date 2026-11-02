@@ -707,6 +707,26 @@ class CrashHandlerTakeoverTests: XCTestCase {
         XCTAssertEqual(foreignExceptionHandlerCalls, 0)
     }
 
+    func testWhenActive_settingTheUncaughtExceptionHandlerToNilIsRecordedAsNil() {
+        // Given
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        NSSetUncaughtExceptionHandler(foreignExceptionHandler)
+
+        // When (its library removes it)
+        NSSetUncaughtExceptionHandler(nil)
+
+        // Then
+        XCTAssertEqual(realGetExceptionHandler(), CrashHandlerTakeover.exceptionHandler)
+        XCTAssertNil(NSGetUncaughtExceptionHandler())
+
+        // When an exception is not caught
+        unsafeBitCast(CrashHandlerTakeover.exceptionHandler, to: CExceptionHandler.self)(NSException(name: .genericException, reason: nil))
+
+        // Then
+        XCTAssertEqual(ownExceptionHandlerCalls, 1)
+        XCTAssertEqual(foreignExceptionHandlerCalls, 0, "The removed handler is not called")
+    }
+
     // MARK: - Terminate Handler
 
     func testWhenActive_itInstallsItsTerminateHandlerAndKeepsIt() throws {
@@ -728,6 +748,31 @@ class CrashHandlerTakeoverTests: XCTestCase {
 
         CrashHandlerTakeover.deactivate()
         XCTAssertEqual(realGetTerminate(), previousTerminate, "Deactivating restores the previous terminate handler")
+    }
+
+    func testWhenActive_aTerminateHandlerSetToNilIsToldApartFromNoneRecorded() throws {
+        // Given
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let setReplacement = try XCTUnwrap(CrashHandlerTakeover.rebindings.first { $0.name == "__ZSt13set_terminatePFvvE" })
+        let getReplacement = try XCTUnwrap(CrashHandlerTakeover.rebindings.first { $0.name == "__ZSt13get_terminatev" })
+        let setTerminate = unsafeBitCast(setReplacement.replacement, to: PointerSetter.self)
+        let getTerminate = unsafeBitCast(getReplacement.replacement, to: PointerGetter.self)
+        let foreign = unsafeBitCast(foreignTerminate, to: UnsafeMutableRawPointer.self)
+
+        // Then (none recorded: callers see a handler that aborts, as the default one)
+        let none = getTerminate()
+        XCTAssertNotNil(none)
+
+        // When
+        let beforeForeign = setTerminate(foreign)
+        let beforeNil = setTerminate(nil)
+
+        // Then
+        XCTAssertEqual(beforeForeign, none)
+        XCTAssertEqual(beforeNil, foreign)
+        XCTAssertNil(getTerminate(), "A recorded `nil` is not mistaken for none recorded")
+        XCTAssertNil(setTerminate(foreign), "Setting returns the recorded `nil`")
+        CrashHandlerTakeover.deactivate()
     }
 
     // MARK: - Symbol Rebinder
