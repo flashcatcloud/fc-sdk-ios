@@ -361,6 +361,212 @@ class KSCrashPluginTests: XCTestCase {
     }
 }
 
+// MARK: - Lifecycle edge cases
+
+extension KSCrashPluginTests {
+    private var writeAttemptsFile: URL { reportsDirectory.appendingPathComponent("write-attempts") }
+    private var unreadLaunchesFile: URL { reportsDirectory.appendingPathComponent("unread-launches") }
+
+    func testMixedOutcomes_attemptsPersistedAndUnreadLaunchesReset() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "unwritable"}"#)
+        try writeReport(id: 2, contents: #"{"message": "done"}"#)
+        try writeReport(id: 3, contents: #"{"message": "kept"}"#)
+        _ = try createPlugin().0.unreadLaunches
+        _ = try createPlugin().0.unreadLaunches
+
+        // When
+        let (plugin, store) = try createPlugin()
+        plugin.readPendingCrashReports {
+            switch $0.message {
+            case "unwritable": return .writeFailed
+            case "done": return .processed
+            default: return .kept
+            }
+        }
+
+        // Then
+        XCTAssertEqual(store.reportIDs, [1, 3])
+        XCTAssertEqual(try String(contentsOf: writeAttemptsFile, encoding: .utf8), "1 1")
+        XCTAssertEqual(try createPlugin().0.unreadLaunches, 0, "A processed report resets the unread launches")
+    }
+
+    func testWriteAttemptsOfReportsThatAreGoneAreForgotten() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        try writeReport(id: 2, contents: #"{"message": "b"}"#)
+        try createPlugin().0.readPendingCrashReports { _ in .writeFailed }
+        XCTAssertEqual(try String(contentsOf: writeAttemptsFile, encoding: .utf8), "1 1\n2 1")
+
+        // When (KSCrash dropped report 1 to make room, a new one arrived)
+        try FileManager.default.removeItem(at: reportsDirectory.appendingPathComponent(String(format: "%@-report-%016llx.json", appName, 1)))
+        try writeReport(id: 3, contents: #"{"message": "c"}"#)
+        try createPlugin().0.readPendingCrashReports { _ in .writeFailed }
+
+        // Then
+        XCTAssertEqual(try String(contentsOf: writeAttemptsFile, encoding: .utf8), "2 2\n3 1")
+    }
+
+    func testAReportThatBecomesUnloadableIsPurgedAndItsAttemptsForgotten() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        try createPlugin().0.readPendingCrashReports { _ in .writeFailed }
+        try writeReport(id: 1, contents: "garbage")
+
+        // When
+        let (plugin, store) = try createPlugin()
+        plugin.readPendingCrashReports { _ in .writeFailed }
+
+        // Then
+        XCTAssertEqual(store.reportIDs, [])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: writeAttemptsFile.path))
+    }
+
+    func testUnreadLaunchesFileWithGarbage_countsFromZero() throws {
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        for garbage in ["", "abc", "-3", "1.5", " 2", "2\n"] {
+            try garbage.write(to: unreadLaunchesFile, atomically: true, encoding: .utf8)
+            let (plugin, _) = try createPlugin()
+            // Negative values must not be able to postpone the early read forever; others restart from 0
+            XCTAssertLessThanOrEqual(plugin.unreadLaunches, 2, "garbage: \(garbage)")
+            XCTAssertGreaterThanOrEqual(plugin.unreadLaunches, 0, "garbage: \(garbage)")
+        }
+    }
+
+    func testUnreadLaunchesFileWithNegativeValue_isNotTrustedAsACount() throws {
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        try "-5".write(to: unreadLaunchesFile, atomically: true, encoding: .utf8)
+        XCTAssertGreaterThanOrEqual(try createPlugin().0.unreadLaunches, 0)
+    }
+
+    func testUnreadLaunchesFileWithHugeValue_doesNotTrap() throws {
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        try String(Int.max).write(to: unreadLaunchesFile, atomically: true, encoding: .utf8)
+        _ = try createPlugin().0.unreadLaunches
+    }
+
+    func testWriteAttemptsFileWithNegativeOrHugeCounts_stillConverges() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        try "1 -1000".write(to: writeAttemptsFile, atomically: true, encoding: .utf8)
+
+        // When (three reads that cannot write)
+        var ids: [[NSNumber]] = []
+        for _ in 0..<3 {
+            let (plugin, store) = try createPlugin()
+            plugin.readPendingCrashReports { _ in .writeFailed }
+            ids.append(store.reportIDs)
+        }
+
+        // Then
+        XCTAssertEqual(ids.last, [], "A corrupt counter must not keep a report forever")
+    }
+
+    func testKnownReportIDsFileThatIsNotUTF8_isTreatedAsEmptyOnce() throws {
+        // Given
+        try writeReport(id: 1, contents: #"{"message": "kept"}"#)
+        try Data([0xFF, 0xFE, 0xFD]).write(to: knownReportIDsFile)
+
+        // When
+        let first = try createPlugin().0.crashedLastLaunch
+        let second = try createPlugin().0.crashedLastLaunch
+
+        // Then
+        XCTAssertTrue(first)
+        XCTAssertFalse(second, "The corrupt file is rewritten")
+    }
+
+    func testCrashLoopSequence_readsEarlyOnlyAfterTwoUnreadLaunchesAndNeverLosesReports() throws {
+        // Given a crash loop: each launch finds the reports of the previous ones and adds its own
+        var earlyReads = 0
+        var nextID: Int64 = 1
+        var delivered: [String] = []
+        for launch in 0..<9 {
+            try writeReport(id: nextID, contents: "{\"message\": \"crash-\(nextID)\"}")
+            nextID += 1
+            let (plugin, store) = try createPlugin()
+            _ = plugin.crashedLastLaunch
+            if plugin.unreadLaunches >= 2 {
+                earlyReads += 1
+                plugin.readPendingCrashReports { delivered.append($0.message); return .processed }
+            }
+            XCTAssertLessThanOrEqual(store.reportIDs.count, 3, "launch \(launch)")
+        }
+        // Then
+        XCTAssertGreaterThan(earlyReads, 0)
+        XCTAssertEqual(delivered.count + (try createPlugin().0.crashedLastLaunch ? 0 : 0), delivered.count)
+        let remaining = try createPlugin().1.reportIDs.count
+        XCTAssertEqual(delivered.count + remaining, 9, "every crash is either delivered or still pending")
+    }
+
+    func testAProcessedReportInAnEarlyReadDoesNotMakeTheLoopStarveReads() throws {
+        // Given three launches ended before the delay with a pending report
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        _ = try createPlugin().0.unreadLaunches
+        _ = try createPlugin().0.unreadLaunches
+        let (early, _) = try createPlugin()
+        XCTAssertEqual(early.unreadLaunches, 2)
+
+        // When the early read processes the report and the process crashes right after
+        early.readPendingCrashReports { _ in .processed }
+        try writeReport(id: 2, contents: #"{"message": "b"}"#)
+
+        // Then the next launches start counting again from this report
+        let counts = try (0..<3).map { _ in try createPlugin().0.unreadLaunches }
+        XCTAssertEqual(counts, [0, 1, 2])
+    }
+
+    func testResetUnreadLaunchesBeforeAnyAccess_doesNotUndoTheReset() throws {
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        _ = try createPlugin().0.unreadLaunches
+        _ = try createPlugin().0.unreadLaunches
+        let (plugin, _) = try createPlugin()
+        plugin.resetUnreadLaunches()
+        XCTAssertEqual(try String(contentsOf: unreadLaunchesFile, encoding: .utf8), "0")
+        XCTAssertEqual(plugin.unreadLaunches, 2, "the value read at launch is unchanged")
+        XCTAssertEqual(try String(contentsOf: unreadLaunchesFile, encoding: .utf8), "0")
+    }
+
+    func testReadingTwiceInOneLaunch_countsTwoReadsTowardsTheWriteFailureLimit() throws {
+        // Given a report whose error cannot be written now
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        let (plugin, store) = try createPlugin()
+
+        // When it is read at launch (early read), after the delay, and at a consent change
+        plugin.readPendingCrashReports { _ in .writeFailed }
+        plugin.readPendingCrashReports { _ in .writeFailed }
+        plugin.readPendingCrashReports { _ in .writeFailed }
+
+        // Then (documented: "kept for 3 reads at most")
+        XCTAssertEqual(store.reportIDs, [])
+    }
+
+    func testAReportProcessedByTheFirstReadIsNotProcessedAgainByTheSecond() throws {
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        let (plugin, _) = try createPlugin()
+        var count = 0
+        plugin.readPendingCrashReports { _ in count += 1; return .processed }
+        plugin.readPendingCrashReports { _ in count += 1; return .processed }
+        XCTAssertEqual(count, 1)
+    }
+
+    func testUpgradeFrom080_noStateFiles_pendingReportFromTheOldProcessCountsAsCrash() throws {
+        try writeReport(id: 7, contents: #"{"message": "a"}"#)
+        let (plugin, _) = try createPlugin()
+        XCTAssertTrue(plugin.crashedLastLaunch)
+        XCTAssertEqual(plugin.unreadLaunches, 0)
+    }
+
+    func testControl_enabledOnce_theLaunchReportSaysThePreviousLaunchCrashed() throws {
+        try writeReport(id: 1, contents: #"{"message": "crash"}"#)
+        let sender = CrashReportSenderMock()
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: try createPlugin().0, processingDelay: 60)
+        feature.start()
+        feature.flush()
+        XCTAssertEqual(sender.sentLaunchReports.map { $0.didCrash }, [true])
+    }
+}
+
 /// Converts a report into `DDCrashReport` carrying the report's `message` field, and fails for a report without one.
 private final class MessageFieldFilter: NSObject, CrashReportFilter {
     func filterReports(_ reports: [CrashReport], onCompletion: (([CrashReport]?, Error?) -> Void)?) {

@@ -105,7 +105,7 @@ public final class CrashReporting {
             // To ensure the correct registration order between Core and Features,
             // the entire initialization flow is synchronized on the main thread.
             try runOnMainThreadSync {
-                try enableOrThrow(with: plugin(), in: core)
+                try enableOrThrow(with: try plugin(), in: core)
             }
         } catch let error {
             consolePrint("\(error)", .error)
@@ -113,7 +113,7 @@ public final class CrashReporting {
     }
 
     internal static func enableOrThrow(
-        with plugin: CrashReportingPlugin,
+        with makePlugin: @autoclosure () throws -> CrashReportingPlugin,
         in core: DatadogCoreProtocol,
         processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay
     ) throws {
@@ -122,6 +122,12 @@ public final class CrashReporting {
                 description: "Datadog SDK must be initialized before calling `CrashReporting.enable()`."
             )
         }
+        // FLASHCAT FORK - registering a second Feature would replace the first one, and a second plugin over the same
+        // reports would answer `crashedLastLaunch` and count unread launches again: checked before the plugin is made.
+        guard core.get(feature: CrashReportingFeature.self) == nil else {
+            throw ProgrammerError(description: "Crash reporting is already enabled.")
+        }
+        let plugin = try makePlugin()
 
         let contextProvider = CrashContextCoreProvider()
 
@@ -136,9 +142,8 @@ public final class CrashReporting {
 
         // The crash context otherwise reaches the crash reporter through several asynchronous hops after the
         // Feature is registered, which can take seconds at launch: a crash in between was recorded without it and
-        // then dropped. Write the first one now, before registering, so later updates always replace it. Skipped
-        // when crash reporting is already enabled: this call fails to register and must not replace the live context.
-        if core.get(feature: CrashReportingFeature.self) == nil, let context = core.currentContext() {
+        // then dropped. Write the first one now, before registering, so later updates always replace it.
+        if let context = core.currentContext() {
             reporter.inject(initialCrashContext: CrashContext(context, lastLogAttributes: nil))
         }
 

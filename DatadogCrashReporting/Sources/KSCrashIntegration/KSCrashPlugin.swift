@@ -64,7 +64,8 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
     /// (`process` returns `.processed`): an early read that processes none, e.g. as no feature receives crashes yet, does
     /// not count.
     private(set) lazy var unreadLaunches: Int = {
-        let unreadLaunches = (try? String(contentsOf: unreadLaunchesFile, encoding: .utf8)).flatMap { Int($0) } ?? 0
+        // Bounded: a damaged file must neither trap on the increment nor hold the early read back.
+        let unreadLaunches = (try? String(contentsOf: unreadLaunchesFile, encoding: .utf8)).flatMap { Int($0) }.map { min(max($0, 0), 1_000) } ?? 0
         recordUnreadLaunches(store.reportIDs.isEmpty ? 0 : unreadLaunches + 1)
         return unreadLaunches
     }()
@@ -237,8 +238,8 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         var attempts: [Int64: Int] = [:]
         for line in contents.split(separator: "\n") {
             let fields = line.split(separator: " ")
-            if fields.count == 2, let id = Int64(fields[0]), let count = Int(fields[1]) {
-                attempts[id] = count
+            if fields.count == 2, let id = Int64(fields[0]), let count = Int(fields[1]), count >= 0 {
+                attempts[id] = min(count, Self.maxWriteAttempts)
             }
         }
         return attempts

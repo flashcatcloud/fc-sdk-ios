@@ -600,3 +600,203 @@ class CrashReportingFeatureTests: XCTestCase {
         XCTAssertTrue(telemetry.messages.firstError()?.message.contains("Failed to decode crash report context") == true)
     }
 }
+
+// MARK: - Lifecycle edge cases
+
+extension CrashReportingFeatureTests {
+    private func report(_ message: String, consent: TrackingConsent?) -> DDCrashReport {
+        .mockWith(message: message, context: consent.map { CrashContext.mockWith(trackingConsent: $0).data })
+    }
+
+    func testMixedReportsUnderPendingConsent_thenGranted_areSentOldestFirstAndEverythingResolvedIsDeleted() throws {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [
+            report("p1", consent: .pending),
+            report("g1", consent: .granted),
+            report("n1", consent: .notGranted),
+            report("m1", consent: nil), // missing context
+            report("p2", consent: .pending)
+        ]
+        let sender = CrashReportSenderMock()
+        let provider = CrashContextProviderMock(initialCrashContext: .mockWith(trackingConsent: .pending))
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, crashContextProvider: provider)
+        feature.start()
+        feature.flush()
+
+        // Then (while pending)
+        XCTAssertEqual(sender.sentCrashReports.map { $0.report.message }, ["g1"])
+        XCTAssertEqual(plugin.pendingCrashReports.map { $0.message }, ["p1", "m1", "p2"])
+
+        // When
+        provider.onCrashContextChange(.mockWith(trackingConsent: .granted))
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(sender.sentCrashReports.map { $0.report.message }, ["g1", "p1", "m1", "p2"])
+        XCTAssertTrue(plugin.pendingCrashReports.isEmpty)
+    }
+
+    func testFallbackContextCarriesNothingOfTheCurrentProcess() throws {
+        // Given
+        let current: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            userInfo: UserInfo(id: "USER-ID-SECRET", name: "USER-NAME-SECRET", email: "user-secret@example.com", extraInfo: ["k": "EXTRA-SECRET"]),
+            accountInfo: AccountInfo(id: "ACCOUNT-ID-SECRET", name: "ACCOUNT-NAME-SECRET", extraInfo: ["a": "ACCOUNT-EXTRA-SECRET"]),
+            lastRUMViewEvent: .mockRandom(),
+            lastRUMSessionState: .mockRandom(),
+            lastRUMAttributes: RUMEventAttributes(contextInfo: ["rum-attr": "RUM-ATTR-SECRET"]),
+            lastLogAttributes: LogEventAttributes(attributes: ["log-attr": "LOG-ATTR-SECRET"])
+        )
+        let sessionID = current.lastRUMSessionState!.sessionUUID.uuidString
+        let viewID = current.lastRUMViewEvent!.view.id
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [report("m", consent: nil), .mockWith(message: "bad", context: Data("{".utf8))]
+        let sender = CrashReportSenderMock()
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, crashContextProvider: CrashContextProviderMock(initialCrashContext: current))
+
+        // When
+        feature.start()
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(sender.sentCrashReports.count, 2)
+        for sent in sender.sentCrashReports {
+            let json = String(decoding: try CrashReportingFeature.crashContextEncoder.encode(sent.context), as: UTF8.self)
+            for secret in ["USER-ID-SECRET", "USER-NAME-SECRET", "user-secret@example.com", "EXTRA-SECRET", "ACCOUNT-ID-SECRET", "ACCOUNT-NAME-SECRET", "RUM-ATTR-SECRET", "LOG-ATTR-SECRET", sessionID, viewID] {
+                XCTAssertFalse(json.contains(secret), "\(secret) leaked into the fallback context")
+            }
+            XCTAssertNil(sent.context.lastLogAttributes)
+        }
+    }
+
+    func testFallbackContext_isDeletedWithoutSendingWhenCurrentConsentIsDeclined() {
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [report("m", consent: nil)]
+        let sender = CrashReportSenderMock()
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, crashContextProvider: CrashContextProviderMock(initialCrashContext: .mockWith(trackingConsent: .notGranted)))
+        feature.start()
+        feature.flush()
+        XCTAssertTrue(sender.sentCrashReports.isEmpty)
+        XCTAssertTrue(plugin.pendingCrashReports.isEmpty)
+    }
+
+    func testEarlyReadBeforeAnyContext_keepsPendingAndUnknownReportsThenSendsThemAtTheDelay() {
+        // Given (the core context has not reached the provider when the early read happens)
+        let plugin = CrashReportingPluginMock()
+        plugin.unreadLaunches = 2
+        plugin.pendingCrashReports = [report("g", consent: .granted), report("p", consent: .pending)]
+        let sender = CrashReportSenderMock()
+        let provider = CrashContextProviderMock(initialCrashContext: nil)
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, crashContextProvider: provider, processingDelay: 0.5)
+
+        // When
+        feature.start()
+        feature.flush()
+        XCTAssertEqual(sender.sentCrashReports.map { $0.report.message }, ["g"], "only the report that needs no consent decision")
+        provider.onCrashContextChange(.mockWith(trackingConsent: .granted))
+        feature.flush()
+        XCTAssertEqual(plugin.readCount, 1, "no early second read before the delay")
+
+        // Then
+        let deadline = Date().addingTimeInterval(5)
+        while plugin.readCount < 2 && Date() < deadline { Thread.sleep(forTimeInterval: 0.05) }
+        feature.flush()
+        XCTAssertEqual(sender.sentCrashReports.map { $0.report.message }, ["g", "p"])
+        XCTAssertTrue(plugin.pendingCrashReports.isEmpty)
+    }
+
+    func testConsentFlappingAfterTheDelay_neverSendsAReportTwice() {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [report("p", consent: .pending)]
+        let sender = CrashReportSenderMock()
+        let provider = CrashContextProviderMock(initialCrashContext: .mockWith(trackingConsent: .pending))
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, crashContextProvider: provider)
+        feature.start()
+        feature.flush()
+
+        // When
+        for consent: TrackingConsent in [.granted, .pending, .granted, .notGranted, .granted, .granted, .pending] {
+            provider.onCrashContextChange(.mockWith(trackingConsent: consent))
+        }
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+    }
+
+    func testAReportThatCouldNotBeWritten_isRetriedOnlyWhenConsentIsResolvedAgain() {
+        // Given
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [report("g", consent: .granted)]
+        let sender = CrashReportSenderMock()
+        sender.crashReportOutcome = .writeFailed
+        let provider = CrashContextProviderMock(initialCrashContext: .mockWith(trackingConsent: .pending))
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, crashContextProvider: provider)
+        feature.start()
+        feature.flush()
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+
+        // When
+        provider.onCrashContextChange(.mockWith(trackingConsent: .pending))
+        feature.flush()
+
+        // Then
+        XCTAssertEqual(sender.sentCrashReports.count, 1)
+    }
+
+    func testAFailingReadDoesNotPreventTheNextOneAndTheDelayedReadHappensOnce() {
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [report("g", consent: .granted)]
+        let sender = CrashReportSenderMock()
+        sender.crashReportOutcome = .kept
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, processingDelay: 0.1)
+        feature.start()
+        Thread.sleep(forTimeInterval: 0.6)
+        feature.flush()
+        XCTAssertEqual(plugin.readCount, 1)
+    }
+
+    func testContextWithEmptyJSONObject_andTruncatedJSON_andWrongTypes_areAllHandledAsMalformed() throws {
+        let datas: [Data] = [Data("{}".utf8), Data("[]".utf8), Data("null".utf8), Data("{\"trackingConsent\": 42}".utf8), Data(), Data([0xFF, 0x00])]
+        for data in datas {
+            let plugin = CrashReportingPluginMock()
+            plugin.pendingCrashReports = [.mockWith(message: "x", context: data)]
+            let sender = CrashReportSenderMock()
+            let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, crashContextProvider: CrashContextProviderMock(initialCrashContext: .mockWith(trackingConsent: .granted)))
+            feature.start()
+            feature.flush()
+            XCTAssertEqual(sender.sentCrashReports.count, 1, "context \(String(decoding: data, as: UTF8.self))")
+            XCTAssertEqual(sender.sentCrashContext?.trackingConsent, .pending)
+        }
+    }
+
+    func testAContextRecordedWithoutNewFields_isStillDecoded() throws {
+        // A context written by an older SDK (no lastLogAttributes, appLaunchDate, accountInfo, ...) must keep its identity.
+        var json = try JSONSerialization.jsonObject(with: CrashContext.mockWith(service: "old-service", trackingConsent: .granted).data) as! [String: Any] // swiftlint:disable:this force_cast
+        for key in ["lastLogAttributes", "appLaunchDate", "accountInfo", "lastRUMAttributes", "carrierInfo", "lastRUMSessionState", "lastRUMViewEvent"] { json[key] = nil }
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [.mockWith(message: "x", context: try JSONSerialization.data(withJSONObject: json))]
+        let sender = CrashReportSenderMock()
+        let feature = CrashReportingFeature.mockWith(integration: sender, crashReportingPlugin: plugin, crashContextProvider: CrashContextProviderMock(initialCrashContext: .mockWith(service: "current", trackingConsent: .granted)))
+        feature.start()
+        feature.flush()
+        XCTAssertEqual(sender.sentCrashContext?.service, "old-service")
+        XCTAssertEqual(sender.sentCrashContext?.trackingConsent, .granted)
+    }
+
+}
+
+private final class LateReceiver: FeatureMessageReceiver {
+    let delay: TimeInterval
+    @ReadWriteLock
+    var received = 0
+    init(delay: TimeInterval) { self.delay = delay }
+    func receive(message: FeatureMessage, from core: DatadogCoreProtocol) -> Bool {
+        guard case let .payload(crash as Crash) = message else { return false }
+        received += 1
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { crash.completion(.processed) }
+        return true
+    }
+}

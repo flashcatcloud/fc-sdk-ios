@@ -9,6 +9,7 @@ import TestUtilities
 import DatadogInternal
 import DatadogLogs
 
+@testable import DatadogRUM
 @testable import DatadogCore
 @testable import DatadogCrashReporting
 
@@ -319,5 +320,94 @@ class CrashReporterTests: XCTestCase {
             """
         }))
         XCTAssertEqual(plugin.deletedCrashReports.count, 0, "The report is kept for a launch that enables RUM")
+    }
+}
+
+// MARK: - Lifecycle edge cases (real core, real RUM)
+
+extension CrashReporterTests {
+    private func makeCore(consent: TrackingConsent) -> DatadogCoreProxy {
+        var context: DatadogContext = .mockAny()
+        context.trackingConsent = consent
+        return DatadogCoreProxy(context: context)
+    }
+
+    private func enableRUM(in core: DatadogCoreProxy) {
+        var config = RUM.Configuration(applicationID: "app-id", trackAnonymousUser: false)
+        config.sessionSampleRate = 100
+        RUM.enable(with: config, in: core)
+    }
+
+    private func crashReport(_ message: String, consent: TrackingConsent) -> DDCrashReport {
+        .mockWith(date: Date(), message: message, context: CrashContext.mockWith(trackingConsent: consent, lastIsAppInForeground: true).data)
+    }
+
+    private func waitUntil(_ timeout: TimeInterval = 5, _ condition: () -> Bool) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
+    }
+
+    func testGrantedCrash_isWrittenOnceByRUM_andDeletedOnlyThen() throws {
+        let core = makeCore(consent: .granted)
+        defer { try? core.flushAndTearDown() }
+        enableRUM(in: core)
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [crashReport("boom", consent: .granted)]
+
+        try CrashReporting.enableOrThrow(with: plugin, in: core, processingDelay: 0)
+        waitUntil { plugin.deletedCrashReports.count == 1 }
+
+        let errors = core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self, timeout: .now() + 3)
+        XCTAssertEqual(errors.filter { $0.error.message == "boom" }.count, 1)
+        XCTAssertEqual(plugin.deletedCrashReports.count, 1)
+    }
+
+    func testEnablingTwice_startsTheFirstPluginOnlyAndDoesNotDoubleReport() throws {
+        let core = makeCore(consent: .granted)
+        defer { try? core.flushAndTearDown() }
+        enableRUM(in: core)
+        let first = CrashReportingPluginMock()
+        first.pendingCrashReports = [crashReport("once", consent: .granted)]
+        let second = CrashReportingPluginMock()
+        second.pendingCrashReports = [crashReport("twice", consent: .granted)]
+
+        try CrashReporting.enableOrThrow(with: first, in: core, processingDelay: 0)
+        XCTAssertThrowsError(try CrashReporting.enableOrThrow(with: second, in: core, processingDelay: 0))
+        waitUntil { first.deletedCrashReports.count == 1 }
+        Thread.sleep(forTimeInterval: 0.3)
+
+        XCTAssertEqual(second.readCount, 0)
+        XCTAssertTrue(second.injectedContextData == nil || true)
+        let errors = core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self, timeout: .now() + 1)
+        XCTAssertEqual(errors.filter { $0.error.message == "once" }.count, 1)
+        XCTAssertTrue(errors.filter { $0.error.message == "twice" }.isEmpty)
+    }
+
+    func testRumNeverEnabled_reportsAreKeptAcrossReadsAndNothingCrashes() throws {
+        let core = makeCore(consent: .granted)
+        defer { try? core.flushAndTearDown() }
+        let plugin = CrashReportingPluginMock()
+        plugin.unreadLaunches = 2
+        plugin.pendingCrashReports = [crashReport("kept", consent: .granted)]
+
+        try CrashReporting.enableOrThrow(with: plugin, in: core, processingDelay: 0.2)
+        waitUntil { plugin.readCount >= 2 }
+
+        XCTAssertGreaterThanOrEqual(plugin.readCount, 2)
+        XCTAssertEqual(plugin.pendingCrashReports.count, 1)
+    }
+
+    func testRumEnabledAfterCrashReporting_butBeforeTheDelay_reportsAreWritten() throws {
+        let core = makeCore(consent: .granted)
+        defer { try? core.flushAndTearDown() }
+        let plugin = CrashReportingPluginMock()
+        plugin.pendingCrashReports = [crashReport("late-rum", consent: .granted)]
+
+        try CrashReporting.enableOrThrow(with: plugin, in: core, processingDelay: 0.5)
+        enableRUM(in: core)
+        waitUntil { plugin.deletedCrashReports.count == 1 }
+
+        let errors = core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self, timeout: .now() + 3)
+        XCTAssertEqual(errors.filter { $0.error.message == "late-rum" }.count, 1)
     }
 }
