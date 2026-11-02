@@ -706,8 +706,12 @@ extension RUMViewScope {
                 completion: completionHandler
             )
 
-            // Update fatal error context with recent RUM view:
-            dependencies.fatalErrorContext.view = event
+            // Update fatal error context with recent RUM view. FLASHCAT FORK - only while the session is active: a
+            // view of a stopped session that still completes (e.g. a pending resource) must not bring back the view
+            // its stop cleared, nor replace the view of the session that follows.
+            if self.context.isSessionActive {
+                dependencies.fatalErrorContext.view = event
+            }
 
             // Track this view in Session Ended metric:
             var instrumentationType: InstrumentationType?

@@ -724,4 +724,86 @@ class RUMSessionScopeTests: XCTestCase {
         // Then
         XCTAssertTrue(result)
     }
+
+    // MARK: - Fatal error context across stop and renewal
+
+    private func appScopeWithFatalErrorContext(_ fatalErrorContext: FatalErrorContextNotifierMock) -> RUMApplicationScope {
+        let app = RUMApplicationScope(dependencies: .mockWith(sessionSampler: .mockKeepAll(), fatalErrorContext: fatalErrorContext))
+        let ctx: DatadogContext = .mockWith(sdkInitDate: Date())
+        _ = app.process(command: RUMSDKInitCommand(time: ctx.sdkInitDate, globalAttributes: [:]), context: ctx, writer: writer)
+        return app
+    }
+
+    /// CHANGELOG: "A crash after `stopSession()` and before the next session starts is still not reported in foreground."
+    func testviewUpdateAfterStopSession_doesNotReviveTheLastViewInFatalErrorContext() throws {
+        let fec = FatalErrorContextNotifierMock()
+        let app = appScopeWithFatalErrorContext(fec)
+        let t = Date()
+        let identity: ViewIdentifier = .mockViewIdentifier()
+        _ = app.process(command: RUMStartViewCommand.mockWith(time: t.addingTimeInterval(1), identity: identity), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStartResourceCommand.mockWith(resourceKey: "r", time: t.addingTimeInterval(2)), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStopSessionCommand.mockWith(time: t.addingTimeInterval(3)), context: .mockAny(), writer: writer)
+        XCTAssertNil(fec.view, "precondition: stopSession() clears the view")
+
+        // The resource of the stopped session finishes: its view writes a last update.
+        _ = app.process(command: RUMStopResourceCommand.mockWith(resourceKey: "r", time: t.addingTimeInterval(4)), context: .mockAny(), writer: writer)
+
+        XCTAssertNil(fec.view, "A crash now (no session active) must not be linked to the view of the stopped session")
+    }
+
+    /// CHANGELOG: "a crash is never linked to a view of an earlier session"
+    func testviewUpdateOfPreviousSession_doesNotReplaceTheViewOfTheNewSession() throws {
+        let fec = FatalErrorContextNotifierMock()
+        let app = appScopeWithFatalErrorContext(fec)
+        let t = Date()
+        _ = app.process(command: RUMStartViewCommand.mockWith(time: t.addingTimeInterval(1), identity: .mockViewIdentifier()), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStartResourceCommand.mockWith(resourceKey: "r", time: t.addingTimeInterval(2)), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStopSessionCommand.mockWith(time: t.addingTimeInterval(3)), context: .mockAny(), writer: writer)
+        // new session starts, but its first command is not a view
+        _ = app.process(command: RUMCommandMock(time: t.addingTimeInterval(4), isUserInteraction: true), context: .mockAny(), writer: writer)
+        let newSessionState = try XCTUnwrap(fec.sessionState)
+
+        _ = app.process(command: RUMStopResourceCommand.mockWith(resourceKey: "r", time: t.addingTimeInterval(5)), context: .mockAny(), writer: writer)
+
+        if let view = fec.view {
+            XCTAssertEqual(view.session.id, RUMUUID(rawValue: newSessionState.sessionUUID).toRUMDataFormat, "view of an earlier session leaked into the new session's fatal error context")
+        }
+    }
+
+    /// CHANGELOG: "a crash in this session must never be linked to a view of another one - least of all when this session is sampled out".
+    func testviewUpdateOfPreviousSession_whileNewSessionIsSampledOut_doesNotLeakIntoFatalErrorContext() throws {
+        let fec = FatalErrorContextNotifierMock()
+        var draws = 0
+        let app = RUMApplicationScope(dependencies: .mockWith(
+            sessionSampler: .mockKeepAll(),
+            fatalErrorContext: fec,
+            beforeSampling: { _ in draws += 1; return draws == 1 ? 100 : 0 } // 1st session kept, 2nd sampled out
+        ))
+        let ctx: DatadogContext = .mockWith(sdkInitDate: Date())
+        _ = app.process(command: RUMSDKInitCommand(time: ctx.sdkInitDate, globalAttributes: [:]), context: ctx, writer: writer)
+        let t = Date()
+        _ = app.process(command: RUMStartViewCommand.mockWith(time: t.addingTimeInterval(1), identity: .mockViewIdentifier()), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStartResourceCommand.mockWith(resourceKey: "r", time: t.addingTimeInterval(2)), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStopSessionCommand.mockWith(time: t.addingTimeInterval(3)), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMCommandMock(time: t.addingTimeInterval(4), isUserInteraction: true), context: .mockAny(), writer: writer)
+        XCTAssertEqual(fec.sessionState?.sessionUUID, UUID.dd.nullUUID, "precondition: the new session is sampled out")
+        XCTAssertNil(fec.view)
+
+        _ = app.process(command: RUMStopResourceCommand.mockWith(resourceKey: "r", time: t.addingTimeInterval(5)), context: .mockAny(), writer: writer)
+
+        XCTAssertNil(fec.view, "view of the previous session leaked into a sampled-out session")
+    }
+
+    /// Control: same flow, the resource finishes BEFORE the session is stopped -> nothing leaks.
+    func testresourceFinishesBeforeStopSession_nothingLeaks() throws {
+        let fec = FatalErrorContextNotifierMock()
+        let app = appScopeWithFatalErrorContext(fec)
+        let t = Date()
+        _ = app.process(command: RUMStartViewCommand.mockWith(time: t.addingTimeInterval(1), identity: .mockViewIdentifier()), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStartResourceCommand.mockWith(resourceKey: "r", time: t.addingTimeInterval(2)), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStopResourceCommand.mockWith(resourceKey: "r", time: t.addingTimeInterval(3)), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMStopSessionCommand.mockWith(time: t.addingTimeInterval(4)), context: .mockAny(), writer: writer)
+        _ = app.process(command: RUMCommandMock(time: t.addingTimeInterval(5), isUserInteraction: false), context: .mockAny(), writer: writer)
+        XCTAssertNil(fec.view)
+    }
 }

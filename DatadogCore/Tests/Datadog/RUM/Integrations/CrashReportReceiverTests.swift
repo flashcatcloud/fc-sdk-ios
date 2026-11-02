@@ -1369,7 +1369,7 @@ class CrashReportReceiverTests: XCTestCase {
                     context: .mockWith(
                         trackingConsent: .granted,
                         lastRUMViewEvent: persistedView,
-                        lastRUMSessionState: .mockWith(sampledForError: true)
+                        lastRUMSessionState: .mockWith(sessionUUID: UUID(uuidString: persistedView.session.id)!, sampledForError: true)
                     )
                 )),
                 from: NOPDatadogCore()
@@ -1408,7 +1408,7 @@ class CrashReportReceiverTests: XCTestCase {
                     context: .mockWith(
                         trackingConsent: .granted,
                         lastRUMViewEvent: persistedView,
-                        lastRUMSessionState: .mockWith(sampledForError: true)
+                        lastRUMSessionState: .mockWith(sessionUUID: UUID(uuidString: persistedView.session.id)!, sampledForError: true)
                     )
                 )),
                 from: NOPDatadogCore()
@@ -1423,6 +1423,7 @@ class CrashReportReceiverTests: XCTestCase {
 
     func testControl_aCrashOfAnOrdinarySession_reportedLongAfter_sendsOnlyTheError() throws {
         let featureScope = FeatureScopeMock()
+        let lastView: RUMViewEvent = .mockRandomWith(viewIsActive: true, crashCount: 0)
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
         let receiver: CrashReportReceiver = .mockWith(
             featureScope: featureScope,
@@ -1436,8 +1437,8 @@ class CrashReportReceiverTests: XCTestCase {
                     report: .mockWith(date: crashDate),
                     context: .mockWith(
                         trackingConsent: .granted,
-                        lastRUMViewEvent: .mockRandomWith(viewIsActive: true, crashCount: 0),
-                        lastRUMSessionState: .mockWith(sampledForError: nil)
+                        lastRUMViewEvent: lastView,
+                        lastRUMSessionState: .mockWith(sessionUUID: UUID(uuidString: lastView.session.id)!, sampledForError: nil)
                     )
                 )),
                 from: NOPDatadogCore()
@@ -2190,5 +2191,81 @@ class CrashReportReceiverTests: XCTestCase {
         try test(
             launchInForeground: false // launch in background
         )
+    }
+
+    // MARK: - Crashes linked to a view of another session, users of synthesized views
+
+    /// A crash must never be linked to the view of another session; here the session of the crash context is sampled out.
+    func testcrashWithStaleViewOfAnotherSessionWhileCurrentSessionIsSampledOut_isNotReported() throws {
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            lastRUMViewEvent: .mockRandomWith(sessionID: .mockRandom(), viewIsActive: false, crashCount: 0),
+            lastRUMSessionState: .mockWith(sessionUUID: UUID.dd.nullUUID, isInitialSession: false, hasTrackedAnyView: false),
+            lastIsAppInForeground: true
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        _ = receiver.receive(message: .payload(Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)), from: NOPDatadogCore())
+
+        XCTAssertEqual(featureScope.eventsWritten.count, 0)
+    }
+
+    /// Consistency: the existing-view branch drops an empty (cleared) user; the synthesised-view branch should too.
+    func testsynthesisedBackgroundViewWithClearedUser_carriesNoUser() throws {
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            userInfo: .mockEmpty(),
+            lastRUMViewEvent: nil,
+            lastRUMSessionState: .mockWith(sessionUUID: .mockRandom(), isInitialSession: false, hasTrackedAnyView: true),
+            lastIsAppInForeground: false
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        _ = receiver.receive(message: .payload(Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)), from: NOPDatadogCore())
+
+        let view = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first)
+        let error = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        XCTAssertNil(view.usr)
+        XCTAssertNil(error.usr)
+    }
+
+    /// Passing: user/account of the crashed process, not the current one, on the synthesised view.
+    func testsynthesisedBackgroundViewCarriesUserAndAccountOfTheCrashedProcess() throws {
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        let crashContext: CrashContext = .mockWith(
+            trackingConsent: .granted,
+            userInfo: UserInfo(id: "crashed-user", name: nil, email: nil, extraInfo: [:]),
+            accountInfo: AccountInfo(id: "crashed-account"),
+            lastRUMViewEvent: nil,
+            lastRUMSessionState: .mockWith(sessionUUID: .mockRandom(), isInitialSession: false, hasTrackedAnyView: true),
+            lastIsAppInForeground: false
+        )
+        let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate))
+
+        _ = receiver.receive(message: .payload(Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)), from: NOPDatadogCore())
+
+        let view = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMViewEvent.self).first)
+        let error = try XCTUnwrap(featureScope.eventsWritten(ofType: RUMErrorEvent.self).first)
+        XCTAssertEqual(view.usr?.id, "crashed-user")
+        XCTAssertEqual(view.account?.id, "crashed-account")
+        XCTAssertEqual(error.view.id, view.view.id)
+    }
+
+    /// Passing: a crash in a session sampled out, background or foreground, stopped view or none, is never reported.
+    func testsampledOutSessionIsNeverReported() throws {
+        let currentDate: Date = .mockDecember15th2019At10AMUTC()
+        for foreground in [true, false] {
+            let crashContext: CrashContext = .mockWith(
+                trackingConsent: .granted,
+                lastRUMViewEvent: nil,
+                lastRUMSessionState: .mockWith(sessionUUID: UUID.dd.nullUUID, isInitialSession: .random(), hasTrackedAnyView: .random()),
+                lastIsAppInForeground: foreground
+            )
+            let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope, dateProvider: RelativeDateProvider(using: currentDate), sessionSampler: .mockKeepAll())
+            _ = receiver.receive(message: .payload(Crash(report: .mockWith(date: currentDate.secondsAgo(10)), context: crashContext)), from: NOPDatadogCore())
+        }
+        XCTAssertEqual(featureScope.eventsWritten.count, 0)
     }
 }

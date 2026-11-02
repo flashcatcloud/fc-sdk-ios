@@ -339,6 +339,11 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         guard let view = context.lastRUMViewEvent else {
             return nil
         }
+        // FLASHCAT FORK - a view of another session (e.g. a late update of a stopped or expired one) is never the last
+        // screen of the crashed session, nor of a sampled-out one.
+        if let sessionState = context.lastRUMSessionState, UUID(uuidString: view.session.id) != sessionState.sessionUUID {
+            return nil
+        }
         let isStoppedView = view.view.isActive == false
         return isStoppedView && !context.lastIsAppInForeground ? nil : view
     }
@@ -466,7 +471,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             ),
             source: .init(rawValue: context.source) ?? .ios,
             synthetics: syntheticsTest,
-            usr: context.userInfo.map { RUMUser(userInfo: $0) },
+            usr: context.userInfo.flatMap { RUMUser(nonEmpty: $0) },
             version: context.version,
             view: .init(
                 action: .init(count: 0),
