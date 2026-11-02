@@ -735,7 +735,7 @@ class RUMSessionScopeTests: XCTestCase {
     }
 
     /// CHANGELOG: "A crash after `stopSession()` and before the next session starts is still not reported in foreground."
-    func testviewUpdateAfterStopSession_doesNotReviveTheLastViewInFatalErrorContext() throws {
+    func testViewUpdateAfterStopSession_doesNotReviveTheLastViewInFatalErrorContext() throws {
         let fec = FatalErrorContextNotifierMock()
         let app = appScopeWithFatalErrorContext(fec)
         let t = Date()
@@ -752,7 +752,7 @@ class RUMSessionScopeTests: XCTestCase {
     }
 
     /// CHANGELOG: "a crash is never linked to a view of an earlier session"
-    func testviewUpdateOfPreviousSession_doesNotReplaceTheViewOfTheNewSession() throws {
+    func testViewUpdateOfPreviousSession_doesNotReplaceTheViewOfTheNewSession() throws {
         let fec = FatalErrorContextNotifierMock()
         let app = appScopeWithFatalErrorContext(fec)
         let t = Date()
@@ -771,7 +771,7 @@ class RUMSessionScopeTests: XCTestCase {
     }
 
     /// CHANGELOG: "a crash in this session must never be linked to a view of another one - least of all when this session is sampled out".
-    func testviewUpdateOfPreviousSession_whileNewSessionIsSampledOut_doesNotLeakIntoFatalErrorContext() throws {
+    func testViewUpdateOfPreviousSession_whileNewSessionIsSampledOut_doesNotLeakIntoFatalErrorContext() throws {
         let fec = FatalErrorContextNotifierMock()
         var draws = 0
         let app = RUMApplicationScope(dependencies: .mockWith(
@@ -795,7 +795,7 @@ class RUMSessionScopeTests: XCTestCase {
     }
 
     /// Control: same flow, the resource finishes BEFORE the session is stopped -> nothing leaks.
-    func testresourceFinishesBeforeStopSession_nothingLeaks() throws {
+    func testResourceFinishesBeforeStopSession_nothingLeaks() throws {
         let fec = FatalErrorContextNotifierMock()
         let app = appScopeWithFatalErrorContext(fec)
         let t = Date()

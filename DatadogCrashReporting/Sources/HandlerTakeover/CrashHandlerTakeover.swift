@@ -152,20 +152,20 @@ internal enum CrashHandlerTakeover {
         findCallThroughs()
         adoptedCallThroughs = []
         isAdoptingCallThroughs = true
-        if isImageCallbackRegistered {
-            // The callback only runs for images loaded from now on: rewrite the ones already loaded.
-            for index in 0..<_dyld_image_count() {
-                if let header = _dyld_get_image_header(index) {
-                    rebind(rebindings, inImage: header, slide: _dyld_get_image_vmaddr_slide(index))
-                }
+        for index in 0..<_dyld_image_count() {
+            if let header = _dyld_get_image_header(index) {
+                rebind(rebindings, inImage: header, slide: _dyld_get_image_vmaddr_slide(index))
             }
-        } else {
-            isImageCallbackRegistered = true
-            _ = rebindings // initialized here rather than in the callback, which runs with the loader's lock held
-            _dyld_register_func_for_add_image(rebindAddedImage) // also called for every image already loaded
         }
         isAdoptingCallThroughs = false
         rewriteImagesOfUnadoptedCallThroughs()
+        if !isImageCallbackRegistered {
+            // Registered last: the callback runs on the thread that loads an image, and reads `implementingImages` and
+            // `isAdoptingCallThroughs`, which must not change from then on. It is also called for every image already
+            // loaded, rewritten above, which it leaves as they are.
+            isImageCallbackRegistered = true
+            _dyld_register_func_for_add_image(rebindAddedImage)
+        }
         return true
     }
 
@@ -201,7 +201,9 @@ internal enum CrashHandlerTakeover {
                 rebind(originals, inImage: header, slide: _dyld_get_image_vmaddr_slide(index))
             }
         }
-        _ = originalSetTerminate(state.pointee.crashReporterTerminate)
+        if originalGetTerminate() == state.pointee.ownTerminate {
+            _ = originalSetTerminate(state.pointee.crashReporterTerminate)
+        }
     }
 
     /// The signal handler installed in front of the crash reporter's.

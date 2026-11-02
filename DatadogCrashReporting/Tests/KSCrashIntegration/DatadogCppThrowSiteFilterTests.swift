@@ -157,3 +157,60 @@ class DatadogCppThrowSiteFilterTests: XCTestCase {
         return data
     }
 }
+
+// MARK: - Edge cases and stress
+
+extension DatadogCppThrowSiteFilterTests {
+    private func edgeCaseThrowSite(addresses: [UInt64]) -> ThrowSiteRecorder.ThrowSite {
+        .init(processID: 42, date: Date(timeIntervalSince1970: 1_761_000_000), addresses: addresses)
+    }
+
+    func testTimestampsWithMicrosecondsAsKSCrashWritesThemAreParsed() throws {
+        var microseconds = report()
+        microseconds.setValue(forKey: .report, .timestamp, value: "2025-10-20T22:40:00.007336Z")
+        XCTAssertNotNil(try filter.fill(report: microseconds, with: edgeCaseThrowSite(addresses: throwSiteAddresses), loadedImages: [:]))
+
+        var withoutFraction = report()
+        withoutFraction.setValue(forKey: .report, .timestamp, value: "2025-10-20T22:40:00Z")
+        XCTAssertNotNil(try filter.fill(report: withoutFraction, with: edgeCaseThrowSite(addresses: throwSiteAddresses), loadedImages: [:]))
+
+        var withOffset = report()
+        withOffset.setValue(forKey: .report, .timestamp, value: "2025-10-21T06:40:00.5+08:00")
+        XCTAssertNotNil(try filter.fill(report: withOffset, with: edgeCaseThrowSite(addresses: throwSiteAddresses), loadedImages: [:]))
+    }
+
+    func testAThrowSiteWithNoFrameBelowTheRuntimeLeavesTheReportUnchanged() throws {
+        let libcxxabiImage: UInt64 = 0x4_0000_0000
+        XCTAssertNil(try filter.fill(report: report(), with: edgeCaseThrowSite(addresses: [libcxxabiImage + 0x100, libcxxabiImage + 0x200]), loadedImages: [:]))
+        XCTAssertNil(try filter.fill(report: report(), with: edgeCaseThrowSite(addresses: []), loadedImages: [:]))
+    }
+
+    func testAddressesInNoImageOrAtTheEdgesOfOneAreKeptAsRawAddresses() throws {
+        let addresses: [UInt64] = [0x4_0000_0100, 0x4_0000_0200, 0x1_0010_0000, 0x0_FFFF_FFFF, 0]
+        let filled = try XCTUnwrap(filter.fill(report: report(), with: edgeCaseThrowSite(addresses: addresses), loadedImages: [:]))
+        let threads: [CrashFieldDictionary] = try filled.value(forKey: .crash, .threads)
+        let stack: [CrashFieldDictionary] = try threads[0].value(forKey: .backtrace, .contents)
+        XCTAssertEqual(try stack.map { try $0.value(Int64.self, forKey: .instructionAddr) }, [0x1_0010_0000, 0x0_FFFF_FFFF, 0], "just past the end of the image, just before it, and null")
+        XCTAssertNil(try? stack[0].value(Int64.self, forKey: .objectAddr))
+        XCTAssertNil(try? stack[1].value(Int64.self, forKey: .objectAddr))
+    }
+
+    func testARecordWithMoreFramesThanTheLayoutAllowsOrATruncatedFileIsIgnored() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: file) }
+        var data = Data(count: ThrowSiteRecorder.recordSize)
+        data.withUnsafeMutableBytes { bytes in
+            bytes.storeBytes(of: ThrowSiteRecorder.magic, as: UInt32.self)
+            bytes.storeBytes(of: UInt32(ThrowSiteRecorder.maxFrames + 1), toByteOffset: 4, as: UInt32.self)
+        }
+        try data.write(to: file)
+        XCTAssertNil(ThrowSiteRecorder.read(from: file))
+
+        data.withUnsafeMutableBytes { $0.storeBytes(of: UInt32.max, toByteOffset: 4, as: UInt32.self) }
+        try data.write(to: file)
+        XCTAssertNil(ThrowSiteRecorder.read(from: file))
+
+        try data.prefix(ThrowSiteRecorder.recordSize - 1).write(to: file)
+        XCTAssertNil(ThrowSiteRecorder.read(from: file))
+    }
+}

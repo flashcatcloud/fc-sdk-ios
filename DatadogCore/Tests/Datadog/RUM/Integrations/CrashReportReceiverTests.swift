@@ -2196,7 +2196,7 @@ class CrashReportReceiverTests: XCTestCase {
     // MARK: - Crashes linked to a view of another session, users of synthesized views
 
     /// A crash must never be linked to the view of another session; here the session of the crash context is sampled out.
-    func testcrashWithStaleViewOfAnotherSessionWhileCurrentSessionIsSampledOut_isNotReported() throws {
+    func testCrashWithStaleViewOfAnotherSessionWhileCurrentSessionIsSampledOut_isNotReported() throws {
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         let crashContext: CrashContext = .mockWith(
             trackingConsent: .granted,
@@ -2212,7 +2212,7 @@ class CrashReportReceiverTests: XCTestCase {
     }
 
     /// Consistency: the existing-view branch drops an empty (cleared) user; the synthesised-view branch should too.
-    func testsynthesisedBackgroundViewWithClearedUser_carriesNoUser() throws {
+    func testSynthesisedBackgroundViewWithClearedUser_carriesNoUser() throws {
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         let crashContext: CrashContext = .mockWith(
             trackingConsent: .granted,
@@ -2232,7 +2232,7 @@ class CrashReportReceiverTests: XCTestCase {
     }
 
     /// Passing: user/account of the crashed process, not the current one, on the synthesised view.
-    func testsynthesisedBackgroundViewCarriesUserAndAccountOfTheCrashedProcess() throws {
+    func testSynthesisedBackgroundViewCarriesUserAndAccountOfTheCrashedProcess() throws {
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         let crashContext: CrashContext = .mockWith(
             trackingConsent: .granted,
@@ -2254,7 +2254,7 @@ class CrashReportReceiverTests: XCTestCase {
     }
 
     /// Passing: a crash in a session sampled out, background or foreground, stopped view or none, is never reported.
-    func testsampledOutSessionIsNeverReported() throws {
+    func testSampledOutSessionIsNeverReported() throws {
         let currentDate: Date = .mockDecember15th2019At10AMUTC()
         for foreground in [true, false] {
             let crashContext: CrashContext = .mockWith(

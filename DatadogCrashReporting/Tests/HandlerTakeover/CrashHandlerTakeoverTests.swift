@@ -841,3 +841,434 @@ class CrashHandlerTakeoverTests: XCTestCase {
         XCTAssertEqual(SymbolRebinder.rebind([.init(name: "_getpid", replacement: unsafeBitCast(fakeGetpid, to: UnsafeRawPointer.self))], inImage: systemHeader, slide: 0), 0)
     }
 }
+
+// MARK: - Edge cases and stress
+
+private typealias RealSetVoid = @convention(c) (UnsafeMutableRawPointer?) -> Void
+private typealias ThrowRuntimeError = @convention(c) (UnsafePointer<CChar>?) -> Void
+
+private let realSetTerminate = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "_ZSt13set_terminatePFvvE"), to: PointerSetter.self)
+private let realSetExceptionHandler = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "NSSetUncaughtExceptionHandler"), to: RealSetVoid.self)
+/// `std::__throw_runtime_error(const char *)` of libc++: throws a C++ exception from the C++ runtime.
+private let throwRuntimeError = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "_ZNSt3__121__throw_runtime_errorEPKc")
+    .map { unsafeBitCast($0, to: ThrowRuntimeError.self) }
+
+private var stressMarker = 0
+private func eh0(_ exception: NSException) { stressMarker = 100 }
+private func eh1(_ exception: NSException) { stressMarker = 101 }
+private func eh2(_ exception: NSException) { stressMarker = 102 }
+private func eh3(_ exception: NSException) { stressMarker = 103 }
+private func sh0(_ signal: Int32) { stressMarker = 200 }
+private func sh1(_ signal: Int32) { stressMarker = 201 }
+private func sh2(_ signal: Int32) { stressMarker = 202 }
+
+/// Stands for the terminate handler the crash reporter installed before the takeover: it never returns, so the thread
+/// that terminated is parked instead of aborting the test process.
+private let parkedSemaphore = DispatchSemaphore(value: 0)
+private let parkingTerminate: @convention(c) () -> Void = {
+    parkedSemaphore.signal()
+    while true { sleep(1_000) }
+}
+private let throwGate = DispatchSemaphore(value: 0)
+
+@inline(never) private func throwFromSiteA() { throwRuntimeError?("a") }
+@inline(never) private func throwFromSiteB() { throwRuntimeError?("b") }
+@inline(never) private func raiseNSExceptionFromSite() { NSException(name: .genericException, reason: "edge case", userInfo: nil).raise() }
+
+/// Runs a throwing function on a new thread that never catches. `0`: A, `1`: B, `2`: NSException. Waits at the gate first.
+private func startThrowingThread(_ kind: Int) {
+    var thread: pthread_t?
+    let entry: @convention(c) (UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? = { argument in
+        throwGate.wait()
+        switch Int(bitPattern: argument) {
+        case 1: throwFromSiteB()
+        case 2: raiseNSExceptionFromSite()
+        default: throwFromSiteA()
+        }
+        return nil
+    }
+    pthread_create(&thread, nil, entry, UnsafeMutableRawPointer(bitPattern: kind))
+}
+
+private func symbolName(of address: UInt64) -> String {
+    var info = Dl_info()
+    guard dladdr(UnsafeRawPointer(bitPattern: UInt(address) - 1), &info) != 0, let name = info.dli_sname else {
+        return "?"
+    }
+    return String(cString: name)
+}
+
+private func frames(of throwSite: ThrowSiteRecorder.ThrowSite) -> [[String: Any]] {
+    throwSite.addresses.map { address in
+        var info = Dl_info()
+        var frame: [String: Any] = [:]
+        if dladdr(UnsafeRawPointer(bitPattern: UInt(address) - 1), &info) != 0 {
+            frame["object_name"] = info.dli_fname.map { (String(cString: $0) as NSString).lastPathComponent } ?? ""
+            frame["symbol_name"] = info.dli_sname.map { String(cString: $0) } ?? ""
+        }
+        return frame
+    }
+}
+
+extension CrashHandlerTakeoverTests {
+    private func testHeaderAndSlide() throws -> (UnsafePointer<mach_header>, Int) {
+        var info = Dl_info()
+        XCTAssertNotEqual(dladdr(unsafeBitCast(ownHandler as sig_t, to: UnsafeRawPointer.self), &info), 0)
+        let testHeader = try XCTUnwrap(info.dli_fbase).assumingMemoryBound(to: mach_header.self)
+        let slide = (0..<_dyld_image_count()).first { _dyld_get_image_header($0) == UnsafePointer(testHeader) }
+            .map { _dyld_get_image_vmaddr_slide($0) } ?? 0
+        return (UnsafePointer(testHeader), slide)
+    }
+
+    // MARK: Get-after-set
+
+    func testGetAfterSet_signalHandlersIncludingDefaultIgnoredAndNil() {
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let handlers: [(String, sig_t?)] = [("SIG_IGN", SIG_IGN), ("SIG_DFL", SIG_DFL), ("handler", sh0), ("nil", nil), ("SIG_IGN again", SIG_IGN)]
+        var expectedPrevious = address(of: SIG_DFL)
+        for (name, handler) in handlers {
+            let previous = signal(ownedSignal, handler)
+            XCTAssertEqual(address(of: previous), expectedPrevious, "signal() returns the previously recorded handler before \(name)")
+            var queried = sigaction()
+            XCTAssertEqual(sigaction(ownedSignal, nil, &queried), 0)
+            XCTAssertEqual(address(of: queried), address(of: handler), "get after set \(name)")
+            XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler)
+            expectedPrevious = address(of: handler)
+        }
+    }
+
+    func testGetAfterSet_sigactionKeepsMaskAndFlags() {
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        var requested = sigaction()
+        requested.__sigaction_u = unsafeBitCast(sh1 as sig_t, to: __sigaction_u.self)
+        requested.sa_flags = SA_ONSTACK | SA_NODEFER | SA_RESTART
+        sigemptyset(&requested.sa_mask)
+        sigaddset(&requested.sa_mask, SIGUSR2)
+        sigaddset(&requested.sa_mask, SIGINT)
+        XCTAssertEqual(sigaction(ownedSignal, &requested, nil), 0)
+
+        var queried = sigaction()
+        _ = sigaction(ownedSignal, nil, &queried)
+        XCTAssertEqual(address(of: queried), address(of: sh1))
+        XCTAssertEqual(queried.sa_flags, requested.sa_flags)
+        XCTAssertEqual(queried.sa_mask, requested.sa_mask)
+    }
+
+    func testSigactionWithOldActionAliasingTheNewAction() {
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        var first = action(sh0)
+        _ = sigaction(ownedSignal, &first, nil)
+
+        // The same buffer as the new and the old action, as `sigaction(2)` allows.
+        var both = action(sh1)
+        let result = withUnsafeMutablePointer(to: &both) { sigaction(ownedSignal, $0, $0) }
+        XCTAssertEqual(result, 0)
+
+        XCTAssertEqual(address(of: both), address(of: sh0), "the old action is returned")
+        var queried = sigaction()
+        _ = sigaction(ownedSignal, nil, &queried)
+        XCTAssertEqual(address(of: queried), address(of: sh1), "the new action is the one recorded")
+    }
+
+    // MARK: Stress
+
+    func testStress_exceptionHandlerSetAndGetFromManyThreads() {
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let handlers: [CExceptionHandler?] = [eh0, eh1, eh2, eh3, nil]
+        let valid = Set(handlers.map { unsafeBitCast($0, to: UInt.self) })
+        let lock = NSLock()
+        var invalid = 0
+        var gets = 0
+        DispatchQueue.concurrentPerform(iterations: 16) { thread in
+            var localInvalid = 0
+            var localGets = 0
+            for round in 0..<20_000 {
+                if (thread + round) % 3 == 0 {
+                    NSSetUncaughtExceptionHandler(handlers[(thread * 7 + round) % handlers.count])
+                } else {
+                    localGets += 1
+                    if !valid.contains(unsafeBitCast(NSGetUncaughtExceptionHandler(), to: UInt.self)) {
+                        localInvalid += 1
+                    }
+                }
+            }
+            lock.lock()
+            invalid += localInvalid
+            gets += localGets
+            lock.unlock()
+        }
+        XCTAssertEqual(invalid, 0, "of \(gets) gets")
+        XCTAssertEqual(realGetExceptionHandler(), CrashHandlerTakeover.exceptionHandler, "the takeover's handler stays installed")
+        NSSetUncaughtExceptionHandler(eh2)
+        XCTAssertEqual(unsafeBitCast(NSGetUncaughtExceptionHandler(), to: UInt.self), unsafeBitCast(eh2 as CExceptionHandler, to: UInt.self), "get after set, once quiet")
+    }
+
+    func testStress_terminateSetAndGetFromManyThreads() throws {
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let set = unsafeBitCast(try XCTUnwrap(CrashHandlerTakeover.rebindings.first { $0.name == "__ZSt13set_terminatePFvvE" }).replacement, to: PointerSetter.self)
+        let get = unsafeBitCast(try XCTUnwrap(CrashHandlerTakeover.rebindings.first { $0.name == "__ZSt13get_terminatev" }).replacement, to: PointerGetter.self)
+        let takeoverTerminate = realGetTerminate()
+        let a = unsafeBitCast(foreignTerminate, to: UnsafeMutableRawPointer.self)
+        let b = unsafeBitCast(parkingTerminate, to: UnsafeMutableRawPointer.self)
+        let none = get() // what callers see when nothing was recorded
+        let lock = NSLock()
+        var invalid = 0
+        DispatchQueue.concurrentPerform(iterations: 16) { thread in
+            var localInvalid = 0
+            for round in 0..<20_000 {
+                switch (thread + round) % 4 {
+                case 0: _ = set(a)
+                case 1: _ = set(b)
+                case 2: _ = set(nil)
+                default:
+                    let current = get()
+                    if current != a, current != b, current != nil, current != none { localInvalid += 1 }
+                }
+            }
+            lock.lock()
+            invalid += localInvalid
+            lock.unlock()
+        }
+        XCTAssertEqual(invalid, 0)
+        XCTAssertEqual(realGetTerminate(), takeoverTerminate)
+        _ = set(a)
+        XCTAssertEqual(get(), a)
+    }
+
+    func testStress_signalAndSigactionFromManyThreadsIncludingDefaultIgnoredAndNil() {
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let handlers: [sig_t?] = [SIG_DFL, SIG_IGN, sh0, sh1, sh2, nil]
+        let valid = Set(handlers.map { address(of: $0) })
+        let lock = NSLock()
+        var invalid = 0
+        let signalNumber = ownedSignal
+        DispatchQueue.concurrentPerform(iterations: 16) { thread in
+            var localInvalid = 0
+            for round in 0..<20_000 {
+                let handler = handlers[(thread * 5 + round) % handlers.count]
+                switch (thread + round) % 4 {
+                case 0:
+                    let previous = signal(signalNumber, handler)
+                    if !valid.contains(address(of: previous)) { localInvalid += 1 }
+                case 1:
+                    var new = action(handler)
+                    var old = sigaction()
+                    _ = sigaction(signalNumber, &new, &old)
+                    if !valid.contains(address(of: old)) { localInvalid += 1 }
+                default:
+                    var old = sigaction()
+                    _ = sigaction(signalNumber, nil, &old)
+                    if !valid.contains(address(of: old)) { localInvalid += 1 }
+                }
+            }
+            lock.lock()
+            invalid += localInvalid
+            lock.unlock()
+        }
+        XCTAssertEqual(invalid, 0)
+        XCTAssertEqual(installedHandler(signalNumber), CrashHandlerTakeover.signalHandler)
+        raiseInstalledHandler(signalNumber)
+        XCTAssertEqual(ownHandlerCalls, 1, "the crash reporter's handler still receives the signal")
+    }
+
+    // MARK: Activation cycles
+
+    func testActivateDeactivateActivateCyclesKeepTheChainFlat() {
+        let terminateBefore = realGetTerminate()
+        for cycle in 0..<100 {
+            XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile), "cycle \(cycle)")
+            XCTAssertEqual(installedHandler(ownedSignal), CrashHandlerTakeover.signalHandler)
+            XCTAssertEqual(realGetExceptionHandler(), CrashHandlerTakeover.exceptionHandler)
+            var foreign = action(foreignHandler)
+            _ = sigaction(ownedSignal, &foreign, nil)
+            NSSetUncaughtExceptionHandler(foreignExceptionHandler)
+            XCTAssertEqual(CrashHandlerTakeover.displacedHandlers(), [])
+
+            CrashHandlerTakeover.deactivate()
+            XCTAssertEqual(installedHandler(ownedSignal), address(of: ownHandler), "cycle \(cycle): the crash reporter's handler is back")
+            XCTAssertEqual(realGetTerminate(), terminateBefore, "cycle \(cycle)")
+            XCTAssertEqual(unsafeBitCast(realGetExceptionHandler(), to: UInt.self), unsafeBitCast(ownExceptionHandler as CExceptionHandler, to: UInt.self))
+        }
+
+        // The cycles left no recorded handler or nesting behind.
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        var queried = sigaction()
+        _ = sigaction(ownedSignal, nil, &queried)
+        XCTAssertEqual(address(of: queried), address(of: SIG_DFL), "a record of an earlier activation is not seen")
+        XCTAssertNil(NSGetUncaughtExceptionHandler())
+        raiseInstalledHandler(ownedSignal)
+        XCTAssertEqual(ownHandlerCalls, 1)
+        unsafeBitCast(CrashHandlerTakeover.exceptionHandler, to: CExceptionHandler.self)(NSException(name: .genericException, reason: nil))
+        XCTAssertEqual(ownExceptionHandlerCalls, 1)
+        XCTAssertEqual(foreignExceptionHandlerCalls, 0)
+    }
+
+    func testDeactivateLeavesATerminateHandlerInstalledThroughAnUnguardedPath() {
+        // Given
+        let previous = realGetTerminate()
+        defer { _ = realSetTerminate(previous) }
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        let other = unsafeBitCast(foreignTerminate, to: UnsafeMutableRawPointer.self)
+        _ = realSetTerminate(other) // e.g. a system framework: not rewritten, so not guarded
+
+        // When
+        CrashHandlerTakeover.deactivate()
+
+        // Then
+        XCTAssertEqual(realGetTerminate(), other, "a handler that replaced the takeover's is not replaced again")
+    }
+
+    func testControl_deactivateLeavesAHandlerInstalledThroughAnUnguardedPath() {
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        var other = action(otherHandler)
+        _ = realSigaction(ownedSignal, &other, nil)
+        realSetExceptionHandler(unsafeBitCast(eh1 as CExceptionHandler, to: UnsafeMutableRawPointer.self))
+
+        CrashHandlerTakeover.deactivate()
+
+        XCTAssertEqual(installedHandler(ownedSignal), address(of: otherHandler))
+        XCTAssertEqual(unsafeBitCast(realGetExceptionHandler(), to: UInt.self), unsafeBitCast(eh1 as CExceptionHandler, to: UInt.self))
+    }
+
+    // MARK: Crash in progress
+
+    func testWhileACrashIsBeingHandled_everyOwnedSignalIsRedirectedOnceOnTheCrashThread() {
+        var own = action(ownHandler)
+        _ = realSigaction(SIGSYS, &own, nil)
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        _ = signal(ownedSignal, foreignHandler) // recorded
+        _ = signal(SIGSYS, otherHandler) // recorded
+        raiseInstalledHandler(ownedSignal)
+
+        var saved = action(sh2)
+        _ = sigaction(SIGSYS, &saved, nil)
+        _ = sigaction(ownedSignal, &saved, nil)
+
+        XCTAssertEqual(installedHandler(SIGSYS), address(of: otherHandler))
+        XCTAssertEqual(installedHandler(ownedSignal), address(of: foreignHandler))
+
+        _ = sigaction(SIGSYS, &saved, nil) // the second install is not redirected
+        XCTAssertEqual(installedHandler(SIGSYS), address(of: sh2))
+    }
+
+    func testTwoThreadsReachingTheCrashReporterAtOnce_onlyOneIsTheCrashThread() {
+        var own = action(ownHandler)
+        _ = realSigaction(SIGSYS, &own, nil)
+        XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+        _ = signal(ownedSignal, foreignHandler)
+        _ = signal(SIGSYS, otherHandler)
+        let first = NamedThread(name: "crash 1")
+        let second = NamedThread(name: "crash 2")
+        defer { first.stop(); second.stop() }
+        first.run { self.raiseInstalledHandler(self.ownedSignal) } // the first to reach the crash reporter
+
+        second.run { self.raiseInstalledHandler(SIGSYS) }
+        var saved = action(sh2)
+        var redirectedOnSecond = false
+        second.run {
+            _ = sigaction(SIGSYS, &saved, nil)
+            redirectedOnSecond = installedHandler(SIGSYS) == address(of: otherHandler)
+        }
+        XCTAssertFalse(redirectedOnSecond, "only the first thread that reached the handlers is the crash thread")
+        XCTAssertEqual(installedHandler(SIGSYS), address(of: sh2))
+        first.run { _ = sigaction(self.ownedSignal, &saved, nil) }
+        XCTAssertEqual(installedHandler(ownedSignal), address(of: foreignHandler))
+    }
+
+    // MARK: Images
+
+    // MARK: C++ exceptions through terminate
+
+    private func withParkingTerminate(_ body: () throws -> Void) rethrows {
+        let previous = realSetTerminate(unsafeBitCast(parkingTerminate, to: UnsafeMutableRawPointer.self))
+        defer {
+            CrashHandlerTakeover.deactivate()
+            _ = realSetTerminate(previous)
+        }
+        try body()
+    }
+
+    func testAnUncaughtCppExceptionRecordsItsThrowSiteOnce_belowTheRuntimeFrames() throws {
+        try XCTSkipIf(throwRuntimeError == nil)
+        try withParkingTerminate {
+            XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+            XCTAssertNil(ThrowSiteRecorder.read(from: throwSiteFile))
+
+            startThrowingThread(0)
+            throwGate.signal()
+            XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success, "the crash reporter's terminate handler is called")
+
+            let throwSite = try XCTUnwrap(ThrowSiteRecorder.read(from: throwSiteFile))
+            XCTAssertEqual(throwSite.processID, Int64(getpid()))
+            let frames = frames(of: throwSite)
+            let index = ThrowSiteRecorder.throwSiteIndex(in: frames)
+            let names = frames.map { ($0["object_name"] as? String ?? "?") + ":" + ($0["symbol_name"] as? String ?? "?") }
+            XCTAssertGreaterThan(index, 0, "\(names)")
+            XCTAssertTrue(names.indices.contains(index) && names[index].contains("throwFromSiteA"), "the throw site is the throwing function: \(names)")
+        }
+    }
+
+    func testASecondTerminatingThreadDoesNotOverwriteTheRecordedThrowSite() throws {
+        try XCTSkipIf(throwRuntimeError == nil)
+        try withParkingTerminate {
+            XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+            startThrowingThread(1)
+            throwGate.signal()
+            XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success)
+            let recorded = try Data(contentsOf: throwSiteFile)
+            usleep(20_000) // the clock moves on, so an overwrite would show
+
+            startThrowingThread(0)
+            startThrowingThread(2) // and an Objective-C exception
+            throwGate.signal()
+            throwGate.signal()
+            XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success, "the second thread still reaches the crash reporter")
+            XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success, "and the third")
+
+            XCTAssertEqual(try Data(contentsOf: throwSiteFile), recorded)
+            let names = frames(of: try XCTUnwrap(ThrowSiteRecorder.read(from: throwSiteFile))).compactMap { $0["symbol_name"] as? String }
+            XCTAssertTrue(names.contains { $0.contains("throwFromSiteB") })
+            XCTAssertFalse(names.contains { $0.contains("throwFromSiteA") })
+        }
+    }
+
+    func testAnUncaughtNSExceptionRecordsNoThrowSite() throws {
+        try withParkingTerminate {
+            XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile))
+            startThrowingThread(2)
+            throwGate.signal()
+            XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success)
+            XCTAssertNil(ThrowSiteRecorder.read(from: throwSiteFile))
+        }
+    }
+
+    func testStress_twoThreadsTerminatingAtOnceRecordOneWholeThrowSite() throws {
+        try XCTSkipIf(throwRuntimeError == nil)
+        try withParkingTerminate {
+            var mixed = 0
+            var unreadable = 0
+            let rounds = 40
+            for round in 0..<rounds {
+                try? FileManager.default.removeItem(at: throwSiteFile)
+                XCTAssertTrue(CrashHandlerTakeover.activate(throwSiteFile: throwSiteFile), "round \(round)")
+                startThrowingThread(0)
+                startThrowingThread(1)
+                throwGate.signal()
+                throwGate.signal()
+                XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success)
+                XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success)
+                guard let throwSite = ThrowSiteRecorder.read(from: throwSiteFile) else {
+                    unreadable += 1
+                    continue
+                }
+                let names = frames(of: throwSite).compactMap { $0["symbol_name"] as? String }
+                let hasA = names.contains { $0.contains("throwFromSiteA") }
+                let hasB = names.contains { $0.contains("throwFromSiteB") }
+                if hasA == hasB { mixed += 1 }
+                CrashHandlerTakeover.deactivate()
+            }
+            XCTAssertEqual(unreadable, 0, "of \(rounds) rounds")
+            XCTAssertEqual(mixed, 0, "of \(rounds) rounds")
+        }
+    }
+}
