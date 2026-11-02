@@ -800,3 +800,69 @@ private final class LateReceiver: FeatureMessageReceiver {
         return true
     }
 }
+
+// MARK: - Enabling, re-initializing and the initial context
+
+/// A sender whose `send(report:with:)` blocks until released, like a RUM write that takes long to be confirmed.
+private final class BlockingCrashSender: CrashReportSender {
+    let entered = DispatchSemaphore(value: 0)
+    let release = DispatchSemaphore(value: 0)
+    func send(report: DDCrashReport, with context: CrashContext) -> CrashReportOutcome {
+        entered.signal()
+        _ = release.wait(timeout: .now() + 10)
+        return .processed
+    }
+    func send(launch: LaunchReport) {}
+}
+
+extension CrashReportingFeatureTests {
+    private func decodedService(_ plugin: CrashReportingPluginMock) -> String? {
+        plugin.injectedContextData.flatMap { try? CrashReportingFeature.crashContextDecoder.decode(CrashContext.self, from: $0).service }
+    }
+
+    /// Control: the same change without a send in flight is written at once.
+    func testControl_contextUpdatedWithoutASendInFlight_isInjectedAtOnce() {
+        let plugin = CrashReportingPluginMock()
+        let provider = CrashContextProviderMock(initialCrashContext: .mockWith(service: "old", trackingConsent: .granted))
+        let feature = CrashReportingFeature.mockWith(integration: BlockingCrashSender(), crashReportingPlugin: plugin, crashContextProvider: provider)
+        feature.start()
+        provider.onCrashContextChange(.mockWith(service: "new", trackingConsent: .granted))
+        feature.flush()
+        XCTAssertEqual(decodedService(plugin), "new")
+    }
+
+    func testEnableTwiceFromTwoThreadsAtOnce_registersOneFeatureAndMakesOnePlugin() {
+        // Given
+        let core = FeatureRegistrationCoreMock()
+        let made = ReadWriteLock(wrappedValue: 0)
+        let done = expectation(description: "both returned")
+        done.expectedFulfillmentCount = 2
+
+        // When
+        for _ in 0..<2 {
+            DispatchQueue.global().async {
+                CrashReporting.enable(with: { () -> CrashReportingPlugin in made.mutate { $0 += 1 }; return CrashReportingPluginMock() }(), in: core)
+                done.fulfill()
+            }
+        }
+        wait(for: [done], timeout: 5)
+
+        // Then
+        XCTAssertEqual(made.wrappedValue, 1)
+        XCTAssertNotNil(core.get(feature: CrashReportingFeature.self))
+    }
+
+    func testPluginWhoseInitThrows_leavesCrashReportingEnableable() throws {
+        // Given
+        let core = FeatureRegistrationCoreMock()
+        func failing() throws -> CrashReportingPlugin { throw ErrorMock("init failed") }
+
+        // When
+        CrashReporting.enable(with: try failing(), in: core)
+        XCTAssertNil(core.get(feature: CrashReportingFeature.self))
+        CrashReporting.enable(with: CrashReportingPluginMock(), in: core)
+
+        // Then
+        XCTAssertNotNil(core.get(feature: CrashReportingFeature.self))
+    }
+}

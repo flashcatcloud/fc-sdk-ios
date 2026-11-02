@@ -567,6 +567,17 @@ extension KSCrashPluginTests {
     }
 }
 
+// MARK: - Unread launches across launches
+
+extension KSCrashPluginTests {
+    func testControl_secondLaunchCountsOnce() throws {
+        try writeReport(id: 1, contents: #"{"message": "a"}"#)
+        XCTAssertEqual(try createPlugin().0.unreadLaunches, 0)
+        XCTAssertEqual(try createPlugin().0.unreadLaunches, 1)
+        XCTAssertEqual(try createPlugin().0.unreadLaunches, 2)
+    }
+}
+
 /// Converts a report into `DDCrashReport` carrying the report's `message` field, and fails for a report without one.
 private final class MessageFieldFilter: NSObject, CrashReportFilter {
     func filterReports(_ reports: [CrashReport], onCompletion: (([CrashReport]?, Error?) -> Void)?) {

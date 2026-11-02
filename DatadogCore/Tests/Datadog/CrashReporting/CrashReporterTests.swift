@@ -410,4 +410,39 @@ extension CrashReporterTests {
         let errors = core.waitAndReturnEvents(ofFeature: RUMFeature.name, ofType: RUMErrorEvent.self, timeout: .now() + 3)
         XCTAssertEqual(errors.filter { $0.error.message == "late-rum" }.count, 1)
     }
+
+    func testEnableReturns_withTheInitialContextAlreadyInjected() throws {
+        let core = makeCore(consent: .granted)
+        defer { try? core.flushAndTearDown() }
+        let plugin = CrashReportingPluginMock()
+
+        try CrashReporting.enableOrThrow(with: plugin, in: core, processingDelay: 60)
+
+        let data = try XCTUnwrap(plugin.injectedContextData, "no context injected when enable() returned")
+        let decoded = try CrashReportingFeature.crashContextDecoder.decode(CrashContext.self, from: data)
+        XCTAssertEqual(decoded.trackingConsent, .granted)
+    }
+
+    func testStoppedCoreWhoseDelayHasNotPassed_neverReadsItsPluginAfterTheNextCoreIsEnabled() throws {
+        // Given (SDK stopped and initialized again within the processing delay)
+        let first = makeCore(consent: .granted)
+        let firstPlugin = CrashReportingPluginMock()
+        firstPlugin.pendingCrashReports = [crashReport("r", consent: .granted)]
+        try CrashReporting.enableOrThrow(with: firstPlugin, in: first, processingDelay: 0.4)
+        try first.flushAndTearDown()
+
+        let second = makeCore(consent: .granted)
+        defer { try? second.flushAndTearDown() }
+        enableRUM(in: second)
+        let secondPlugin = CrashReportingPluginMock()
+        secondPlugin.pendingCrashReports = firstPlugin.pendingCrashReports
+        try CrashReporting.enableOrThrow(with: secondPlugin, in: second, processingDelay: 0.4)
+
+        // When
+        Thread.sleep(forTimeInterval: 1.2)
+
+        // Then
+        XCTAssertEqual(firstPlugin.readCount, 0, "the stopped core's feature still reads the shared reports")
+        XCTAssertEqual(secondPlugin.readCount, 1)
+    }
 }
