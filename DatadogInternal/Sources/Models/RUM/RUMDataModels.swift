@@ -5664,6 +5664,21 @@ public struct RUMViewEvent: RUMDataModel {
         /// Average number of cpu ticks per second during the view’s lifetime
         public let cpuTicksPerSecond: Double?
 
+        // FLASHCAT FORK: `cpu_usage_*` and `main_thread_cpu_usage_*` are FlashCat additions on top of the
+        // shared schema, patched in by hand like `sampled_for_error`; reapplying `make rum-models-generate`
+        // drops them and this patch must be restored.
+        /// Average CPU usage of the app process while the view was in foreground, as a percentage of all cores (0-100)
+        public let cpuUsageAverage: Double?
+
+        /// Peak CPU usage of the app process between two samples, as a percentage of all cores (0-100)
+        public let cpuUsageMax: Double?
+
+        /// Average CPU usage of the main thread while the view was in foreground, as a percentage of one core (0-100)
+        public let mainThreadCpuUsageAverage: Double?
+
+        /// Peak CPU usage of the main thread between two samples, as a percentage of one core (0-100)
+        public let mainThreadCpuUsageMax: Double?
+
         /// Properties of the crashes of the view
         public let crash: Crash?
 
@@ -5810,6 +5825,11 @@ public struct RUMViewEvent: RUMDataModel {
             case action = "action"
             case cpuTicksCount = "cpu_ticks_count"
             case cpuTicksPerSecond = "cpu_ticks_per_second"
+            // FLASHCAT FORK: see `cpuUsageAverage` above.
+            case cpuUsageAverage = "cpu_usage_average"
+            case cpuUsageMax = "cpu_usage_max"
+            case mainThreadCpuUsageAverage = "main_thread_cpu_usage_average"
+            case mainThreadCpuUsageMax = "main_thread_cpu_usage_max"
             case crash = "crash"
             case cumulativeLayoutShift = "cumulative_layout_shift"
             case cumulativeLayoutShiftTargetSelector = "cumulative_layout_shift_target_selector"
@@ -5866,6 +5886,10 @@ public struct RUMViewEvent: RUMDataModel {
         ///   - action: Properties of the actions of the view
         ///   - cpuTicksCount: Total number of cpu ticks during the view’s lifetime
         ///   - cpuTicksPerSecond: Average number of cpu ticks per second during the view’s lifetime
+        ///   - cpuUsageAverage: Average CPU usage of the app process while the view was in foreground, as a percentage of all cores (0-100)
+        ///   - cpuUsageMax: Peak CPU usage of the app process between two samples, as a percentage of all cores (0-100)
+        ///   - mainThreadCpuUsageAverage: Average CPU usage of the main thread while the view was in foreground, as a percentage of one core (0-100)
+        ///   - mainThreadCpuUsageMax: Peak CPU usage of the main thread between two samples, as a percentage of one core (0-100)
         ///   - crash: Properties of the crashes of the view
         ///   - cumulativeLayoutShift: Total layout shift score that occurred on the view (deprecated in favor of `view.performance.cls.score`)
         ///   - cumulativeLayoutShiftTargetSelector: CSS selector path of the first element (in document order) of the largest layout shift contributing to CLS (deprecated in favor of `view.performance.cls.target_selector`)
@@ -5918,6 +5942,10 @@ public struct RUMViewEvent: RUMDataModel {
             action: Action,
             cpuTicksCount: Double? = nil,
             cpuTicksPerSecond: Double? = nil,
+            cpuUsageAverage: Double? = nil,
+            cpuUsageMax: Double? = nil,
+            mainThreadCpuUsageAverage: Double? = nil,
+            mainThreadCpuUsageMax: Double? = nil,
             crash: Crash? = nil,
             cumulativeLayoutShift: Double? = nil,
             cumulativeLayoutShiftTargetSelector: String? = nil,
@@ -5970,6 +5998,10 @@ public struct RUMViewEvent: RUMDataModel {
             self.action = action
             self.cpuTicksCount = cpuTicksCount
             self.cpuTicksPerSecond = cpuTicksPerSecond
+            self.cpuUsageAverage = cpuUsageAverage
+            self.cpuUsageMax = cpuUsageMax
+            self.mainThreadCpuUsageAverage = mainThreadCpuUsageAverage
+            self.mainThreadCpuUsageMax = mainThreadCpuUsageMax
             self.crash = crash
             self.cumulativeLayoutShift = cumulativeLayoutShift
             self.cumulativeLayoutShiftTargetSelector = cumulativeLayoutShiftTargetSelector

@@ -42,6 +42,11 @@
 - `Crash` carries a `completion(CrashReportOutcome)` closure, which the receiver of a `Crash` message must call once it has written the crash (`.processed`), decided not to write it (`.processed`), or could not write it (`.writeFailed`, the report is kept for a limited number of reads). A receiver that handles `Crash` without calling it makes the report wait 10 seconds and be sent again at the next launch.
 - `CrashReportingPlugin` gains `unreadLaunches` and `resetUnreadLaunches()`, with default implementations returning 0 and doing nothing. `DDCrashReport` gains `system`, set to `nil` by default.
 - `CrashReportingPlugin` requires `crashedLastLaunch` (whether the previous run of the app crashed, answered without reading crash reports), and `readPendingCrashReports(completion:)` is replaced by `readPendingCrashReports(process:)`, which passes the pending reports one at a time, oldest first: the plugin deletes a report once `process` returns `.processed`, keeps it when it returns `.kept`, and keeps it for at most 3 reads when it returns `.writeFailed`. Custom `CrashReportingPlugin` implementations must adopt both; apps using the built-in crash reporting are unaffected.
+- RUM view events report CPU usage as percentages, comparable across devices with different core counts: `view.cpu_usage_average` / `view.cpu_usage_max` for the app process (percentage of all cores) and `view.main_thread_cpu_usage_average` / `view.main_thread_cpu_usage_max` for the main thread (percentage of one core). Time spent while the app is inactive is not counted, and nothing is reported for views shorter than 1 second in foreground.
+
+### Fixed
+
+- A crash in the CPU vital when the system CPU tick counter wraps around (from upstream [DataDog/dd-sdk-ios#2968](https://github.com/DataDog/dd-sdk-ios/pull/2968)).
 
 ---
 

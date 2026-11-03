@@ -31,6 +31,14 @@ internal final class VitalInfoSampler {
         return memoryPublisher.currentValue
     }
 
+    // FLASHCAT FORK - process and main thread CPU usage, see `VitalCPUUsageReader`.
+    let cpuUsageReader: CPUUsageReader?
+    private let cpuUsagePublisher: ValuePublisher<CPUUsageInfo>?
+
+    var cpuUsage: CPUUsageInfo? {
+        return cpuUsagePublisher?.currentValue
+    }
+
     let refreshRateReader: ContinuousVitalReader
     private let refreshRatePublisher = VitalPublisher(initialValue: VitalInfo())
     private let maximumRefreshRate: Double
@@ -55,12 +63,16 @@ internal final class VitalInfoSampler {
         cpuReader: SamplingBasedVitalReader,
         memoryReader: SamplingBasedVitalReader,
         refreshRateReader: ContinuousVitalReader,
+        cpuUsageReader: CPUUsageReader? = nil,
         frequency: TimeInterval,
         maximumRefreshRate: Double = VitalInfoSampler.maximumFramesPerSecond
     ) {
         self.cpuReader = cpuReader
 
         self.memoryReader = memoryReader
+
+        self.cpuUsageReader = cpuUsageReader
+        self.cpuUsagePublisher = cpuUsageReader.map { ValuePublisher(initialValue: CPUUsageInfo(processorCount: $0.processorCount)) }
 
         self.refreshRateReader = refreshRateReader
         self.refreshRateReader.register(self.refreshRatePublisher)
@@ -90,6 +102,11 @@ internal final class VitalInfoSampler {
         if let newCPUSample = cpuReader.readVitalData() {
             cpuPublisher.mutateAsync { cpuInfo in
                 cpuInfo.addSample(newCPUSample)
+            }
+        }
+        if let newCPUUsageSample = cpuUsageReader?.readSample() {
+            cpuUsagePublisher?.mutateAsync { cpuUsageInfo in
+                cpuUsageInfo.addSample(newCPUUsageSample)
             }
         }
         if let newMemorySample = memoryReader.readVitalData() {
