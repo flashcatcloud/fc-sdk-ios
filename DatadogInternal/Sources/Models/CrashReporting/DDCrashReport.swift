@@ -55,6 +55,28 @@ public struct DDCrashReport {
         }
     }
 
+    /// The app and OS of the crashed process, as recorded by the crash reporter at crash time.
+    public struct System {
+        /// The app version (`CFBundleShortVersionString`).
+        public let appVersion: String?
+        /// The app build number (`CFBundleVersion`).
+        public let appBuild: String?
+        /// The OS name, e.g. iOS.
+        public let osName: String?
+        /// The OS version, e.g. 17.4.1.
+        public let osVersion: String?
+        /// The OS build, e.g. 21E236.
+        public let osBuild: String?
+
+        public init(appVersion: String?, appBuild: String?, osName: String?, osVersion: String?, osBuild: String?) {
+            self.appVersion = appVersion
+            self.appBuild = appBuild
+            self.osName = osName
+            self.osVersion = osVersion
+            self.osBuild = osBuild
+        }
+    }
+
     /// The date of the crash occurrence.
     public let date: Date?
     /// Crash report type - used to group similar crash reports.
@@ -78,6 +100,8 @@ public struct DDCrashReport {
     public let context: Data?
     /// Additional attributes of the crash
     public let additionalAttributes: AnyCodable
+    /// The app and OS of the crashed process, if the crash reporter recorded them.
+    public let system: System?
 
     public init(
         date: Date?,
@@ -89,7 +113,8 @@ public struct DDCrashReport {
         meta: Meta,
         wasTruncated: Bool,
         context: Data?,
-        additionalAttributes: [String: Encodable]?
+        additionalAttributes: [String: Encodable]?,
+        system: System? = nil
     ) {
         self.date = date
         self.type = type
@@ -101,5 +126,6 @@ public struct DDCrashReport {
         self.wasTruncated = wasTruncated
         self.context = context
         self.additionalAttributes = AnyCodable(additionalAttributes)
+        self.system = system
     }
 }

@@ -39,7 +39,8 @@ extension DDCrashReport: AnyMockable, RandomMockable {
         meta: Meta = .mockAny(),
         wasTruncated: Bool = .mockAny(),
         context: Data? = .mockAny(),
-        additionalAttributes: [String: Encodable]? = nil
+        additionalAttributes: [String: Encodable]? = nil,
+        system: System? = nil
     ) -> DDCrashReport {
         return DDCrashReport(
             date: date,
@@ -51,7 +52,8 @@ extension DDCrashReport: AnyMockable, RandomMockable {
             meta: meta,
             wasTruncated: wasTruncated,
             context: context,
-            additionalAttributes: additionalAttributes
+            additionalAttributes: additionalAttributes,
+            system: system
         )
     }
 

@@ -39,6 +39,14 @@ internal final class FatalAppHangsHandler {
         }
 
         featureScope.rumDataStoreContext { [processID] context, dataStore in
+            // FLASHCAT FORK - the RUM context keeps the last view after it stopped. In foreground it is the last
+            // screen the user saw, so a hang under an untracked screen is linked to it, like a crash. In background
+            // the user left it; with no "Background" view to report a hang in, it is not considered fatal, as before.
+            guard lastRUMView.view.isActive != false || context.applicationStateHistory.currentState.isRunningInForeground else {
+                DD.logger.debug("App Hang is being detected in background, but won't be considered fatal as there is no active RUM view")
+                return
+            }
+
             let fatalHang = FatalAppHang(
                 processID: processID,
                 hang: hang,
