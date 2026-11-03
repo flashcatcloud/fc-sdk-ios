@@ -160,6 +160,7 @@ internal class RUMViewScope: RUMScope, RUMContextProvider {
                 cpuReader: $0.cpu,
                 memoryReader: $0.memory,
                 refreshRateReader: $0.refreshRate,
+                cpuUsageReader: $0.cpuUsage,
                 frequency: $0.frequency
             )
         }
@@ -506,6 +507,9 @@ extension RUMViewScope {
         // RUMM-2079 `time_spent` can't be lower than 1ns
         let timeSpent = max(Constants.minimumTimeSpent, command.time.timeIntervalSince(viewStartTime))
         let cpuInfo = vitalInfoSampler?.cpu
+        // FLASHCAT FORK - nothing is reported until the view has spent more than 1s in foreground,
+        // like `cpu_ticks_per_second` which needs more than 1s of `timeSpent`.
+        let cpuUsageInfo = vitalInfoSampler?.cpuUsage.flatMap { $0.hasEnoughForegroundTime ? $0 : nil }
         let memoryInfo = vitalInfoSampler?.memory
         let refreshRateInfo = vitalInfoSampler?.refreshRate
         let isSlowRendered = refreshRateInfo?.meanValue.map { $0 < Constants.slowRenderingThresholdFPS }
@@ -647,6 +651,10 @@ extension RUMViewScope {
                 action: .init(count: actionsCount.toInt64),
                 cpuTicksCount: cpuInfo?.greatestDiff,
                 cpuTicksPerSecond: timeSpent > 1.0 ? cpuInfo?.greatestDiff?.dd.divideIfNotZero(by: Double(timeSpent)) : nil,
+                cpuUsageAverage: cpuUsageInfo?.processUsageAverage,
+                cpuUsageMax: cpuUsageInfo?.processUsageMax,
+                mainThreadCpuUsageAverage: cpuUsageInfo?.mainThreadUsageAverage,
+                mainThreadCpuUsageMax: cpuUsageInfo?.mainThreadUsageMax,
                 crash: isCrash ? .init(count: 1) : .init(count: 0),
                 cumulativeLayoutShift: nil,
                 cumulativeLayoutShiftTargetSelector: nil,
