@@ -9,6 +9,12 @@
 
 ## [Unreleased]
 
+---
+
+## [0.9.0] - 2026-11-03
+
+**Based on Datadog iOS SDK 3.6.0** (same upstream as 0.8.0, no upstream sync)
+
 ### Added
 
 - `CrashReporting.Configuration(takesOverCrashHandlers:)` (default `false`): keep the crash handlers in place once crash reporting is enabled. Code in the app's own images (the app and its embedded frameworks), such as another crash reporter that installs its handlers later or re-installs them periodically, can no longer replace or reset the crash signal handlers, the uncaught `NSException` handler or the C++ terminate handler: its calls to `sigaction`, `signal`, `NSSetUncaughtExceptionHandler` and `std::set_terminate` are recorded instead of applied, and it is told its handler is installed. Crashes raised by the process itself (`abort()`, uncaught `NSException` and C++ exceptions) are then always recorded first; together with `handlesMachExceptions`, hardware exceptions are too. Also available to Objective-C as `+[DDCrashReporter enableWithSymbolicateInProcess:handlesMachExceptions:takesOverCrashHandlers:]`.
@@ -20,6 +26,7 @@
   - It does not remove a known hang in KSCrash: its crash handler formats text with `snprintf`, which takes a libc lock, so a crash while another thread holds that lock can still make the app hang until the system ends it, and that crash is lost.
   - Do not enable it in an app that installs its own handler for crash signals after crash reporting is enabled and relies on it at runtime (for example a runtime that recovers from invalid memory accesses): that handler is no longer installed.
 - Recommended setup for the most complete crash reporting: call `CrashReporting.enable()` first, before any other crash reporter is started and before `RUM.enable()`.
+- RUM view events report CPU usage as percentages, comparable across devices with different core counts: `view.cpu_usage_average` / `view.cpu_usage_max` for the app process (percentage of all cores) and `view.main_thread_cpu_usage_average` / `view.main_thread_cpu_usage_max` for the main thread (percentage of one core). Time spent while the app is inactive is not counted, and nothing is reported for views shorter than 1 second in foreground.
 
 ### Fixed
 
@@ -35,6 +42,7 @@
 - The throw site of an uncaught C++ exception is recorded without allocating, taking locks, looking up symbols or encoding JSON on the crashing thread, which could hang the crash: the stack is read by following frame pointers. It is symbolicated at the next launch. Uncaught `NSException`s are no longer recorded this way: they have their own stack.
 - A crash recorded while tracking consent was `.pending` is kept until consent is resolved, instead of being written under the consent of the next launch (and discarded if consent was still pending when the app was next started). It is sent as soon as consent is granted, in that launch or a later one, and deleted if consent is declined. Nothing is sent before consent is granted. Such reports count towards the 5 kept reports; KSCrash drops the oldest ones. Crashes recorded with `.granted` or `.notGranted` consent are handled as before.
 - A crash is no longer dropped because its crash context is missing or cannot be read (for example a crash before the first crash context reached the crash reporter on a busy device). It is reported in a session of its own and written under the current consent, never bypassing it. The OS is the crashed process's, from the crash report, and so are the app version and build unless the current version is not the app bundle's (set by a cross-platform framework or as a custom version), in which case the current one is kept; the rest comes from the current launch, without the current session's view and attributes. It carries no user or account information: the user of the current launch may not be the one who crashed.
+- A crash in the CPU vital when the system CPU tick counter wraps around (from upstream [DataDog/dd-sdk-ios#2968](https://github.com/DataDog/dd-sdk-ios/pull/2968)).
 
 ### Breaking Changes
 
@@ -42,11 +50,6 @@
 - `Crash` carries a `completion(CrashReportOutcome)` closure, which the receiver of a `Crash` message must call once it has written the crash (`.processed`), decided not to write it (`.processed`), or could not write it (`.writeFailed`, the report is kept for a limited number of reads). A receiver that handles `Crash` without calling it makes the report wait 10 seconds and be sent again at the next launch.
 - `CrashReportingPlugin` gains `unreadLaunches` and `resetUnreadLaunches()`, with default implementations returning 0 and doing nothing. `DDCrashReport` gains `system`, set to `nil` by default.
 - `CrashReportingPlugin` requires `crashedLastLaunch` (whether the previous run of the app crashed, answered without reading crash reports), and `readPendingCrashReports(completion:)` is replaced by `readPendingCrashReports(process:)`, which passes the pending reports one at a time, oldest first: the plugin deletes a report once `process` returns `.processed`, keeps it when it returns `.kept`, and keeps it for at most 3 reads when it returns `.writeFailed`. Custom `CrashReportingPlugin` implementations must adopt both; apps using the built-in crash reporting are unaffected.
-- RUM view events report CPU usage as percentages, comparable across devices with different core counts: `view.cpu_usage_average` / `view.cpu_usage_max` for the app process (percentage of all cores) and `view.main_thread_cpu_usage_average` / `view.main_thread_cpu_usage_max` for the main thread (percentage of one core). Time spent while the app is inactive is not counted, and nothing is reported for views shorter than 1 second in foreground.
-
-### Fixed
-
-- A crash in the CPU vital when the system CPU tick counter wraps around (from upstream [DataDog/dd-sdk-ios#2968](https://github.com/DataDog/dd-sdk-ios/pull/2968)).
 
 ---
 
