@@ -56,6 +56,9 @@ internal class VitalCPUUsageReader: CPUUsageReader {
     private var mainThreadPort: mach_port_t?
     private var totalInactive: CPUUsageSample = .zero
     private var rawSampleWhenResigningActive: CPUUsageSample? = nil
+    /// The last raw sample read successfully, used when a read fails as the app resigns active.
+    private var lastRawSample: CPUUsageSample? = nil
+    private var isActive = true
     private var hasReportedError = false
     /// Telemetry interface.
     private let telemetry: Telemetry
@@ -75,6 +78,11 @@ internal class VitalCPUUsageReader: CPUUsageReader {
         guard let rawSample = readRawSample() else {
             return nil
         }
+        if isActive, let previousRawSample = rawSampleWhenResigningActive {
+            // The read failed when the app became active: the inactive period ends here instead.
+            rawSampleWhenResigningActive = nil
+            totalInactive = totalInactive + (rawSample - previousRawSample)
+        }
         let ongoingInactive = rawSampleWhenResigningActive.map { rawSample - $0 } ?? .zero
         return rawSample - totalInactive - ongoingInactive
     }
@@ -83,11 +91,19 @@ internal class VitalCPUUsageReader: CPUUsageReader {
 
     @objc
     private func appWillResignActive() {
-        rawSampleWhenResigningActive = readRawSample()
+        // A second notification without becoming active in between must not move the start of the inactive period.
+        guard isActive else {
+            return
+        }
+        isActive = false
+        // If the read fails, the last successful read starts the inactive period, at most one sampling interval early.
+        rawSampleWhenResigningActive = readRawSample() ?? lastRawSample
     }
 
     @objc
     private func appDidBecomeActive() {
+        isActive = true
+        // If the read fails, the next successful read in `readSample()` ends the inactive period.
         if let previousRawSample = rawSampleWhenResigningActive,
            let currentRawSample = readRawSample() {
             rawSampleWhenResigningActive = nil
@@ -95,7 +111,15 @@ internal class VitalCPUUsageReader: CPUUsageReader {
         }
     }
 
-    internal func readRawSample() -> CPUUsageSample? {
+    private func readRawSample() -> CPUUsageSample? {
+        let rawSample = readOSSample()
+        if let rawSample = rawSample {
+            lastRawSample = rawSample
+        }
+        return rawSample
+    }
+
+    internal func readOSSample() -> CPUUsageSample? {
         guard let processCPUTime = readProcessCPUTime(),
               let mainThreadCPUTime = readMainThreadCPUTime() else {
             return nil
@@ -149,8 +173,10 @@ internal class VitalCPUUsageReader: CPUUsageReader {
 
 /// Aggregates the samples taken while a view is displayed into the four values reported on the view.
 internal struct CPUUsageInfo {
-    /// The view needs this much foreground time before any value is reported; `cpu_ticks_per_second` follows the same rule.
-    static let minimumForegroundTime: TimeInterval = 1.0
+    /// The view needs this much foreground time between its first and last samples before any value is reported.
+    /// It is below the 1s that `cpu_ticks_per_second` needs: the first sample is taken one run loop pass after the
+    /// view starts, so with 1s sampling a view displayed for just over 1s can have its samples slightly less than 1s apart.
+    static let minimumForegroundTime: TimeInterval = 0.9
     /// Peaks are computed over intervals at least this long, so a very short interval does not amplify noise.
     static let minimumPeakInterval: TimeInterval = 0.25
 
@@ -211,7 +237,7 @@ internal struct CPUUsageInfo {
 
     /// Whether the view has been in foreground long enough to report any value.
     var hasEnoughForegroundTime: Bool {
-        return (viewTotal?.wallTime ?? 0) > Self.minimumForegroundTime
+        return (viewTotal?.wallTime ?? 0) >= Self.minimumForegroundTime
     }
 
     private var viewTotal: CPUUsageSample? {
