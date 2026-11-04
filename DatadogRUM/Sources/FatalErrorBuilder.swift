@@ -191,6 +191,10 @@ internal struct FatalErrorBuilder {
                 action: original.view.action,
                 cpuTicksCount: original.view.cpuTicksCount,
                 cpuTicksPerSecond: original.view.cpuTicksPerSecond,
+                cpuUsageAverage: original.view.cpuUsageAverage,
+                cpuUsageMax: original.view.cpuUsageMax,
+                mainThreadCpuUsageAverage: original.view.mainThreadCpuUsageAverage,
+                mainThreadCpuUsageMax: original.view.mainThreadCpuUsageMax,
                 crash: .init(
                     count: {
                         switch error {

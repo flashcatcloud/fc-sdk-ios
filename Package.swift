@@ -211,7 +211,11 @@ let package = Package(
         //     ]
         // ),
         
-        // DatadogProfiling and DatadogFlags are disabled for Flashcat
+        // DatadogProfiling and DatadogFlags are disabled for Flashcat.
+        // Before enabling DatadogProfiling: its Mach sampling profiler reads memory under its own SIGSEGV/SIGBUS
+        // handler and recovers from faults with `siglongjmp`. With `CrashReporting.Configuration.takesOverCrashHandlers`
+        // that handler is recorded but never installed, so a faulting read crashes the app; with `handlesMachExceptions`
+        // the fault is recorded as a crash before the handler runs. Both options must stay off in an app that profiles.
         // .target(
         //     name: "DatadogProfiling",
         //     dependencies: [

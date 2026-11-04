@@ -79,14 +79,16 @@ class WatchdogTerminationsMonitoringTests: XCTestCase {
         // re-enable RUM to trigger the watchdog termination event
         // update the process ID to make sure check treats it as a new app launch
         rumConfig.processID = .mockRandom()
+        // Crash reporting cannot be enabled twice in the same core: publish the launch report its start sends at a
+        // launch that follows no crash, as the next process would.
         oneOf(
             [ // no matter of RUM or CR initialization order
                 {
                     RUM.enable(with: self.rumConfig, in: self.core)
-                    CrashReporting.enable(in: self.core)
+                    self.core.set(context: LaunchReport(didCrash: false))
                 },
                 {
-                    CrashReporting.enable(in: self.core)
+                    self.core.set(context: LaunchReport(didCrash: false))
                     RUM.enable(with: self.rumConfig, in: self.core)
                 },
             ]
@@ -109,7 +111,11 @@ class WatchdogTerminationsMonitoringTests: XCTestCase {
     /// - Parameter core: `DatadogCoreProxy` instance
     func waitForWatchdogTerminationCheck(core: DatadogCoreProxy) throws {
         let watchdogTermination = try XCTUnwrap(core.get(feature: RUMFeature.self)?.instrumentation.watchdogTermination)
+        let deadline = Date().addingTimeInterval(10)
         while watchdogTermination.currentState != .started {
+            guard Date() < deadline else {
+                throw ErrorMock("Watchdog Termination check did not start within 10 seconds")
+            }
             Thread.sleep(forTimeInterval: .fromMilliseconds(100))
         }
     }

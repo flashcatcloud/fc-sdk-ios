@@ -37,8 +37,18 @@ internal struct FileWriter: Writer {
     ///  - value: Encodable value to write.
     ///  - metadata: Encodable metadata to write.
     func write<T: Encodable, M: Encodable>(value: T, metadata: M?, completion: @escaping CompletionHandler) {
-        defer { completion() }
+        _ = persist(value: value, metadata: metadata)
+        completion()
+    }
 
+    func write<T: Encodable, M: Encodable>(value: T, metadata: M?, onResult: @escaping (WriteOutcome) -> Void) {
+        onResult(persist(value: value, metadata: metadata))
+    }
+
+    /// Encodes and appends the value and its metadata to the writable file.
+    /// - Returns: what became of the value: a value that cannot be encoded (including one too large) never will be,
+    ///   while one the app's encryption fails for, or a file that cannot be written to now, may be later.
+    private func persist<T: Encodable, M: Encodable>(value: T, metadata: M?) -> WriteOutcome {
         var encoded: Data = .init()
         if let metadata = metadata {
             do {
@@ -54,9 +64,10 @@ internal struct FileWriter: Writer {
             let encodedValue = try encode(value: value, blockType: .event)
             encoded.append(encodedValue)
         } catch {
-            DD.logger.error("(\(orchestrator.trackName)) Failed to encode value", error: error)
-            telemetry.error("(\(orchestrator.trackName)) Failed to encode value", error: error)
-            return
+            let cause = (error as? EncryptionFailure)?.cause ?? error
+            DD.logger.error("(\(orchestrator.trackName)) Failed to encode value", error: cause)
+            telemetry.error("(\(orchestrator.trackName)) Failed to encode value", error: cause)
+            return error is EncryptionFailure ? .failedTransiently : .failedPermanently
         }
 
         // Make sure both event and event metadata are written to the same file.
@@ -69,7 +80,7 @@ internal struct FileWriter: Writer {
         } catch {
             DD.logger.error("(\(orchestrator.trackName)) Failed to get writable file for \(writeSize) bytes", error: error)
             telemetry.error("(\(orchestrator.trackName)) Failed to get writable file for \(writeSize) bytes", error: error)
-            return
+            return .failedTransiently
         }
 
         do {
@@ -81,7 +92,9 @@ internal struct FileWriter: Writer {
         } catch {
             DD.logger.error("(\(orchestrator.trackName)) Failed to write \(writeSize) bytes to file", error: error)
             telemetry.error("(\(orchestrator.trackName)) Failed to write \(writeSize) bytes to file", error: error)
+            return .failedTransiently
         }
+        return .written
     }
 
     /// Encodes the given encodable value and encrypt it if encryption is available.
@@ -118,6 +131,15 @@ internal struct FileWriter: Writer {
             return data
         }
 
-        return try encryption.encrypt(data: data)
+        do {
+            return try encryption.encrypt(data: data)
+        } catch {
+            throw EncryptionFailure(cause: error)
+        }
+    }
+
+    /// The app's encryption failed: unlike encoding, it may succeed later.
+    private struct EncryptionFailure: Error {
+        let cause: Error
     }
 }

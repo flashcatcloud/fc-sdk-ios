@@ -31,20 +31,12 @@ internal class CrashContextCoreProvider: CrashContextProvider {
         didSet { _context.map(_callback) }
     }
 
-    private var viewEvent: RUMViewEvent? {
-        didSet { _context?.lastRUMViewEvent = viewEvent }
-    }
-
-    private var sessionState: RUMSessionState? {
-        didSet { _context?.lastRUMSessionState = sessionState }
-    }
+    /// The RUM state in the last `CrashContext`, compared by identity to detect RUM changes, which
+    /// `CrashContext` equality does not cover.
+    private var rumContext: RUMFatalErrorContext?
 
     private var logAttributes: LogEventAttributes? {
         didSet { _context?.lastLogAttributes = logAttributes }
-    }
-
-    private var rumAttributes: RUMEventAttributes? {
-        didSet { _context?.lastRUMAttributes = rumAttributes }
     }
 
     // MARK: - CrashContextProviderType
@@ -64,14 +56,6 @@ extension CrashContextCoreProvider: FeatureMessageReceiver {
         switch message {
         case .context(let context):
             update(context: context)
-        case let .payload(viewEvent as RUMViewEvent):
-            queue.async { self.viewEvent = viewEvent }
-        case let .payload(message as String) where message == RUMPayloadMessages.viewReset:
-            queue.async { self.viewEvent = nil }
-        case let .payload(sessionState as RUMSessionState):
-            queue.async { self.sessionState = sessionState }
-        case let .payload(rumAttributes as RUMEventAttributes):
-            queue.async { self.rumAttributes = rumAttributes }
         case let .payload(logAttributes as LogEventAttributes):
             queue.async { self.logAttributes = logAttributes }
         default:
@@ -90,18 +74,28 @@ extension CrashContextCoreProvider: FeatureMessageReceiver {
                 return
             }
 
-            let crashContext = CrashContext(
-                context,
-                lastRUMViewEvent: self.viewEvent,
-                lastRUMSessionState: self.sessionState,
-                lastRUMAttributes: self.rumAttributes,
-                lastLogAttributes: self.logAttributes
-            )
+            let rumContext = context.additionalContext(ofType: RUMFatalErrorContext.self)
+            let crashContext = CrashContext(context, lastLogAttributes: self.logAttributes)
 
-            if crashContext != self._context {
+            if crashContext != self._context || rumContext !== self.rumContext {
+                self.rumContext = rumContext
                 self._context = crashContext
             }
         }
+    }
+}
+
+extension CrashContext {
+    /// Creates the crash context from the core context, which carries the RUM state when RUM is enabled.
+    init(_ context: DatadogContext, lastLogAttributes: LogEventAttributes?) {
+        let rumContext = context.additionalContext(ofType: RUMFatalErrorContext.self)
+        self.init(
+            context,
+            lastRUMViewEvent: rumContext?.view,
+            lastRUMSessionState: rumContext?.sessionState,
+            lastRUMAttributes: rumContext?.globalAttributes,
+            lastLogAttributes: lastLogAttributes
+        )
     }
 }
 
