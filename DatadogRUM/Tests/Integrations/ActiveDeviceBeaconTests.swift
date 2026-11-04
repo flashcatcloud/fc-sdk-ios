@@ -13,8 +13,11 @@ import DatadogInternal
 private final class DirectRequestSenderMock: DirectRequestSender {
     private(set) var requests: [URLRequest] = []
     private var completions: [(Result<HTTPURLResponse, Error>) -> Void] = []
+    /// Called as each request is handed over, before it is recorded.
+    var onSend: (() -> Void)?
 
     func sendDirectly(request: URLRequest, completion: @escaping (Result<HTTPURLResponse, Error>) -> Void) {
+        onSend?()
         requests.append(request)
         completions.append(completion)
     }
@@ -67,6 +70,30 @@ private final class DeferredDataStore: DataStore {
     func answerReads() {
         while !reads.isEmpty {
             reads.removeFirst()()
+        }
+    }
+}
+
+/// A data store that writes only on `flush()`, as the real one writes on its own queue.
+private final class QueuedWritesDataStore: DataStore {
+    let store: DataStoreMock
+    private var writes: [() -> Void] = []
+
+    init(_ store: DataStoreMock) {
+        self.store = store
+    }
+
+    func setValue(_ value: Data, forKey key: String, version: DataStoreKeyVersion) {
+        writes.append { [store] in store.setValue(value, forKey: key, version: version) }
+    }
+    func value(forKey key: String, callback: @escaping (DataStoreValueResult) -> Void) { store.value(forKey: key, callback: callback) }
+    func removeValue(forKey key: String) {
+        writes.append { [store] in store.removeValue(forKey: key) }
+    }
+    func clearAllData() { store.clearAllData() }
+    func flush() {
+        while !writes.isEmpty {
+            writes.removeFirst()()
         }
     }
 }
@@ -172,6 +199,31 @@ class ActiveDeviceBeaconTests: XCTestCase {
         featureScope.dataStoreMock.value(forKey: RUMDataStore.Key.activeBeaconPending.rawValue)
     }
 
+    /// The undelivered beacons on disk, oldest first.
+    private func storedRecords() throws -> [ActiveDeviceBeacon.Record] {
+        guard case .value(let data, _)? = storedPending else {
+            return []
+        }
+        return try JSONDecoder().decode([ActiveDeviceBeacon.Record].self, from: data)
+    }
+
+    /// The first attempt and both retries all fail.
+    private func failEveryAttempt() {
+        fail()
+        runScheduledRetry()
+        fail()
+        runScheduledRetry()
+        fail()
+        XCTAssertTrue(scheduled.isEmpty)
+    }
+
+    /// The app leaves and comes back to the foreground after `interval`.
+    private func comeBack(after interval: TimeInterval, userId: String? = nil) {
+        publish(context(state: .background, userId: userId))
+        dateProvider.now.addTimeInterval(interval)
+        publish(context(userId: userId))
+    }
+
     private var storedSent: DataStoreValueResult? {
         featureScope.dataStoreMock.value(forKey: RUMDataStore.Key.activeBeaconSent.rawValue)
     }
@@ -188,7 +240,7 @@ class ActiveDeviceBeaconTests: XCTestCase {
             device: .init(type: "mobile", model: "iPhone15,2", brand: "Apple"),
             ageMs: 0
         )
-        featureScope.rumDataStore.setValue(ActiveDeviceBeacon.Record(body: body, usedAt: usedAt, key: key), forKey: .activeBeaconPending)
+        featureScope.rumDataStore.setValue([ActiveDeviceBeacon.Record(body: body, usedAt: usedAt, key: key)], forKey: .activeBeaconPending)
     }
 
     // MARK: - Request
@@ -498,6 +550,79 @@ class ActiveDeviceBeaconTests: XCTestCase {
 
         XCTAssertEqual(sender.requests.count, 1)
         XCTAssertEqual(try sender.body(0)["age_ms"] as? Int, 0, "only today's beacon is sent")
+    }
+
+    func testABeaconIsOnDiskBeforeItIsSent() throws {
+        let dataStore = QueuedWritesDataStore(featureScope.dataStoreMock)
+        beacon = ActiveDeviceBeacon(
+            featureScope: DataStoreReplacingScope(featureScope, dataStore: dataStore),
+            sender: sender,
+            customEndpoint: nil,
+            trackAnonymousUser: true,
+            dateProvider: dateProvider,
+            retryDelays: [2, 8],
+            schedule: { [unowned self] _, work in self.scheduled.append(work) }
+        )
+        var storedWhenSent: [ActiveDeviceBeacon.Record] = []
+        sender.onSend = { [unowned self] in storedWhenSent = (try? self.storedRecords()) ?? [] }
+
+        publish(context())
+
+        XCTAssertEqual(sender.requests.count, 1)
+        XCTAssertEqual(storedWhenSent.count, 1, "a process ending with the request on the wire still has it on the next launch")
+    }
+
+    func testDaysUsedOfflineAreEachReportedOnceOnline() throws {
+        publish(context())
+        failEveryAttempt()
+        comeBack(after: 24 * 3_600)
+        failEveryAttempt()
+        XCTAssertEqual(try storedRecords().count, 2, "the second day is kept although the first is not delivered")
+
+        comeBack(after: 24 * 3_600)
+        respond(202)
+        respond(202)
+        respond(202)
+
+        let ages = try (sender.requests.count - 3..<sender.requests.count).map { try sender.body($0)["age_ms"] as? Int }
+        XCTAssertEqual(ages, [48 * 3_600_000, 24 * 3_600_000, 0], "oldest first")
+        XCTAssertEqual(sender.inFlight, 0)
+        XCTAssertTrue(try storedRecords().isEmpty)
+    }
+
+    func testANewUserIsKeptWhileAnEarlierBeaconIsUndelivered() throws {
+        publish(context())
+        failEveryAttempt()
+
+        publish(context(userId: "user-1"))
+        XCTAssertEqual(try storedRecords().map { $0.body.usr.id }, [nil, "user-1"])
+    }
+
+    func testANewUserIsStoredAtOnceWhileTheLaunchBeaconIsOnTheWire() throws {
+        publish(context())
+        publish(context(userId: "user-1"))
+
+        XCTAssertEqual(sender.requests.count, 1, "one request at a time")
+        XCTAssertEqual(try storedRecords().count, 2, "not lost if the process ends before the first answer")
+    }
+
+    func testAtMostMaxPendingBeaconsAreKept_theOldestGoesFirst() throws {
+        publish(context())
+        failEveryAttempt()
+        for user in 1...ActiveDeviceBeacon.maxPending {
+            publish(context(userId: "user-\(user)"))
+        }
+
+        let users = try storedRecords().map { $0.body.usr.id }
+        XCTAssertEqual(users.count, ActiveDeviceBeacon.maxPending)
+        XCTAssertEqual(users.first, "user-1")
+        XCTAssertEqual(users.last, "user-\(ActiveDeviceBeacon.maxPending)")
+
+        let sentBefore = sender.requests.count
+        respond(202) // the evicted beacon was the one on the wire
+        XCTAssertNil(storedSent, "an evicted beacon marks nothing as sent")
+        XCTAssertEqual(sender.requests.count, sentBefore + 1)
+        XCTAssertEqual((try sender.body(sentBefore)["usr"] as? [String: String])?["id"], "user-1", "the oldest kept one goes next")
     }
 
     func testARateLimitIsRetried() {

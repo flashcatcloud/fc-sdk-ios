@@ -35,7 +35,7 @@ internal struct RUMDataStore {
         case anonymousId = "rum-anonymous-id"
         /// FLASHCAT FORK - the day and identity the last active beacon reported.
         case activeBeaconSent = "rum-active-beacon-sent"
-        /// FLASHCAT FORK - the active beacon not delivered yet, if any.
+        /// FLASHCAT FORK - the active beacons not delivered yet, oldest first.
         case activeBeaconPending = "rum-active-beacon-pending"
     }
 

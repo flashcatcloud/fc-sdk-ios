@@ -25,8 +25,10 @@ import DatadogInternal
 /// Sent only while the app is active in the foreground with consent granted; session sampling
 /// does not apply. The beacon is stored before it is sent, so one the process does not live to
 /// deliver - the app suspended or killed with the request on the wire - is sent with its age on a
-/// later launch, as is one still failing after the retries. At most one is stored, and one older
-/// than 72 hours is dropped. Nothing stored outlives consent being withdrawn.
+/// later launch, as is one still failing after the retries. Each day and identity is stored on its
+/// own, so one that cannot be delivered never keeps a newer one from being stored; they are sent
+/// oldest first, at most `maxPending` are kept, and one older than 72 hours is dropped. Nothing
+/// stored outlives consent being withdrawn.
 internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
     /// The request body, as the intake reads it.
     struct Body: Codable, Equatable {
@@ -91,6 +93,8 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
 
     /// The intake refuses a beacon older than this; it is dropped here instead.
     static let maxAge: TimeInterval = 72 * 60 * 60
+    /// Undelivered beacons kept at most: three days of use with a few identity changes.
+    static let maxPending = 8
     /// The intake stores at most this many bytes of a string field (UTF-8).
     static let maxFieldBytes = 255
     /// How long one request may take. Nothing waits on it, and a stalled one holds back the next.
@@ -110,11 +114,16 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
     private var trigger: Trigger?
     /// Whether what a previous launch stored was read. Nothing is decided before.
     private var isLoaded = false
-    /// The key of the last beacon delivered (or refused).
+    /// The key of the last beacon delivered (or refused). Only the last: switching users A -> B -> A
+    /// the same day reports A again, which the intake deduplicates.
     private var sentKey: String?
-    private var pending: Record?
+    /// Beacons not delivered yet, oldest first, one per key.
+    private var pending: [Record] = []
     /// Whether a beacon is on the wire or waiting to be retried.
     private var isSending = false
+    /// How many times consent was withdrawn. A request started before the latest withdrawal writes
+    /// nothing and is not retried, even if an identical beacon was stored after a new grant.
+    private var withdrawals = 0
     /// Whether consent was withdrawn before what was stored could be read: what the read returns
     /// was deleted meanwhile and must not come back.
     private var storedValuesWereForgotten = false
@@ -142,7 +151,7 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
 
         let dataStore = featureScope.rumDataStore
         dataStore.value(forKey: .activeBeaconSent) { [weak self] (sentKey: String?) in
-            dataStore.value(forKey: .activeBeaconPending) { (pending: Record?) in
+            dataStore.value(forKey: .activeBeaconPending) { (pending: [Record]?) in
                 self?.queue.async {
                     guard let self = self else {
                         return
@@ -150,7 +159,7 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
                     self.isLoaded = true
                     if !self.storedValuesWereForgotten {
                         self.sentKey = sentKey
-                        self.pending = pending
+                        self.pending = pending ?? []
                     }
                     self.evaluate()
                 }
@@ -189,31 +198,33 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
     // MARK: - Private; every method below runs on `queue`
 
     private func evaluate() {
-        guard isLoaded, !isSending, let context = context, canSend(in: context) else {
+        guard isLoaded, let context = context, canSend(in: context) else {
             return
         }
         let now = dateProvider.now
-        if let stored = pending, now.timeIntervalSince(stored.usedAt) > Self.maxAge {
+        var records = pending.filter { now.timeIntervalSince($0.usedAt) <= Self.maxAge }
+        if records.count < pending.count {
             DD.logger.debug("RUM active beacon: dropping a beacon older than 72 hours")
-            setPending(nil)
         }
-        if pending == nil {
-            guard let key = key(for: context, at: now), key != sentKey else {
-                return
-            }
-            setPending(Record(body: body(for: context), usedAt: now, key: key))
+        // Stored even while another one is on the wire, so it survives the process ending first.
+        if let key = key(for: context, at: now), key != sentKey, !records.contains(where: { $0.key == key }) {
+            records.append(Record(body: body(for: context), usedAt: now, key: key))
         }
-        guard let record = pending else {
+        records = Array(records.suffix(Self.maxPending))
+        if records != pending {
+            setPending(records)
+        }
+        guard !isSending, let record = records.first else {
             return
         }
         isSending = true
-        send(record, attempt: 0)
+        send(record, attempt: 0, withdrawals: withdrawals)
     }
 
-    private func send(_ record: Record, attempt: Int) {
-        guard pending == record else {
-            // Consent was withdrawn during the backoff, which dropped this record, and granted
-            // again: it is not sent; the new grant reports the device afresh.
+    private func send(_ record: Record, attempt: Int, withdrawals: Int) {
+        guard withdrawals == self.withdrawals, pending.contains(record) else {
+            // Consent was withdrawn during the backoff, or the record was dropped (cap or age): it is
+            // not sent; evaluate() moves on to what is stored now.
             isSending = false
             evaluate()
             return
@@ -228,16 +239,15 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
         }
         sender.sendDirectly(request: request) { [weak self] result in
             self?.queue.async {
-                self?.handle(result, for: record, attempt: attempt)
+                self?.handle(result, for: record, attempt: attempt, withdrawals: withdrawals)
             }
         }
     }
 
-    private func handle(_ result: Result<HTTPURLResponse, Error>, for record: Record, attempt: Int) {
+    private func handle(_ result: Result<HTTPURLResponse, Error>, for record: Record, attempt: Int, withdrawals: Int) {
         // Consent can be withdrawn while the request is on the wire: nothing that names the device
-        // or the user is written after that - not even once it is granted again, which the record
-        // no longer being the stored one tells.
-        guard context?.trackingConsent == .granted, pending == record else {
+        // or the user is written after that - not even once it is granted again.
+        guard context?.trackingConsent == .granted, withdrawals == self.withdrawals, pending.contains(record) else {
             isSending = false
             evaluate()
             return
@@ -257,7 +267,7 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
             if refused {
                 DD.logger.debug("RUM active beacon: the intake refused it (\(statusCode ?? 0))")
             }
-            setPending(nil)
+            setPending(pending.filter { $0 != record })
             sentKey = record.key
             featureScope.rumDataStore.setValue(record.key, forKey: .activeBeaconSent)
             isSending = false
@@ -272,25 +282,28 @@ internal final class ActiveDeviceBeacon: FeatureMessageReceiver {
         }
         schedule(retryDelays[attempt]) { [weak self] in
             self?.queue.async {
-                self?.send(record, attempt: attempt + 1)
+                self?.send(record, attempt: attempt + 1, withdrawals: withdrawals)
             }
         }
     }
 
     private func forget() {
         sentKey = nil
-        pending = nil
+        pending = []
+        withdrawals += 1
         storedValuesWereForgotten = !isLoaded
         Self.discardStored(in: featureScope)
     }
 
-    private func setPending(_ record: Record?) {
-        pending = record
-        if let record = record {
-            featureScope.rumDataStore.setValue(record, forKey: .activeBeaconPending)
-        } else {
+    /// Writes through to disk before returning: a beacon is on disk before it is sent.
+    private func setPending(_ records: [Record]) {
+        pending = records
+        if records.isEmpty {
             featureScope.rumDataStore.removeValue(forKey: .activeBeaconPending)
+        } else {
+            featureScope.rumDataStore.setValue(records, forKey: .activeBeaconPending)
         }
+        featureScope.dataStore.flush() // the store writes asynchronously
     }
 
     /// Consent granted, and the app active in the foreground - never a background launch or a
