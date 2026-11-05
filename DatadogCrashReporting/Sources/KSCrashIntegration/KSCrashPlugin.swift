@@ -108,18 +108,28 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
                 : nil
 
             var filters: [CrashReportFilter] = [DatadogTypeSafeFilter()]
-            if takesOverCrashHandlers, let sanitizer = CrashHandlerTakeover.sanitizer() {
-                consolePrint("DatadogCrashReporting: crash handler takeover is disabled under \(sanitizer)", .warn)
-                telemetry.debug("[KSCrash] Crash handler takeover skipped under \(sanitizer)")
-            } else if takesOverCrashHandlers, let installPath = configuration.installPath {
+            if let installPath = configuration.installPath {
+                // The crash reporter has no stack for an uncaught C++ exception thrown on the thread it was installed on
+                // when its `__cxa_throw` interception does not take effect: the throw site is recorded at terminate time
+                // instead, by the takeover's terminate handler or by the recorder's own.
                 let throwSiteFile = URL(fileURLWithPath: installPath).appendingPathComponent("cpp-throw-site")
                 filters.append(DatadogCppThrowSiteFilter(throwSiteFile: throwSiteFile))
-                if !CrashHandlerTakeover.activate(
-                    throwSiteFile: throwSiteFile,
-                    threadsStartedByCrashReporter: threadsStartedByInstall,
-                    exceptionHandlerBeforeCrashReporter: exceptionHandlerBeforeInstall
-                ) {
-                    telemetry.debug("[KSCrash] Crash handler takeover could not be activated")
+                var isTakeoverActive = false
+                if takesOverCrashHandlers, let sanitizer = CrashHandlerTakeover.sanitizer() {
+                    consolePrint("DatadogCrashReporting: crash handler takeover is disabled under \(sanitizer)", .warn)
+                    telemetry.debug("[KSCrash] Crash handler takeover skipped under \(sanitizer)")
+                } else if takesOverCrashHandlers {
+                    isTakeoverActive = CrashHandlerTakeover.activate(
+                        throwSiteFile: throwSiteFile,
+                        threadsStartedByCrashReporter: threadsStartedByInstall,
+                        exceptionHandlerBeforeCrashReporter: exceptionHandlerBeforeInstall
+                    )
+                    if !isTakeoverActive {
+                        telemetry.debug("[KSCrash] Crash handler takeover could not be activated")
+                    }
+                }
+                if !isTakeoverActive, !ThrowSiteRecorder.installTerminateHandler(file: throwSiteFile) {
+                    telemetry.debug("[KSCrash] C++ throw site recorder could not be installed")
                 }
             }
             filters += [

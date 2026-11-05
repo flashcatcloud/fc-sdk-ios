@@ -9,17 +9,19 @@ import MachO
 
 /// Records the stack of an uncaught C++ exception at its throw site, for the crash report of the next launch.
 ///
-/// The crash reporter learns the throw site of a C++ exception by intercepting `__cxa_throw`. When another library
-/// linked into the app defines its own `__cxa_throw`, the app's throws bypass it and the crash is reported without a
-/// stack. But an uncaught exception reaches the terminate handler before the stack is unwound, so the throw site is
-/// still on the current stack there: the takeover's terminate handler records it with `record()`, and
+/// The crash reporter learns the throw site of a C++ exception by intercepting `__cxa_throw`, which it does by rewriting
+/// the symbol pointers of the loaded images. When that does not take effect (another library linked into the app defines
+/// its own `__cxa_throw`, or the app's pointer could not be rewritten), the crash reporter has no stack for the thread
+/// it was installed on: it only takes the stack at terminate time on other threads. An uncaught exception reaches the
+/// terminate handler before the stack is unwound, so the throw site is still on the current stack there. A terminate
+/// handler records it with `record()` (the takeover's, or the one `installTerminateHandler(file:)` installs), and
 /// `DatadogCppThrowSiteFilter` puts it into the crash report when the report has no stack of its own.
 ///
-/// `record()` runs in the terminate handler, on a crashing thread that may hold any lock (e.g. the allocator's or the
-/// unwinder's): it walks the frame pointers of the current stack (which arm64 and x86_64 code keeps), without locks or
-/// allocation, and writes the raw return addresses, from preallocated memory, to a file opened beforehand. Every function
-/// it calls was resolved or called once by `prepare(file:)`, so none is bound by dyld while terminating. The addresses
-/// are symbolicated at the next launch, from the binary images of the crash report.
+/// `record()` runs in the terminate handler, on a crashing thread: it takes the stack with `backtrace()`, as the crash
+/// reporter itself does at that point for other threads, and writes the raw return addresses, from preallocated memory,
+/// to a file opened beforehand. Every function it calls was resolved or called once by `prepare(file:)`, so none is bound
+/// by dyld while terminating. The addresses are symbolicated at the next launch, from the binary images of the crash
+/// report.
 internal enum ThrowSiteRecorder {
     /// A recorded throw site.
     struct ThrowSite {
@@ -42,24 +44,16 @@ internal enum ThrowSiteRecorder {
     private static var fileDescriptor: Int32 = -1
     private static let buffer = UnsafeMutableRawPointer.allocate(byteCount: recordSize, alignment: MemoryLayout<UInt64>.alignment)
 
-    private typealias GetContextFunction = @convention(c) (UnsafeMutableRawPointer) -> Int32
-    /// `getcontext()`, which saves the caller's registers, including its frame pointer. Its declaration is not visible to
-    /// Swift (it needs `_XOPEN_SOURCE`).
-    private static var getContext: GetContextFunction?
-    /// A `ucontext_t` followed by the machine context `getcontext()` points it at, which is 16-byte aligned.
-    private static let contextSize = (MemoryLayout<ucontext_t>.size + 15) / 16 * 16 + MemoryLayout<mcontext_t.Pointee>.size
-    private static let context = UnsafeMutableRawPointer.allocate(byteCount: contextSize, alignment: 16)
-
     /// Opens the file `record()` writes to. The record of the previous process stays in it until `record()` runs.
     static func prepare(file: URL) {
         if fileDescriptor >= 0 {
             close(fileDescriptor)
         }
         // Globals are initialized on first access: here, not in the terminate handler.
-        _ = (buffer, magic, maxFrames, headerSize, recordSize, context, contextSize)
-        getContext = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "getcontext").map { unsafeBitCast($0, to: GetContextFunction.self) }
+        _ = (buffer, magic, maxFrames, headerSize, recordSize, terminateState, terminateClaim)
         fileDescriptor = open(file.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0o644)
         // Binds the functions `record()` calls, in case they are bound lazily.
+        _ = walkStack(into: buffer + headerSize)
         _ = pwrite(fileDescriptor, buffer, 0, 0)
         _ = getpid()
         var time = timeval()
@@ -85,7 +79,7 @@ internal enum ThrowSiteRecorder {
         guard fileDescriptor >= 0 else {
             return
         }
-        let count = walkStack(into: (buffer + headerSize).assumingMemoryBound(to: UInt64.self))
+        let count = walkStack(into: buffer + headerSize)
         var time = timeval()
         gettimeofday(&time, nil)
         buffer.storeBytes(of: magic, as: UInt32.self)
@@ -99,49 +93,75 @@ internal enum ThrowSiteRecorder {
     /// like the crash reporter does for the frames of its reports.
     static let arm64ReturnAddressMask: UInt = 0x0000_7FFF_FFFF_FFFF
 
-    /// Writes the return addresses of the current stack, innermost first, from the caller of `getcontext()` (this function)
-    /// up. Each frame record is the pair of the caller's frame pointer and the return address, where the frame pointer
-    /// points; a record is followed only while it lies on this thread's stack, above the previous one. Returns the count.
+    /// Writes the return addresses of the current stack, innermost first, without allocating: the first ones are in this
+    /// function and its callers in the recorder, which `throwSiteIndex(in:)` skips with the runtime's. Returns the count.
     @inline(never)
-    private static func walkStack(into addresses: UnsafeMutablePointer<UInt64>) -> Int {
-        guard let getContext, getContext(context) == 0 else {
-            return 0
-        }
-        guard let machineContext = context.assumingMemoryBound(to: ucontext_t.self).pointee.uc_mcontext else {
-            return 0
-        }
+    private static func walkStack(into addresses: UnsafeMutableRawPointer) -> Int {
+        // The memory is raw (see `buffer`): `backtrace()` writes pointers to it, which are read back as `UInt64`.
+        let count = Int(backtrace(addresses.assumingMemoryBound(to: UnsafeMutableRawPointer?.self), Int32(maxFrames)))
         #if arch(arm64)
-        var framePointer = UInt(machineContext.pointee.__ss.__fp)
-        let returnAddressMask = arm64ReturnAddressMask
-        #elseif arch(x86_64)
-        var framePointer = UInt(machineContext.pointee.__ss.__rbp)
-        let returnAddressMask = UInt.max
-        #else
-        return 0
-        #endif
-        let thread = pthread_self()
-        let stackTop = UInt(bitPattern: pthread_get_stackaddr_np(thread))
-        let stackBottom = stackTop &- UInt(pthread_get_stacksize_np(thread))
-        let recordSize = UInt(2 * MemoryLayout<UInt>.size)
-        var count = 0
-        while count < maxFrames,
-              framePointer >= stackBottom,
-              framePointer <= stackTop &- recordSize,
-              framePointer % UInt(MemoryLayout<UInt>.alignment) == 0,
-              let record = UnsafePointer<UInt>(bitPattern: framePointer) {
-            let returnAddress = record[1] & returnAddressMask
-            guard returnAddress != 0 else {
-                break
-            }
-            addresses[count] = UInt64(returnAddress)
-            count += 1
-            let callerFramePointer = record[0]
-            guard callerFramePointer > framePointer else {
-                break
-            }
-            framePointer = callerFramePointer
+        let words = addresses.assumingMemoryBound(to: UInt64.self)
+        for index in 0..<count {
+            words[index] &= UInt64(arm64ReturnAddressMask)
         }
+        #endif
         return count
+    }
+
+    // MARK: - Terminate handler
+
+    /// Installs a C++ terminate handler that records the throw site of an uncaught C++ exception, then calls the handler
+    /// it replaced (the crash reporter's). For when the crash handler takeover is not active: the takeover installs its
+    /// own. Installed once; later calls do nothing.
+    /// - Returns: `true` if the handler is installed.
+    @discardableResult
+    static func installTerminateHandler(file: URL) -> Bool {
+        guard terminateState.pointee.isInstalled == 0 else {
+            return true
+        }
+        guard
+            let setTerminate = symbol("_ZSt13set_terminatePFvvE"),
+            let currentExceptionType = symbol("__cxa_current_exception_type")
+        else {
+            return false
+        }
+        prepare(file: file)
+        terminateState.pointee.currentExceptionType = currentExceptionType
+        let handler = unsafeBitCast(recordingTerminateHandler, to: UnsafeMutableRawPointer.self)
+        terminateState.pointee.previousHandler = unsafeBitCast(setTerminate, to: SetTerminateFunction.self)(handler)
+        terminateState.pointee.isInstalled = 1
+        return true
+    }
+
+    /// For tests: puts back the terminate handler `installTerminateHandler(file:)` replaced and allows a new record. Does
+    /// nothing if another handler was installed since, which may call this one: it keeps calling the replaced handler.
+    static func uninstallTerminateHandler() {
+        guard
+            terminateState.pointee.isInstalled != 0,
+            let setTerminate = symbol("_ZSt13set_terminatePFvvE"),
+            let getTerminate = symbol("_ZSt13get_terminatev")
+        else {
+            return
+        }
+        let handler = unsafeBitCast(recordingTerminateHandler, to: UnsafeMutableRawPointer.self)
+        guard unsafeBitCast(getTerminate, to: CurrentExceptionTypeFunction.self)() == handler else {
+            return
+        }
+        _ = unsafeBitCast(setTerminate, to: SetTerminateFunction.self)(terminateState.pointee.previousHandler)
+        terminateState.pointee.isInstalled = 0
+        terminateState.pointee.previousHandler = nil
+        terminateClaim.pointee = nil
+    }
+
+    /// Records the throw site once per process: the recorder has a single buffer, and another thread terminating at the
+    /// same time would mix its stack into the record. Returns whether the calling thread is the one to record.
+    fileprivate static func claimRecord() -> Bool {
+        var expected: UnsafeRawPointer? = nil
+        return _stdlib_atomicCompareExchangeStrongPtr(object: terminateClaim, expected: &expected, desired: UnsafeRawPointer(bitPattern: 1))
+    }
+
+    private static func symbol(_ name: String) -> UnsafeMutableRawPointer? {
+        dlsym(UnsafeMutableRawPointer(bitPattern: -2), name) // RTLD_DEFAULT
     }
 
     /// Reads the throw site recorded in a file, if any.
@@ -211,4 +231,46 @@ internal enum ThrowSiteRecorder {
         }
         return nil
     }
+}
+
+// MARK: - Terminate handler state
+
+private typealias SetTerminateFunction = @convention(c) (UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
+/// Also the type of `std::get_terminate`.
+private typealias CurrentExceptionTypeFunction = @convention(c) () -> UnsafeMutableRawPointer?
+private typealias TerminateFunction = @convention(c) () -> Void
+
+/// Plain values only: it is read in the terminate handler.
+private struct TerminateState {
+    var isInstalled: Int32 = 0
+    var currentExceptionType: UnsafeMutableRawPointer?
+    var previousHandler: UnsafeMutableRawPointer?
+}
+
+private let terminateState: UnsafeMutablePointer<TerminateState> = {
+    let pointer = UnsafeMutablePointer<TerminateState>.allocate(capacity: 1)
+    pointer.initialize(to: TerminateState())
+    return pointer
+}()
+
+/// `nil` until a thread claims the record (see `ThrowSiteRecorder.claimRecord()`).
+private let terminateClaim: UnsafeMutablePointer<UnsafeRawPointer?> = {
+    let pointer = UnsafeMutablePointer<UnsafeRawPointer?>.allocate(capacity: 1)
+    pointer.initialize(to: nil)
+    return pointer
+}()
+
+/// Runs when a C++ exception is not caught, or `std::terminate()` is called. Records the throw site of an uncaught C++
+/// exception, then hands over to the handler it replaced, unchanged.
+private let recordingTerminateHandler: TerminateFunction = {
+    let exceptionType = terminateState.pointee.currentExceptionType.flatMap {
+        unsafeBitCast($0, to: CurrentExceptionTypeFunction.self)()
+    }
+    if let exceptionType, ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType), ThrowSiteRecorder.claimRecord() {
+        ThrowSiteRecorder.record()
+    }
+    if let previous = terminateState.pointee.previousHandler {
+        unsafeBitCast(previous, to: TerminateFunction.self)()
+    }
+    abort()
 }

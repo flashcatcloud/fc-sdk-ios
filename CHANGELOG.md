@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- An uncaught C++ exception thrown on the thread that enabled crash reporting (usually the main thread) is reported with the stack of its throw site when KSCrash's `__cxa_throw` interception does not take effect, as seen on some devices; it was reported with an empty stack. The throw site is now recorded at terminate time with every configuration, not only with `takesOverCrashHandlers`, and taken with `backtrace()`.
+
 ---
 
 ## [0.9.0] - 2026-11-03
