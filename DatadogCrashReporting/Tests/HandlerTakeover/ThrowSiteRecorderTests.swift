@@ -79,16 +79,13 @@ class ThrowSiteRecorderTests: XCTestCase {
         XCTAssertTrue(symbols.contains { $0.contains("recordFromANamedFrame") }, "\(symbols)")
     }
 
-    func testTheTerminateHandlerRecordsTheThrowSiteOfAnUncaughtCppException_thenCallsTheHandlerItReplaced() throws {
+    func testTheTerminateHandlerRecordsTheThrowSiteOfAnUncaughtCppExceptionOnItsThread_thenCallsTheHandlerItReplaced() throws {
         try XCTSkipIf(throwRuntimeError == nil)
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: file) }
         try withParkingTerminate {
-            // Given
-            XCTAssertTrue(ThrowSiteRecorder.installTerminateHandler(file: file))
-
-            // When
-            startUncaughtThrow(objectiveC: false)
+            // When (the handler installed on the thread that throws)
+            startUncaughtThrow(objectiveC: false, installingRecorderTo: file)
 
             // Then
             XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success, "the replaced handler is called")
@@ -106,10 +103,25 @@ class ThrowSiteRecorderTests: XCTestCase {
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: file) }
         try withParkingTerminate {
+            startUncaughtThrow(objectiveC: true, installingRecorderTo: file)
+
+            XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success, "the replaced handler is called")
+            XCTAssertNil(ThrowSiteRecorder.read(from: file))
+        }
+    }
+
+    func testTheTerminateHandlerDoesNotRecordOtherThreads_butCallsTheHandlerItReplaced() throws {
+        try XCTSkipIf(throwRuntimeError == nil)
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("throw-site-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try withParkingTerminate {
+            // Given (installed on this thread)
             XCTAssertTrue(ThrowSiteRecorder.installTerminateHandler(file: file))
 
-            startUncaughtThrow(objectiveC: true)
+            // When (another thread throws: the crash reporter takes its stack itself)
+            startUncaughtThrow(objectiveC: false, installingRecorderTo: nil)
 
+            // Then
             XCTAssertEqual(parkedSemaphore.wait(timeout: .now() + 5), .success, "the replaced handler is called")
             XCTAssertNil(ThrowSiteRecorder.read(from: file))
         }
@@ -214,10 +226,17 @@ private func throwFromNamedSite() { throwRuntimeError?("uncaught") }
 @inline(never)
 private func raiseFromNamedSite() { NSException(name: .genericException, reason: "uncaught", userInfo: nil).raise() }
 
-/// Throws on a new thread that never catches.
-private func startUncaughtThrow(objectiveC: Bool) {
+/// The file the throwing thread installs the recorder to, if any (read by the thread's C entry point).
+private var recorderFileForThrowingThread: URL?
+
+/// Throws on a new thread that never catches, after installing the recorder on that thread when a file is given.
+private func startUncaughtThrow(objectiveC: Bool, installingRecorderTo file: URL?) {
+    recorderFileForThrowingThread = file
     var thread: pthread_t?
     let entry: @convention(c) (UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? = { argument in
+        if let file = recorderFileForThrowingThread {
+            ThrowSiteRecorder.installTerminateHandler(file: file)
+        }
         if argument == UnsafeMutableRawPointer(bitPattern: 1) {
             raiseFromNamedSite()
         } else {

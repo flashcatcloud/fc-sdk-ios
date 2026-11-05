@@ -50,7 +50,7 @@ internal enum ThrowSiteRecorder {
             close(fileDescriptor)
         }
         // Globals are initialized on first access: here, not in the terminate handler.
-        _ = (buffer, magic, maxFrames, headerSize, recordSize, terminateState, terminateClaim)
+        _ = (buffer, magic, maxFrames, headerSize, recordSize, terminateState)
         fileDescriptor = open(file.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0o644)
         // Binds the functions `record()` calls, in case they are bound lazily.
         _ = walkStack(into: buffer + headerSize)
@@ -110,9 +110,13 @@ internal enum ThrowSiteRecorder {
 
     // MARK: - Terminate handler
 
-    /// Installs a C++ terminate handler that records the throw site of an uncaught C++ exception, then calls the handler
-    /// it replaced (the crash reporter's). For when the crash handler takeover is not active: the takeover installs its
-    /// own. Installed once; later calls do nothing.
+    /// Installs a C++ terminate handler that records the throw site of an uncaught C++ exception thrown on the calling
+    /// thread, then calls the handler it replaced (the crash reporter's). Call it on the thread the crash reporter was
+    /// installed on: the crash reporter takes the stack at terminate time on any other thread, so only that thread's
+    /// throw site is recorded, and a concurrent termination on another thread cannot be mistaken for it. For when the
+    /// crash handler takeover is not active: the takeover installs its own. Installed once; later calls do nothing.
+    ///
+    /// A terminate handler installed later that does not call this one (nor the crash reporter's) bypasses it.
     /// - Returns: `true` if the handler is installed.
     @discardableResult
     static func installTerminateHandler(file: URL) -> Bool {
@@ -127,14 +131,15 @@ internal enum ThrowSiteRecorder {
         }
         prepare(file: file)
         terminateState.pointee.currentExceptionType = currentExceptionType
+        terminateState.pointee.recordingThread = pthread_self()
         let handler = unsafeBitCast(recordingTerminateHandler, to: UnsafeMutableRawPointer.self)
         terminateState.pointee.previousHandler = unsafeBitCast(setTerminate, to: SetTerminateFunction.self)(handler)
         terminateState.pointee.isInstalled = 1
         return true
     }
 
-    /// For tests: puts back the terminate handler `installTerminateHandler(file:)` replaced and allows a new record. Does
-    /// nothing if another handler was installed since, which may call this one: it keeps calling the replaced handler.
+    /// For tests: puts back the terminate handler `installTerminateHandler(file:)` replaced. Does nothing if another
+    /// handler was installed since, which may call this one: it keeps calling the replaced handler.
     static func uninstallTerminateHandler() {
         guard
             terminateState.pointee.isInstalled != 0,
@@ -150,14 +155,7 @@ internal enum ThrowSiteRecorder {
         _ = unsafeBitCast(setTerminate, to: SetTerminateFunction.self)(terminateState.pointee.previousHandler)
         terminateState.pointee.isInstalled = 0
         terminateState.pointee.previousHandler = nil
-        terminateClaim.pointee = nil
-    }
-
-    /// Records the throw site once per process: the recorder has a single buffer, and another thread terminating at the
-    /// same time would mix its stack into the record. Returns whether the calling thread is the one to record.
-    fileprivate static func claimRecord() -> Bool {
-        var expected: UnsafeRawPointer? = nil
-        return _stdlib_atomicCompareExchangeStrongPtr(object: terminateClaim, expected: &expected, desired: UnsafeRawPointer(bitPattern: 1))
+        terminateState.pointee.recordingThread = nil
     }
 
     private static func symbol(_ name: String) -> UnsafeMutableRawPointer? {
@@ -245,6 +243,8 @@ private struct TerminateState {
     var isInstalled: Int32 = 0
     var currentExceptionType: UnsafeMutableRawPointer?
     var previousHandler: UnsafeMutableRawPointer?
+    /// The only thread whose throw site is recorded.
+    var recordingThread: pthread_t?
 }
 
 private let terminateState: UnsafeMutablePointer<TerminateState> = {
@@ -253,20 +253,16 @@ private let terminateState: UnsafeMutablePointer<TerminateState> = {
     return pointer
 }()
 
-/// `nil` until a thread claims the record (see `ThrowSiteRecorder.claimRecord()`).
-private let terminateClaim: UnsafeMutablePointer<UnsafeRawPointer?> = {
-    let pointer = UnsafeMutablePointer<UnsafeRawPointer?>.allocate(capacity: 1)
-    pointer.initialize(to: nil)
-    return pointer
-}()
-
 /// Runs when a C++ exception is not caught, or `std::terminate()` is called. Records the throw site of an uncaught C++
-/// exception, then hands over to the handler it replaced, unchanged.
+/// exception on the recording thread, then hands over to the handler it replaced, unchanged.
 private let recordingTerminateHandler: TerminateFunction = {
     let exceptionType = terminateState.pointee.currentExceptionType.flatMap {
         unsafeBitCast($0, to: CurrentExceptionTypeFunction.self)()
     }
-    if let exceptionType, ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType), ThrowSiteRecorder.claimRecord() {
+    if let exceptionType,
+       let recordingThread = terminateState.pointee.recordingThread,
+       pthread_equal(pthread_self(), recordingThread) != 0,
+       ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType) {
         ThrowSiteRecorder.record()
     }
     if let previous = terminateState.pointee.previousHandler {

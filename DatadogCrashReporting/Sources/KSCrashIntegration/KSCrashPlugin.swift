@@ -128,6 +128,7 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
                         telemetry.debug("[KSCrash] Crash handler takeover could not be activated")
                     }
                 }
+                // On this thread, the one the crash reporter was just installed on: the only one it has no stack for.
                 if !isTakeoverActive, !ThrowSiteRecorder.installTerminateHandler(file: throwSiteFile) {
                     telemetry.debug("[KSCrash] C++ throw site recorder could not be installed")
                 }
