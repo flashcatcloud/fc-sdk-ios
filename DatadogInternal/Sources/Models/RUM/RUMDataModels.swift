@@ -1736,6 +1736,12 @@ public struct RUMErrorEvent: RUMDataModel {
 
     /// Error properties
     public struct Error: Codable {
+        // FLASHCAT FORK: `beacon` is a FlashCat addition on top of the shared schema, patched in by
+        // hand like `rc_version`; reapplying `make rum-models-generate` drops it and this patch
+        // must be restored.
+        /// What became of the crash beacon sent while this crash took the process down
+        public let beacon: Beacon?
+
         /// Description of each binary image (native libraries; for Android: .so files) loaded or referenced by the process/application.
         public let binaryImages: [BinaryImages]?
 
@@ -1794,6 +1800,8 @@ public struct RUMErrorEvent: RUMDataModel {
         public let wasTruncated: Bool?
 
         public enum CodingKeys: String, CodingKey {
+            // FLASHCAT FORK: see `beacon` above.
+            case beacon = "beacon"
             case binaryImages = "binary_images"
             case category = "category"
             case causes = "causes"
@@ -1818,6 +1826,7 @@ public struct RUMErrorEvent: RUMDataModel {
         /// Error properties
         ///
         /// - Parameters:
+        ///   - beacon: What became of the crash beacon sent while this crash took the process down
         ///   - binaryImages: Description of each binary image (native libraries; for Android: .so files) loaded or referenced by the process/application.
         ///   - category: The specific category of the error. It provides a high-level grouping for different types of errors.
         ///   - causes: Causes of the error
@@ -1838,6 +1847,7 @@ public struct RUMErrorEvent: RUMDataModel {
         ///   - type: The type of the error
         ///   - wasTruncated: A boolean value saying if any of the stack traces was truncated due to minification.
         public init(
+            beacon: Beacon? = nil,
             binaryImages: [BinaryImages]? = nil,
             category: Category? = nil,
             causes: [Causes]? = nil,
@@ -1858,6 +1868,7 @@ public struct RUMErrorEvent: RUMDataModel {
             type: String? = nil,
             wasTruncated: Bool? = nil
         ) {
+            self.beacon = beacon
             self.binaryImages = binaryImages
             self.category = category
             self.causes = causes
@@ -1877,6 +1888,31 @@ public struct RUMErrorEvent: RUMDataModel {
             self.timeSinceAppStart = timeSinceAppStart
             self.type = type
             self.wasTruncated = wasTruncated
+        }
+
+        // FLASHCAT FORK: see `beacon` above.
+        /// What became of the crash beacon sent while this crash took the process down
+        public struct Beacon: Codable {
+            /// sent, timeout, failed or skipped
+            public let status: String
+
+            /// How long the beacon took, in milliseconds
+            public let duration: Int64?
+
+            public enum CodingKeys: String, CodingKey {
+                case status = "status"
+                case duration = "duration"
+            }
+
+            /// What became of the crash beacon sent while this crash took the process down
+            ///
+            /// - Parameters:
+            ///   - status: sent, timeout, failed or skipped
+            ///   - duration: How long the beacon took, in milliseconds
+            public init(status: String, duration: Int64? = nil) {
+                self.status = status
+                self.duration = duration
+            }
         }
 
         /// Description of the binary image (native library; for Android: .so file) loaded or referenced by the process/application.

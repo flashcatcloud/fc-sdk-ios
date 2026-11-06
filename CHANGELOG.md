@@ -9,6 +9,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- Crash beacon (`CrashReporting.Configuration(crashBeaconEnabled:)`, default `true`): when the app crashes in the foreground, a beacon of a few hundred bytes, without stack, is sent while the crash ends the process, so the crash is counted even if the app is never opened again. The full report still follows on the next launch, with the same id as `error.id`, and carries what became of the beacon in `error.beacon`.
+  - The crashed thread waits for the beacon at most 1 second; remote configuration can set the wait between 0.5 and 2 seconds (`rum.crashBeaconTimeoutMs`) or turn beacons off (`rum.crashBeaconEnabled`).
+  - Sent only in foreground, with tracking consent granted, for a session RUM tracks, and never while a debugger is attached. It goes to `<RUM intake>/crash` (the RUM custom endpoint, when set) on the HTTP client of the uploads.
+  - The crashed thread only runs async-signal-safe code (a pipe write and a bounded `poll()`); the beacon is built and sent by a thread prepared at startup. It also runs when `takesOverCrashHandlers` is enabled.
+
 ---
 
 ## [0.9.1] - 2026-11-06

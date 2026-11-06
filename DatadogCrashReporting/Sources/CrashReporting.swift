@@ -63,15 +63,34 @@ public final class CrashReporting {
         ///   memory accesses): that handler is no longer installed.
         public var takesOverCrashHandlers: Bool
 
+        /// Send a crash beacon when the app crashes in the foreground.
+        ///
+        /// A crash beacon is a few hundred bytes, without stack, sent while the crash takes the
+        /// process down, so the crash is counted even if the app is never opened again. The full
+        /// report still follows on the next launch. The crash waits for the beacon at most 1 second
+        /// (adjustable from the console between 0.5 and 2 seconds), and the console can also turn
+        /// beacons off per application.
+        ///
+        /// Defaults to `true`. Beacons are only sent with tracking consent granted, for a session
+        /// RUM tracks, and never while a debugger is attached.
+        public var crashBeaconEnabled: Bool
+
         /// Creates a Crash Reporting configuration.
         /// - Parameters:
         ///   - symbolicateInProcess: see ``symbolicateInProcess``. Defaults to `true`.
         ///   - handlesMachExceptions: see ``handlesMachExceptions``. Defaults to `false`.
         ///   - takesOverCrashHandlers: see ``takesOverCrashHandlers``. Defaults to `false`.
-        public init(symbolicateInProcess: Bool = true, handlesMachExceptions: Bool = false, takesOverCrashHandlers: Bool = false) {
+        ///   - crashBeaconEnabled: see ``crashBeaconEnabled``. Defaults to `true`.
+        public init(
+            symbolicateInProcess: Bool = true,
+            handlesMachExceptions: Bool = false,
+            takesOverCrashHandlers: Bool = false,
+            crashBeaconEnabled: Bool = true
+        ) {
             self.symbolicateInProcess = symbolicateInProcess
             self.handlesMachExceptions = handlesMachExceptions
             self.takesOverCrashHandlers = takesOverCrashHandlers
+            self.crashBeaconEnabled = crashBeaconEnabled
         }
     }
 
@@ -83,15 +102,33 @@ public final class CrashReporting {
         with configuration: Configuration = .init(),
         in core: DatadogCoreProtocol = CoreRegistry.default
     ) {
-        enable(
-            with: try KSCrashPlugin(
-                telemetry: core.telemetry,
-                symbolicateInProcess: configuration.symbolicateInProcess,
-                handlesMachExceptions: configuration.handlesMachExceptions,
-                takesOverCrashHandlers: configuration.takesOverCrashHandlers
-            ),
-            in: core
+        // FLASHCAT FORK - the beacon's signal handler goes in before KSCrash's, so that KSCrash
+        // re-raises into it once the crash report is written. One crash id per process ties the
+        // beacon to the report.
+        let crashId = UUID().uuidString.lowercased()
+        let beacon = CrashBeacon.install(
+            crashId: crashId,
+            enabled: configuration.crashBeaconEnabled,
+            directory: CrashBeacon.directory,
+            sender: core as? CrashBeaconRequestSender
         )
+        do {
+            try runOnMainThreadSync {
+                try enableOrThrow(
+                    with: KSCrashPlugin(
+                        telemetry: core.telemetry,
+                        symbolicateInProcess: configuration.symbolicateInProcess,
+                        handlesMachExceptions: configuration.handlesMachExceptions,
+                        takesOverCrashHandlers: configuration.takesOverCrashHandlers
+                    ),
+                    in: core,
+                    crashId: crashId,
+                    beacon: beacon
+                )
+            }
+        } catch let error {
+            consolePrint("\(error)", .error)
+        }
     }
 
     /// Initializes the Datadog Crash Reporter with a custom Crash Reporting Plugin.
@@ -115,7 +152,9 @@ public final class CrashReporting {
     internal static func enableOrThrow(
         with makePlugin: @autoclosure () throws -> CrashReportingPlugin,
         in core: DatadogCoreProtocol,
-        processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay
+        processingDelay: TimeInterval = CrashReportingFeature.defaultProcessingDelay,
+        crashId: String = UUID().uuidString.lowercased(),
+        beacon: CrashBeacon? = nil
     ) throws {
         guard !(core is NOPDatadogCore) else {
             throw ProgrammerError(
@@ -129,22 +168,26 @@ public final class CrashReporting {
         }
         let plugin = try makePlugin()
 
-        let contextProvider = CrashContextCoreProvider()
+        let contextProvider = CrashContextCoreProvider(crashId: crashId)
 
         let reporter = CrashReportingFeature(
             crashReportingPlugin: plugin,
             crashContextProvider: contextProvider,
             sender: MessageBusSender(core: core),
-            messageReceiver: contextProvider,
+            // The beacon goes first and never consumes a message, so the provider sees them all.
+            messageReceiver: beacon.map { CombinedFeatureMessageReceiver($0, contextProvider) } ?? contextProvider,
             telemetry: core.telemetry,
-            processingDelay: processingDelay
+            processingDelay: processingDelay,
+            beaconDirectory: CrashBeacon.directory
         )
 
         // The crash context otherwise reaches the crash reporter through several asynchronous hops after the
         // Feature is registered, which can take seconds at launch: a crash in between was recorded without it and
         // then dropped. Write the first one now, before registering, so later updates always replace it.
         if let context = core.currentContext() {
-            reporter.inject(initialCrashContext: CrashContext(context, lastLogAttributes: nil))
+            var initialCrashContext = CrashContext(context, lastLogAttributes: nil)
+            initialCrashContext.crashId = crashId // FLASHCAT FORK - see `CrashContext.crashId`
+            reporter.inject(initialCrashContext: initialCrashContext)
         }
 
         try core.register(feature: reporter)

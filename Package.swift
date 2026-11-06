@@ -155,6 +155,7 @@ let package = Package(
             name: "DatadogCrashReporting",
             dependencies: [
                 .target(name: "DatadogInternal"),
+                .target(name: "DatadogCrashReportingPrivate"),
                 .product(name: "Recording", package: "KSCrash"),
                 .product(name: "Filters", package: "KSCrash")
             ],
@@ -162,7 +163,12 @@ let package = Package(
             sources: ["Sources"],
             resources: [
                 .copy("Resources/PrivacyInfo.xcprivacy")
-            ]
+            ],
+            swiftSettings: [.define("SPM_BUILD")]
+        ),
+        .target(
+            name: "DatadogCrashReportingPrivate",
+            path: "DatadogCrashReporting/Private"
         ),
         .testTarget(
             name: "DatadogCrashReportingTests",

@@ -26,6 +26,10 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
     var sessionOnError: Bool?
     /// `rum.sessionReplayOnError`; absent when the console did not set it.
     var sessionReplayOnError: Bool?
+    /// FLASHCAT FORK - `rum.crashBeaconEnabled`; absent when the console did not set it.
+    var crashBeaconEnabled: Bool?
+    /// FLASHCAT FORK - `rum.crashBeaconTimeoutMs`; absent when the console did not set it.
+    var crashBeaconTimeoutMs: Int?
     /// The console's custom values, as the raw JSON object they were delivered in.
     var custom: String?
 
@@ -37,6 +41,8 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
         sessionSampleRate: nil,
         sessionOnError: nil,
         sessionReplayOnError: nil,
+        crashBeaconEnabled: nil,
+        crashBeaconTimeoutMs: nil,
         custom: nil
     )
 
@@ -54,7 +60,9 @@ internal struct RemoteSamplingSnapshot: Equatable, Codable {
             version: version,
             custom: custom,
             sessionOnError: sessionOnError,
-            sessionReplayOnError: sessionReplayOnError
+            sessionReplayOnError: sessionReplayOnError,
+            crashBeaconEnabled: crashBeaconEnabled,
+            crashBeaconTimeoutMs: crashBeaconTimeoutMs
         )
     }
 }
@@ -125,6 +133,8 @@ extension RemoteSamplingResponse {
                     sessionSampleRate: nil,
                     sessionOnError: nil,
                     sessionReplayOnError: nil,
+                    crashBeaconEnabled: nil,
+                    crashBeaconTimeoutMs: nil,
                     custom: nil
                 ),
                 activation: activation
@@ -139,6 +149,8 @@ extension RemoteSamplingResponse {
                 sessionSampleRate: readRate(rum, key: Contract.sessionSampleRate),
                 sessionOnError: readSwitch(rum, key: Contract.sessionOnError),
                 sessionReplayOnError: readSwitch(rum, key: Contract.sessionReplayOnError),
+                crashBeaconEnabled: readSwitch(rum, key: Contract.crashBeaconEnabled),
+                crashBeaconTimeoutMs: readCrashBeaconTimeout(rum),
                 custom: readCustom(root)
             ),
             activation: activation
@@ -188,6 +200,8 @@ extension RemoteSamplingResponse {
         static let sessionSampleRate = "sessionSampleRate"
         static let sessionOnError = "sessionOnError"
         static let sessionReplayOnError = "sessionReplayOnError"
+        static let crashBeaconEnabled = "crashBeaconEnabled"
+        static let crashBeaconTimeoutMs = "crashBeaconTimeoutMs"
     }
 
     /// The console's publish counter, so anything that is not a whole, non-negative number cannot
@@ -282,6 +296,19 @@ extension RemoteSamplingResponse {
             return nil
         }
         return number.boolValue
+    }
+
+    /// FLASHCAT FORK - the crash beacon wait, in whole milliseconds within 500...2000. Anything else
+    /// is dropped like a rate out of range, and the beacon keeps its default wait.
+    private static func readCrashBeaconTimeout(_ rum: [String: Any]) -> Int? {
+        guard let raw = rum[Contract.crashBeaconTimeoutMs], let number = raw as? NSNumber, !isBoolean(raw) else {
+            return nil
+        }
+        let value = number.doubleValue
+        guard value >= 500, value <= 2_000, value.rounded(.towardZero) == value else {
+            return nil
+        }
+        return number.intValue
     }
 
     /// Custom values are delivered to the host application as the raw JSON object they arrived in.

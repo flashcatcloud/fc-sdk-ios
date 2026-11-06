@@ -32,7 +32,8 @@ extension CrashReportingFeature {
         messageReceiver: FeatureMessageReceiver = NOPFeatureMessageReceiver(),
         telemetry: Telemetry = NOPTelemetry(),
         processingDelay: TimeInterval = 0,
-        bundleVersion: String? = nil
+        bundleVersion: String? = nil,
+        beaconDirectory: URL? = nil
     ) -> Self {
         .init(
             crashReportingPlugin: crashReportingPlugin,
@@ -41,7 +42,8 @@ extension CrashReportingFeature {
             messageReceiver: messageReceiver,
             telemetry: telemetry,
             processingDelay: processingDelay,
-            bundleVersion: bundleVersion
+            bundleVersion: bundleVersion,
+            beaconDirectory: beaconDirectory
         )
     }
 }

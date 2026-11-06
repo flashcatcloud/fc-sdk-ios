@@ -2212,6 +2212,16 @@
 		F603F12C2CAEA7180088E6B7 /* DDInternalLoggerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F603F1282CAEA4E90088E6B7 /* DDInternalLoggerTests.swift */; };
 		F603F1302CAEA7620088E6B7 /* DDInternalLogger+apiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F603F12D2CAEA7590088E6B7 /* DDInternalLogger+apiTests.m */; };
 		F603F1312CAEA7630088E6B7 /* DDInternalLogger+apiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F603F12D2CAEA7590088E6B7 /* DDInternalLogger+apiTests.m */; };
+		5130CC4C3B5359648A27C3E9 /* CrashBeacon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 603E452CEAD882426CE498BB /* CrashBeacon.swift */; };
+		D9811FD5537758351F03CCE9 /* CrashBeacon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 603E452CEAD882426CE498BB /* CrashBeacon.swift */; };
+		632BB368B698D7016D411C63 /* CrashBeacon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FCCFAE97F8E1A08CDE1287 /* CrashBeacon.swift */; };
+		AF52EEE059EB35BB1BFBAC95 /* CrashBeacon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FCCFAE97F8E1A08CDE1287 /* CrashBeacon.swift */; };
+		D6BCEC31C14D15CF250C948B /* DDCrashBeacon.m in Sources */ = {isa = PBXBuildFile; fileRef = EE700BF9AE4B74AFC599BFAE /* DDCrashBeacon.m */; };
+		396F5D4DB4F898C2604C797C /* DDCrashBeacon.m in Sources */ = {isa = PBXBuildFile; fileRef = EE700BF9AE4B74AFC599BFAE /* DDCrashBeacon.m */; };
+		AE70FC040E3447B76140B3AE /* DDCrashBeacon.h in Headers */ = {isa = PBXBuildFile; fileRef = D5451572B4206D4F77AF0949 /* DDCrashBeacon.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		12A749252BD5DB9374014820 /* DDCrashBeacon.h in Headers */ = {isa = PBXBuildFile; fileRef = D5451572B4206D4F77AF0949 /* DDCrashBeacon.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		6689CA1FD21F40CFCBD30833 /* CrashBeaconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EA8E61B1397979C1AB3A09 /* CrashBeaconTests.swift */; };
+		E77E9E24E75D5EFD0BA3B260 /* CrashBeaconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EA8E61B1397979C1AB3A09 /* CrashBeaconTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -3977,6 +3987,11 @@
 		F603F1282CAEA4E90088E6B7 /* DDInternalLoggerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDInternalLoggerTests.swift; sourceTree = "<group>"; };
 		F603F12D2CAEA7590088E6B7 /* DDInternalLogger+apiTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "DDInternalLogger+apiTests.m"; sourceTree = "<group>"; };
 		F637AED12697404200516F32 /* UIKitRUMUserActionsPredicate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitRUMUserActionsPredicate.swift; sourceTree = "<group>"; };
+		603E452CEAD882426CE498BB /* CrashBeacon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CrashBeacon.swift; path = ../DatadogInternal/Sources/Models/CrashReporting/CrashBeacon.swift; sourceTree = SOURCE_ROOT; };
+		B3FCCFAE97F8E1A08CDE1287 /* CrashBeacon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CrashBeacon.swift; path = ../DatadogCrashReporting/Sources/Beacon/CrashBeacon.swift; sourceTree = SOURCE_ROOT; };
+		EE700BF9AE4B74AFC599BFAE /* DDCrashBeacon.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = DDCrashBeacon.m; path = ../DatadogCrashReporting/Private/DDCrashBeacon.m; sourceTree = SOURCE_ROOT; };
+		D5451572B4206D4F77AF0949 /* DDCrashBeacon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DDCrashBeacon.h; path = ../DatadogCrashReporting/Private/include/DDCrashBeacon.h; sourceTree = SOURCE_ROOT; };
+		93EA8E61B1397979C1AB3A09 /* CrashBeaconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CrashBeaconTests.swift; path = ../DatadogCrashReporting/Tests/CrashBeaconTests.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -6171,6 +6186,7 @@
 			isa = PBXGroup;
 			children = (
 				D2D7483E2DC24F1100C61353 /* Crash.swift */,
+				603E452CEAD882426CE498BB /* CrashBeacon.swift */,
 				D2D9A9D82DBFD360005DB31D /* CrashContext.swift */,
 				6167E6E12B81207200C3CA2D /* DDCrashReport.swift */,
 				6167E6E72B8122E900C3CA2D /* BacktraceReport.swift */,
@@ -6212,6 +6228,7 @@
 			children = (
 				615D9E2626048EAF006DC6D1 /* DatadogCrashReporting.xcconfig */,
 				61B7885625C180CB002675B5 /* DatadogCrashReporting.h */,
+				D5451572B4206D4F77AF0949 /* DDCrashBeacon.h */,
 				61B7885725C180CB002675B5 /* Info.plist */,
 			);
 			path = DatadogCrashReporting;
@@ -6231,6 +6248,8 @@
 			children = (
 				D2A7A9012BA1C4B100F46845 /* PrivacyInfo.xcprivacy */,
 				6161247825CA9CA6009901BE /* CrashReporting.swift */,
+				EE700BF9AE4B74AFC599BFAE /* DDCrashBeacon.m */,
+				B3FCCFAE97F8E1A08CDE1287 /* CrashBeacon.swift */,
 				61DE333525C8278A008E3EC2 /* CrashReportingPlugin.swift */,
 				D293302B2A137DAD0029C9EA /* CrashReportingFeature.swift */,
 				D296F1152EF97E8F00BD088B /* CrashContextProvider.swift */,
@@ -6247,6 +6266,7 @@
 			isa = PBXGroup;
 			children = (
 				D296F11E2EF9820D00BD088B /* CrashReportingFeatureTests.swift */,
+				93EA8E61B1397979C1AB3A09 /* CrashBeaconTests.swift */,
 				D296F1232EF9896500BD088B /* CrashContextCoreProviderTests.swift */,
 				D296F1262EF98E9C00BD088B /* CrashReportSenderTests.swift */,
 				D22689C52EB214F100875E44 /* KSCrashIntegration */,
@@ -7946,6 +7966,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				61B7886425C180CB002675B5 /* DatadogCrashReporting.h in Headers */,
+				AE70FC040E3447B76140B3AE /* DDCrashBeacon.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -8065,6 +8086,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D2CB6FBE27C5348200A62B57 /* DatadogCrashReporting.h in Headers */,
+				12A749252BD5DB9374014820 /* DDCrashBeacon.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -10261,6 +10283,8 @@
 				D9C7E9707A027991ED8B85BC /* ThrowSiteRecorder.swift in Sources */,
 				D9C7C70C4901B25DF27994C8 /* DatadogCppThrowSiteFilter.swift in Sources */,
 				D214DA8329DF2D5E004D0AE8 /* CrashReporting.swift in Sources */,
+				D6BCEC31C14D15CF250C948B /* DDCrashBeacon.m in Sources */,
+				632BB368B698D7016D411C63 /* CrashBeacon.swift in Sources */,
 				D296F1162EF97E8F00BD088B /* CrashContextProvider.swift in Sources */,
 				D2268AE72EB50F4C00875E44 /* DatadogDiagnosticFilter.swift in Sources */,
 				D2268AD82EB4DAC400875E44 /* AnyCrashReport.swift in Sources */,
@@ -10288,6 +10312,7 @@
 				D22689C82EB2151F00875E44 /* KSCrashPluginTests.swift in Sources */,
 				D296F1252EF9896500BD088B /* CrashContextCoreProviderTests.swift in Sources */,
 				D296F11F2EF9820D00BD088B /* CrashReportingFeatureTests.swift in Sources */,
+				6689CA1FD21F40CFCBD30833 /* CrashBeaconTests.swift in Sources */,
 				D253E65F2EBA478E0074BEC4 /* KSCrashBacktraceTests.swift in Sources */,
 				D2268AE42EB4F5CA00875E44 /* DatadogMinifyFilterTests.swift in Sources */,
 			);
@@ -10481,6 +10506,7 @@
 				D2DE63532A30A7CA00441A54 /* CoreRegistry.swift in Sources */,
 				3CBF72DC4C4F98B6205D5576 /* RemoteSampling.swift in Sources */,
 				D2D748402DC24F1100C61353 /* Crash.swift in Sources */,
+				D9811FD5537758351F03CCE9 /* CrashBeacon.swift in Sources */,
 				E2AA55EA2C32C76A002FEF28 /* WatchKitExtensions.swift in Sources */,
 				D2EBEE2829BA160F00B15732 /* W3CHTTPHeadersWriter.swift in Sources */,
 				D23039EA298D5236001A1FA3 /* DeviceInfo.swift in Sources */,
@@ -11646,6 +11672,8 @@
 				D9C7824F58120E8D3FAB1161 /* ThrowSiteRecorder.swift in Sources */,
 				D9C7739F4708D89C24294516 /* DatadogCppThrowSiteFilter.swift in Sources */,
 				D214DA8429DF2D5E004D0AE8 /* CrashReporting.swift in Sources */,
+				396F5D4DB4F898C2604C797C /* DDCrashBeacon.m in Sources */,
+				AF52EEE059EB35BB1BFBAC95 /* CrashBeacon.swift in Sources */,
 				D296F1172EF97E8F00BD088B /* CrashContextProvider.swift in Sources */,
 				D2268AE82EB50F4C00875E44 /* DatadogDiagnosticFilter.swift in Sources */,
 				D2268AD92EB4DAC400875E44 /* AnyCrashReport.swift in Sources */,
@@ -11673,6 +11701,7 @@
 				D22689C72EB2151F00875E44 /* KSCrashPluginTests.swift in Sources */,
 				D296F1242EF9896500BD088B /* CrashContextCoreProviderTests.swift in Sources */,
 				D296F1202EF9820D00BD088B /* CrashReportingFeatureTests.swift in Sources */,
+				E77E9E24E75D5EFD0BA3B260 /* CrashBeaconTests.swift in Sources */,
 				D253E65E2EBA478E0074BEC4 /* KSCrashBacktraceTests.swift in Sources */,
 				D2268AE52EB4F5CA00875E44 /* DatadogMinifyFilterTests.swift in Sources */,
 			);
@@ -11747,6 +11776,7 @@
 				D2EBEE3629BA161100B15732 /* W3CHTTPHeadersWriter.swift in Sources */,
 				D2DA236D298D57AA00C6C7E6 /* DeviceInfo.swift in Sources */,
 				D2D7483F2DC24F1100C61353 /* Crash.swift in Sources */,
+				5130CC4C3B5359648A27C3E9 /* CrashBeacon.swift in Sources */,
 				D2EBEE3129BA161100B15732 /* B3HTTPHeadersReader.swift in Sources */,
 				96155A3F2D7F013A0029034E /* ReflectionMirror.swift in Sources */,
 				D2DA236E298D57AA00C6C7E6 /* InternalLogger.swift in Sources */,
