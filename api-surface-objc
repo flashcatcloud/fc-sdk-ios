@@ -2806,6 +2806,7 @@ public class objc_RUMConfiguration: NSObject
     public var customEndpoint: URL?
     public var trackAnonymousUser: Bool
     public var trackMemoryWarnings: Bool
+    public var trackActiveDevices: Bool
 public class objc_RUM: NSObject
     public static func enable(with configuration: objc_RUMConfiguration)
 public class objc_RUMMonitor: NSObject
