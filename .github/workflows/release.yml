@@ -45,6 +45,11 @@ jobs:
           make clean repo-setup ENV=ci
           make dependencies
 
+      - name: List simulators
+        run: |
+          xcrun simctl list runtimes
+          xcrun simctl list devices available
+
       - name: Run unit tests
         env:
           TEST_RETRIES: 3
