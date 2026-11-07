@@ -49,7 +49,7 @@ jobs:
         env:
           TEST_RETRIES: 3
         run: |
-          make test-ios-all PLATFORM="iOS Simulator" DEVICE="iPhone 16 Pro"
+          make test-ios-all PLATFORM="iOS Simulator" DEVICE="iPhone 16 Pro" OS="18.5"
 
   validate-internal:
     name: Validate FlashcatInternal
