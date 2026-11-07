@@ -24,10 +24,12 @@ env:
 jobs:
   unit-tests:
     name: Unit Tests (iOS)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
@@ -51,9 +53,11 @@ jobs:
 
   validate-internal:
     name: Validate FlashcatInternal
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
@@ -80,10 +84,12 @@ jobs:
 
   validate-core:
     name: Validate FlashcatCore
-    runs-on: macos-14
+    runs-on: macos-15
     needs: validate-internal
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
@@ -110,7 +116,7 @@ jobs:
 
   validate-modules:
     name: Validate ${{ matrix.module }}
-    runs-on: macos-14
+    runs-on: macos-15
     needs: validate-internal
     strategy:
       fail-fast: false
@@ -123,6 +129,8 @@ jobs:
           - FlashcatWebViewTracking
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
@@ -149,12 +157,14 @@ jobs:
 
   publish-cocoapods-internal:
     name: Publish CocoaPods (Internal)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: [unit-tests, validate-internal, validate-core, validate-modules]
     # Only run on tag push or manual workflow dispatch (not on publish-new branch push)
     if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
@@ -182,11 +192,13 @@ jobs:
 
   publish-cocoapods-core:
     name: Publish CocoaPods (Core)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: publish-cocoapods-internal
     if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
@@ -208,7 +220,7 @@ jobs:
 
   publish-cocoapods-modules:
     name: Publish CocoaPods (Modules)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: publish-cocoapods-core
     if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
     strategy:
@@ -224,6 +236,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
