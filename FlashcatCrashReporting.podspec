@@ -16,7 +16,8 @@ Pod::Spec.new do |s|
   s.source = { :git => 'https://github.com/flashcatcloud/fc-sdk-ios.git', :tag => "v#{s.version}" }
   s.static_framework = true
 
-  s.source_files = "DatadogCrashReporting/Sources/**/*.swift"
+  s.source_files = ["DatadogCrashReporting/Sources/**/*.swift",
+                    "DatadogCrashReporting/Private/**/*.{h,c}"]
   s.dependency 'FlashcatInternal', s.version.to_s
   s.dependency 'KSCrash/Recording', '2.5.1'
   s.dependency 'KSCrash/Filters', '2.5.1'
