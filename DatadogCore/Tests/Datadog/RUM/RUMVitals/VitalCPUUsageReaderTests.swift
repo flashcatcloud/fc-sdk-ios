@@ -80,6 +80,70 @@ class VitalCPUUsageReaderTests: XCTestCase {
         XCTAssertEqual(afterInactive - first, .init(processCPUTime: 2, mainThreadCPUTime: 2, wallTime: 4))
     }
 
+    func testWhenReadFailsOnBecomingActiveItKeepsMeasuring() throws {
+        let reader = VitalCPUUsageReaderMock(
+            notificationCenter: testNotificationCenter,
+            rawSamples: [
+                .init(processCPUTime: 10, mainThreadCPUTime: 5, wallTime: 100), // first read
+                .init(processCPUTime: 11, mainThreadCPUTime: 6, wallTime: 102), // will resign active
+                nil, // did become active: the read fails
+                .init(processCPUTime: 20, mainThreadCPUTime: 6, wallTime: 160), // first read when active again
+                .init(processCPUTime: 21, mainThreadCPUTime: 7, wallTime: 162),
+            ]
+        )
+
+        let first = try XCTUnwrap(reader.readSample())
+        testNotificationCenter.post(name: UIApplication.willResignActiveNotification, object: nil)
+        testNotificationCenter.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let afterInactive = try XCTUnwrap(reader.readSample())
+        let later = try XCTUnwrap(reader.readSample())
+
+        XCTAssertEqual(afterInactive - first, .init(processCPUTime: 1, mainThreadCPUTime: 1, wallTime: 2))
+        XCTAssertEqual(later - afterInactive, .init(processCPUTime: 1, mainThreadCPUTime: 1, wallTime: 2))
+    }
+
+    func testWhenReadFailsOnResigningActiveItStartsInactivePeriodAtLastRead() throws {
+        let reader = VitalCPUUsageReaderMock(
+            notificationCenter: testNotificationCenter,
+            rawSamples: [
+                .init(processCPUTime: 10, mainThreadCPUTime: 5, wallTime: 100), // first read
+                .init(processCPUTime: 11, mainThreadCPUTime: 6, wallTime: 102), // last read before resigning active
+                nil, // will resign active: the read fails
+                .init(processCPUTime: 20, mainThreadCPUTime: 6, wallTime: 160), // did become active
+                .init(processCPUTime: 21, mainThreadCPUTime: 7, wallTime: 162), // read when active again
+            ]
+        )
+
+        let first = try XCTUnwrap(reader.readSample())
+        _ = try XCTUnwrap(reader.readSample())
+        testNotificationCenter.post(name: UIApplication.willResignActiveNotification, object: nil)
+        testNotificationCenter.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let afterInactive = try XCTUnwrap(reader.readSample())
+
+        XCTAssertEqual(afterInactive - first, .init(processCPUTime: 2, mainThreadCPUTime: 2, wallTime: 4))
+    }
+
+    func testWhenAppResignsActiveTwiceItKeepsFirstStartOfInactivePeriod() throws {
+        let reader = VitalCPUUsageReaderMock(
+            notificationCenter: testNotificationCenter,
+            rawSamples: [
+                .init(processCPUTime: 10, mainThreadCPUTime: 5, wallTime: 100), // first read
+                .init(processCPUTime: 11, mainThreadCPUTime: 6, wallTime: 102), // will resign active
+                // will resign active again: no read
+                .init(processCPUTime: 20, mainThreadCPUTime: 6, wallTime: 160), // did become active
+                .init(processCPUTime: 21, mainThreadCPUTime: 7, wallTime: 162), // read when active again
+            ]
+        )
+
+        let first = try XCTUnwrap(reader.readSample())
+        testNotificationCenter.post(name: UIApplication.willResignActiveNotification, object: nil)
+        testNotificationCenter.post(name: UIApplication.willResignActiveNotification, object: nil)
+        testNotificationCenter.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let afterInactive = try XCTUnwrap(reader.readSample())
+
+        XCTAssertEqual(afterInactive - first, .init(processCPUTime: 2, mainThreadCPUTime: 2, wallTime: 4))
+    }
+
     func testWhenValuesCannotBeReadItReturnsNil() {
         let reader = VitalCPUUsageReaderMock(notificationCenter: testNotificationCenter, rawSamples: [])
         XCTAssertNil(reader.readSample())
@@ -149,9 +213,20 @@ class VitalCPUUsageReaderTests: XCTestCase {
         XCTAssertNil(info.processUsageAverage)
 
         info.addSample(.init(processCPUTime: 0, mainThreadCPUTime: 0, wallTime: 10))
-        info.addSample(.init(processCPUTime: 0.5, mainThreadCPUTime: 0.5, wallTime: 11))
+        info.addSample(.init(processCPUTime: 0.5, mainThreadCPUTime: 0.5, wallTime: 10.85))
 
         XCTAssertFalse(info.hasEnoughForegroundTime)
+    }
+
+    func testWhenSamplesAreSlightlyLessThan1SecondApartItHasEnoughTime() {
+        // With 1s sampling, the first sample is taken one run loop pass after the view starts.
+        var info = CPUUsageInfo(processorCount: 1)
+        info.addSample(.init(processCPUTime: 0, mainThreadCPUTime: 0, wallTime: 10.02))
+        info.addSample(.init(processCPUTime: 0.5, mainThreadCPUTime: 0.5, wallTime: 11))
+
+        XCTAssertTrue(info.hasEnoughForegroundTime)
+        XCTAssertNotNil(info.processUsageAverage)
+        XCTAssertNotNil(info.processUsageMax)
     }
 
     func testWhenProcessorCountIsZeroItUsesOneCore() {
@@ -204,14 +279,15 @@ class VitalCPUUsageReaderTests: XCTestCase {
 
 // Overrides only the OS reads; inactive period accounting stays in VitalCPUUsageReader.
 private class VitalCPUUsageReaderMock: VitalCPUUsageReader {
-    private var rawSamples: [CPUUsageSample]
+    /// `nil` makes that read fail.
+    private var rawSamples: [CPUUsageSample?]
 
-    init(notificationCenter: NotificationCenter, rawSamples: [CPUUsageSample]) {
+    init(notificationCenter: NotificationCenter, rawSamples: [CPUUsageSample?]) {
         self.rawSamples = rawSamples
         super.init(notificationCenter: notificationCenter, processorCount: 1)
     }
 
-    override func readRawSample() -> CPUUsageSample? {
+    override func readOSSample() -> CPUUsageSample? {
         rawSamples.isEmpty ? nil : rawSamples.removeFirst()
     }
 }

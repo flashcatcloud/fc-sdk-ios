@@ -33,6 +33,10 @@ internal struct RUMDataStore {
         case appStateKey = "app-state"
         case watchdogRUMViewEvent = "watchdog-rum-view-event"
         case anonymousId = "rum-anonymous-id"
+        /// FLASHCAT FORK - the day and identity the last active beacon reported.
+        case activeBeaconSent = "rum-active-beacon-sent"
+        /// FLASHCAT FORK - the active beacons not delivered yet, oldest first.
+        case activeBeaconPending = "rum-active-beacon-pending"
     }
 
     /// Encodes values in RUM data store.

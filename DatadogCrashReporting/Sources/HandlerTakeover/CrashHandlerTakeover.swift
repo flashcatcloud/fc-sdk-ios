@@ -150,7 +150,8 @@ internal enum CrashHandlerTakeover {
         state.pointee.exceptionHandlerBeforeCrashReporter = exceptionHandlerBeforeCrashReporter
 
         ThrowSiteRecorder.prepare(file: throwSiteFile)
-        let terminate = unsafeBitCast(terminateHandler, to: UnsafeMutableRawPointer.self)
+        DDTakeoverTerminatePrelude = terminatePrelude
+        let terminate = unsafeBitCast(DDTakeoverTerminateHandler as TerminateFunction, to: UnsafeMutableRawPointer.self)
         state.pointee.crashReporterTerminate = unsafeBitCast(setTerminate, to: SetPointerFunction.self)(terminate)
         state.pointee.ownTerminate = terminate
         atomicExchange(foreignTerminate, 0)
@@ -906,8 +907,10 @@ private let exceptionTrampoline: ExceptionHandlerFunction = { exception in
     }
 }
 
-/// Runs when a C++ exception is not caught, or `std::terminate()` is called.
-private let terminateHandler: TerminateFunction = {
+/// Runs when a C++ exception is not caught, or `std::terminate()` is called, at the start of the takeover's terminate
+/// handler (`DDTakeoverTerminateHandler`). Returns the crash reporter's terminate handler, which that handler hands over to
+/// with a tail call, so that no frame of this SDK is on the stack the crash reporter and any other crash reporter record.
+private let terminatePrelude: DDTerminatePrelude = {
     let exceptionType = state.pointee.currentExceptionType.flatMap {
         unsafeBitCast($0, to: GetPointerFunction.self)()
     }
@@ -922,10 +925,7 @@ private let terminateHandler: TerminateFunction = {
     if isCrashHandlingThread(), ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType) {
         ThrowSiteRecorder.record()
     }
-    if let crashReporterTerminate = state.pointee.crashReporterTerminate {
-        unsafeBitCast(crashReporterTerminate, to: TerminateFunction.self)()
-    }
-    abort()
+    return state.pointee.crashReporterTerminate
 }
 
 /// Called by dyld for every image, already loaded or loaded later.

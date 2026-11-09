@@ -100,10 +100,11 @@ internal class KSCrashPlugin: NSObject, CrashReportingPlugin {
         let configuration = try KSCrashConfiguration.datadog(handlesMachExceptions: handlesMachExceptions)
         let exceptionHandlerBeforeInstall = NSGetUncaughtExceptionHandler().map { unsafeBitCast($0, to: UnsafeMutableRawPointer.self) }
         do {
-            // The crash reporter starts its Mach exception threads while it is installed.
-            let threadsBeforeInstall = handlesMachExceptions ? CrashHandlerTakeover.taskThreads() : []
+            // The crash reporter starts its Mach exception threads while it is installed. Only the takeover needs them.
+            let listsCrashReporterThreads = handlesMachExceptions && takesOverCrashHandlers
+            let threadsBeforeInstall = listsCrashReporterThreads ? CrashHandlerTakeover.taskThreads() : []
             try kscrash.install(with: configuration)
-            let threadsStartedByInstall = handlesMachExceptions
+            let threadsStartedByInstall = listsCrashReporterThreads
                 ? CrashHandlerTakeover.taskThreads().filter { !threadsBeforeInstall.contains($0) }
                 : nil
 

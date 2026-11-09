@@ -507,8 +507,8 @@ extension RUMViewScope {
         // RUMM-2079 `time_spent` can't be lower than 1ns
         let timeSpent = max(Constants.minimumTimeSpent, command.time.timeIntervalSince(viewStartTime))
         let cpuInfo = vitalInfoSampler?.cpu
-        // FLASHCAT FORK - nothing is reported until the view has spent more than 1s in foreground,
-        // like `cpu_ticks_per_second` which needs more than 1s of `timeSpent`.
+        // FLASHCAT FORK - nothing is reported until the view has spent about 1s in foreground,
+        // like `cpu_ticks_per_second` which needs more than 1s of `timeSpent` (see `CPUUsageInfo.minimumForegroundTime`).
         let cpuUsageInfo = vitalInfoSampler?.cpuUsage.flatMap { $0.hasEnoughForegroundTime ? $0 : nil }
         let memoryInfo = vitalInfoSampler?.memory
         let refreshRateInfo = vitalInfoSampler?.refreshRate
