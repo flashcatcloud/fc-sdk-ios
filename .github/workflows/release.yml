@@ -200,8 +200,15 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Check out the release tools of this workflow
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tools
+          sparse-checkout: tools/release
+
       - name: Publish FlashcatInternal
-        run: ./tools/release/specs-push-if-missing.sh FlashcatInternal.podspec
+        run: .release-tools/tools/release/specs-push-if-missing.sh FlashcatInternal.podspec
 
   publish-cocoapods-core:
     name: Publish CocoaPods (Core)
@@ -233,8 +240,15 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Check out the release tools of this workflow
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tools
+          sparse-checkout: tools/release
+
       - name: Publish FlashcatCore
-        run: ./tools/release/specs-push-if-missing.sh FlashcatCore.podspec
+        run: .release-tools/tools/release/specs-push-if-missing.sh FlashcatCore.podspec
 
   publish-cocoapods-modules:
     name: Publish CocoaPods (Modules)
@@ -279,8 +293,15 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Check out the release tools of this workflow
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tools
+          sparse-checkout: tools/release
+
       - name: Publish ${{ matrix.module }}
-        run: ./tools/release/specs-push-if-missing.sh ${{ matrix.module }}.podspec
+        run: .release-tools/tools/release/specs-push-if-missing.sh ${{ matrix.module }}.podspec
 
   summary:
     name: Release Summary
