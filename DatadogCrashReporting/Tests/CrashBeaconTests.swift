@@ -116,7 +116,7 @@ class CrashBeaconTests: XCTestCase {
     func testPayloadUsesTheEngineFieldNames() throws {
         let payload = CrashBeacon.Payload(
             crashId: crashId, applicationId: "app", launchTime: 1_000, date: 2_000,
-            crashType: "SIGSEGV", crashMessage: nil, sessionId: "s", viewId: "v", viewUrl: "u", viewName: "n",
+            crashType: "SIGSEGV", crashMessage: nil, sessionId: "s", sessionSampledForError: nil, viewId: "v", viewUrl: "u", viewName: "n",
             usrAnonymousId: "a", usrId: nil, version: "1.0", env: "prod", service: "svc",
             osName: "iOS", osVersion: "18.0", deviceModel: "iPhone16,1", deviceType: "mobile",
             sdkVersion: "0.8.0", source: "ios"
@@ -129,6 +129,43 @@ class CrashBeaconTests: XCTestCase {
             XCTAssertNotNil(json[key], "missing \(key)")
         }
         XCTAssertNil(json["crash_message"], "An absent field is left out, not sent as null")
+        XCTAssertNil(json["session_sampled_for_error"], "An absent field is left out, not sent as null")
+    }
+
+    // MARK: - Session kept on error
+
+    private final class RequestSenderMock: CrashBeaconRequestSender {
+        func sendFromCrashingProcess(request: URLRequest, completion: @escaping (Result<HTTPURLResponse, Error>) -> Void) {}
+    }
+
+    private func payloadJSON(sessionState: RUMSessionState?) throws -> [String: Any] {
+        let beacon = CrashBeacon(crashId: crashId, sender: RequestSenderMock())
+        let context: DatadogContext = .mockWith(
+            additionalContext: [RUMFatalErrorContext(sessionState: sessionState, view: nil, globalAttributes: nil)]
+        )
+        let source = CrashBeaconSource(url: URL(string: "https://intake.example/crash")!, applicationID: "app")
+        let payload = beacon.payload(signal: SIGSEGV, context: context, source: source)
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(payload)) as? [String: Any])
+    }
+
+    func testGivenASessionKeptOnError_itMarksTheBeaconSampledForError() throws {
+        let json = try payloadJSON(sessionState: .mockWith(sessionUUID: .mockRandom(), sampledForError: true))
+
+        XCTAssertEqual(json["session_sampled_for_error"] as? Bool, true, "The intake keeps this crash out of the crash-free rate")
+    }
+
+    func testGivenASampledSession_itLeavesOutSampledForError() throws {
+        for sampledForError in [false, nil] as [Bool?] {
+            let json = try payloadJSON(sessionState: .mockWith(sessionUUID: .mockRandom(), sampledForError: sampledForError))
+
+            XCTAssertNil(json["session_sampled_for_error"])
+        }
+    }
+
+    func testGivenNoSession_itLeavesOutSampledForError() throws {
+        let json = try payloadJSON(sessionState: nil)
+
+        XCTAssertNil(json["session_sampled_for_error"])
     }
 
     func testSignalNames() {

@@ -77,7 +77,8 @@ internal final class CrashBeacon {
     /// configured at initialisation. Retained: the core must not go away under a crash.
     private let sender: CrashBeaconRequestSender
 
-    private init(crashId: String, sender: CrashBeaconRequestSender) {
+    /// Use `install(...)`: this only builds the beacon, without its signal handler or thread.
+    internal init(crashId: String, sender: CrashBeaconRequestSender) {
         self.crashId = crashId
         self.sender = sender
     }
@@ -196,6 +197,7 @@ internal final class CrashBeacon {
             crashType: exceptionName.isEmpty ? Self.signalName(signal) : exceptionName,
             crashMessage: exceptionReason.isEmpty ? nil : String(exceptionReason.prefix(256)),
             sessionId: lastView?.session.id ?? rum?.sessionState?.sessionUUID.uuidString.lowercased(),
+            sessionSampledForError: rum?.sessionState?.sampledForError == true ? true : nil,
             viewId: lastView?.view.id,
             viewUrl: lastView?.view.url,
             viewName: lastView?.view.name,
@@ -248,6 +250,10 @@ internal final class CrashBeacon {
         let crashType: String
         let crashMessage: String?
         let sessionId: String?
+        /// `true` when the session is collected only because it reports an error (`sessionOnError`),
+        /// left out otherwise. Such a session stands for itself, not for `100 / rate` sessions, so
+        /// the intake keeps its crash out of the crash-free rate even when no late report follows.
+        let sessionSampledForError: Bool?
         let viewId: String?
         let viewUrl: String?
         let viewName: String?
@@ -271,6 +277,7 @@ internal final class CrashBeacon {
             case crashType = "crash_type"
             case crashMessage = "crash_message"
             case sessionId = "session_id"
+            case sessionSampledForError = "session_sampled_for_error"
             case viewId = "view_id"
             case viewUrl = "view_url"
             case viewName = "view_name"
