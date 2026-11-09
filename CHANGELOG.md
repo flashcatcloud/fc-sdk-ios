@@ -11,8 +11,10 @@
 
 ### Added
 
-- Crash beacon (`CrashReporting.Configuration(crashBeaconEnabled:)`, default `true`): when the app crashes in the foreground, a beacon of a few hundred bytes, without stack, is sent while the crash ends the process, so the crash is counted even if the app is never opened again. The full report still follows on the next launch, with the same id as `error.id`, and carries what became of the beacon in `error.beacon`.
-  - The crashed thread waits for the beacon at most 1 second; remote configuration can set the wait between 0.5 and 2 seconds (`rum.crashBeaconTimeoutMs`) or turn beacons off (`rum.crashBeaconEnabled`).
+- Crash beacon (`CrashReporting.Configuration(crashBeaconEnabled:)`, default `false`; Objective-C: `enable(symbolicateInProcess:handlesMachExceptions:takesOverCrashHandlers:crashBeaconEnabled:)`): when the app crashes in the foreground, a beacon of a few hundred bytes, without stack, is sent while the crash ends the process, so the crash is counted even if the app is never opened again. The full report still follows on the next launch, with the same id as `error.id`, and carries what became of the beacon in `error.beacon`.
+  - The crashed thread waits for the beacon at most 1 second, so a foreground crash keeps the process up to 1 second longer (a crash on the main thread shows as a short freeze). Remote configuration can set the wait between 0.5 and 2 seconds (`rum.crashBeaconTimeoutMs`) or turn beacons off (`rum.crashBeaconEnabled`), but cannot turn them on.
+  - The beacon carries the name and reason of an uncaught `NSException`. Other crashes, C++ exceptions included, are reported in the beacon by their signal only (e.g. `SIGABRT`).
+  - `error.beacon.launch_time` repeats the beacon's `launch_time`, so the intake files the beacon and the late report under the same launch.
   - Sent only in foreground, with tracking consent granted, for a session RUM tracks, and never while a debugger is attached. It goes to `<RUM intake>/crash` (the RUM custom endpoint, when set) on the HTTP client of the uploads.
   - The crashed thread only runs async-signal-safe code (a pipe write and a bounded `poll()`); the beacon is built and sent by a thread prepared at startup. It also runs when `takesOverCrashHandlers` is enabled.
 

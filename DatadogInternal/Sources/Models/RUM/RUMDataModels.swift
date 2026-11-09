@@ -1899,9 +1899,13 @@ public struct RUMErrorEvent: RUMDataModel {
             /// How long the beacon took, in milliseconds
             public let duration: Int64?
 
+            /// The launch time the beacon carried, in milliseconds since 1970 (server time)
+            public let launchTime: Int64?
+
             public enum CodingKeys: String, CodingKey {
                 case status = "status"
                 case duration = "duration"
+                case launchTime = "launch_time"
             }
 
             /// What became of the crash beacon sent while this crash took the process down
@@ -1909,9 +1913,11 @@ public struct RUMErrorEvent: RUMDataModel {
             /// - Parameters:
             ///   - status: sent, timeout, failed or skipped
             ///   - duration: How long the beacon took, in milliseconds
-            public init(status: String, duration: Int64? = nil) {
+            ///   - launchTime: The launch time the beacon carried, in milliseconds since 1970 (server time)
+            public init(status: String, duration: Int64? = nil, launchTime: Int64? = nil) {
                 self.status = status
                 self.duration = duration
+                self.launchTime = launchTime
             }
         }
 

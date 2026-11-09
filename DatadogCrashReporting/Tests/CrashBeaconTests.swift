@@ -8,6 +8,15 @@ import XCTest
 import DatadogInternal
 import TestUtilities
 @testable import DatadogCrashReporting
+// swiftlint:disable duplicate_imports
+#if SPM_BUILD
+    #if swift(>=6.0)
+    internal import DatadogCrashReportingPrivate
+    #else
+    @_implementationOnly import DatadogCrashReportingPrivate
+    #endif
+#endif
+// swiftlint:enable duplicate_imports
 
 class CrashBeaconTests: XCTestCase {
     private var directory: URL! // swiftlint:disable:this implicitly_unwrapped_optional
@@ -24,17 +33,18 @@ class CrashBeaconTests: XCTestCase {
 
     private var results: CrashBeaconResults { CrashBeaconResults(directory: directory) }
 
-    private func writeRecord(result: UInt8, duration: Int32, crashId: String) throws {
+    private func writeRecord(result: UInt8, duration: Int32, crashId: String, launchTime: Int64 = 1_762_300_000_123) throws {
         var record = Data([result])
         withUnsafeBytes(of: duration.littleEndian) { record.append(contentsOf: $0) }
         record.append(contentsOf: Array(crashId.utf8))
+        withUnsafeBytes(of: launchTime.littleEndian) { record.append(contentsOf: $0) }
         try record.write(to: results.url(forCrashId: crashId))
     }
 
     func testItReadsTheResultOfACrashUntilItIsRemoved() throws {
         try writeRecord(result: 1, duration: 412, crashId: crashId)
 
-        XCTAssertEqual(results.result(forCrashId: crashId), CrashBeaconResult(status: .sent, duration: 412))
+        XCTAssertEqual(results.result(forCrashId: crashId), CrashBeaconResult(status: .sent, duration: 412, launchTime: 1_762_300_000_123))
         XCTAssertNotNil(results.result(forCrashId: crashId), "A report kept for a later launch reads it again")
 
         results.remove(crashId: crashId)
@@ -56,6 +66,28 @@ class CrashBeaconTests: XCTestCase {
             try writeRecord(result: byte, duration: 1_000, crashId: crashId)
             XCTAssertEqual(results.result(forCrashId: crashId)?.status, status)
         }
+    }
+
+    func testItReadsTheLaunchTimeOfTheBeacon() throws {
+        try writeRecord(result: 2, duration: 1_000, crashId: crashId, launchTime: 1_762_300_000_123)
+
+        XCTAssertEqual(results.result(forCrashId: crashId)?.launchTime, 1_762_300_000_123)
+    }
+
+    func testItLeavesOutAnUnsetLaunchTime() throws {
+        try writeRecord(result: 4, duration: 0, crashId: crashId, launchTime: 0)
+
+        XCTAssertNil(results.result(forCrashId: crashId)?.launchTime, "Skipped before any context: no launch time to match")
+    }
+
+    func testTheLaunchTimeOfTheBeaconIsTheOneOfTheMomentOfTheCrash() {
+        // Fires the handler of this process, which waits only once: no other test drives it.
+        // Not armed and not installed, it records nothing and returns.
+        dd_crash_beacon_set_launch_time_ms(1_762_300_000_123)
+        dd_crash_beacon_handle_crash(SIGTRAP)
+        dd_crash_beacon_set_launch_time_ms(1_762_300_009_999)
+
+        XCTAssertEqual(dd_crash_beacon_launch_time_ms(), 1_762_300_000_123, "A context update while the crash waits must not change it")
     }
 
     func testItIgnoresAMalformedRecord() throws {
@@ -136,7 +168,7 @@ class CrashBeaconTests: XCTestCase {
         feature.start()
         feature.flush()
 
-        XCTAssertEqual(sender.sentCrashContext?.crashBeaconResult, CrashBeaconResult(status: .sent, duration: 412))
+        XCTAssertEqual(sender.sentCrashContext?.crashBeaconResult, CrashBeaconResult(status: .sent, duration: 412, launchTime: 1_762_300_000_123))
         XCTAssertNil(results.result(forCrashId: crashId))
     }
 
@@ -156,6 +188,10 @@ class CrashBeaconTests: XCTestCase {
         feature.flush()
 
         XCTAssertEqual(sender.sentCrashContext?.crashId, crashId, "Otherwise the beacon and the report count as two crashes")
+        XCTAssertEqual(
+            sender.sentCrashContext?.crashBeaconResult?.launchTime, 1_762_300_000_123,
+            "Without its own launch date, the report takes the beacon's, or it lands on the crash day"
+        )
     }
 
     func testGivenAReportWithoutCrashId_itDoesNotTouchTheResults() throws {

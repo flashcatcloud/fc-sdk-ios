@@ -32,6 +32,10 @@ static int g_ackPipe[2] = { -1, -1 };
 static atomic_bool g_armed = false;
 static atomic_bool g_foreground = false;
 static atomic_int g_timeoutMs = 1000;
+static _Atomic int64_t g_launchTimeMs = 0;
+// `g_launchTimeMs` as it was when the crash fired: the context keeps updating on other threads while
+// the crashed thread waits, so the beacon and every result record take this copy.
+static _Atomic int64_t g_crashLaunchTimeMs = 0;
 static atomic_flag g_fired = ATOMIC_FLAG_INIT;
 
 static char g_resultPath[1024];
@@ -66,6 +70,10 @@ static void recordResult(DDCrashBeaconResult result, int32_t durationMs)
     record[3] = (unsigned char)((durationMs >> 16) & 0xff);
     record[4] = (unsigned char)((durationMs >> 24) & 0xff);
     memcpy(record + 5, g_crashId, DDCrashBeaconIdLength);
+    const int64_t launchTimeMs = atomic_load(&g_crashLaunchTimeMs);
+    for (int i = 0; i < 8; i++) {
+        record[5 + DDCrashBeaconIdLength + i] = (unsigned char)(((uint64_t)launchTimeMs >> (8 * i)) & 0xff);
+    }
 
     int fd = open(g_resultPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
@@ -111,6 +119,7 @@ void dd_crash_beacon_handle_crash(int sigNum)
     // Only the first fatal signal waits. Another one (a second thread, or the beacon thread
     // crashing itself) goes straight through.
     if (!atomic_flag_test_and_set(&g_fired)) {
+        atomic_store(&g_crashLaunchTimeMs, atomic_load(&g_launchTimeMs));
         waitForBeacon(sigNum);
     }
 }
@@ -216,6 +225,10 @@ void dd_crash_beacon_set_timeout_ms(int32_t timeoutMs)
 }
 
 int32_t dd_crash_beacon_timeout_ms(void) { return atomic_load(&g_timeoutMs); }
+
+void dd_crash_beacon_set_launch_time_ms(int64_t launchTimeMs) { atomic_store(&g_launchTimeMs, launchTimeMs); }
+
+int64_t dd_crash_beacon_launch_time_ms(void) { return atomic_load(&g_crashLaunchTimeMs); }
 
 int dd_crash_beacon_wait_for_wake(void)
 {

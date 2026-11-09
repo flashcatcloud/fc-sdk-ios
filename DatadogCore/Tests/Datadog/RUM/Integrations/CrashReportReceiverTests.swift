@@ -37,7 +37,7 @@ class CrashReportReceiverTests: XCTestCase {
         let receiver: CrashReportReceiver = .mockWith(featureScope: featureScope)
         var context: CrashContext = .mockWith(lastRUMViewEvent: .mockRandomWith(crashCount: 0))
         context.crashId = "6f9619ff-8b86-d011-b42d-00c04fc964ff"
-        context.crashBeaconResult = CrashBeaconResult(status: .timeout, duration: 1_000)
+        context.crashBeaconResult = CrashBeaconResult(status: .timeout, duration: 1_000, launchTime: 1_762_300_000_123)
 
         XCTAssertTrue(receiver.receive(message: .payload(Crash(report: .mockWith(date: Date()), context: context)), from: NOPDatadogCore()))
 
@@ -45,6 +45,7 @@ class CrashReportReceiverTests: XCTestCase {
         XCTAssertEqual(error.error.id, "6f9619ff-8b86-d011-b42d-00c04fc964ff", "The late report must carry the beacon's crash id")
         XCTAssertEqual(error.error.beacon?.status, "timeout")
         XCTAssertEqual(error.error.beacon?.duration, 1_000)
+        XCTAssertEqual(error.error.beacon?.launchTime, 1_762_300_000_123, "The intake files the report under the beacon's launch")
     }
 
     func testGivenCrashContextWithoutCrashId_whenSending_itDrawsARandomErrorIdAndNoBeacon() throws {

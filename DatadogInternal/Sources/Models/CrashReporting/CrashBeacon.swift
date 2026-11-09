@@ -49,9 +49,13 @@ public struct CrashBeaconResult: Codable, Equatable {
     public let status: Status
     /// Milliseconds the beacon took.
     public let duration: Int64
+    /// The `launch_time` the beacon carried (server-corrected process start, ms), so the intake files
+    /// the late report under the same day as the beacon. `nil` if none was recorded.
+    public let launchTime: Int64?
 
-    public init(status: Status, duration: Int64) {
+    public init(status: Status, duration: Int64, launchTime: Int64? = nil) {
         self.status = status
         self.duration = duration
+        self.launchTime = launchTime
     }
 }

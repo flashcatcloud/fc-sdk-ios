@@ -100,6 +100,10 @@ internal final class CrashBeacon {
     /// Keeps the context for the beacon thread and hands the current settings to the signal handler,
     /// which reads them without locking.
     func update(context: DatadogContext) {
+        // The signal handler keeps the value of the moment of the crash, so the beacon and its result
+        // record carry the same one.
+        dd_crash_beacon_set_launch_time_ms(Self.launchTime(in: context))
+
         lock.lock()
         self.context = context
         lock.unlock()
@@ -134,7 +138,9 @@ internal final class CrashBeacon {
 
         guard let context = context,
               let source = context.additionalContext(ofType: CrashBeaconSource.self),
-              let body = try? JSONEncoder().encode(payload(signal: signal, context: context, source: source)) else {
+              let body = try? JSONEncoder().encode(
+                payload(signal: signal, context: context, source: source, launchTime: dd_crash_beacon_launch_time_ms())
+              ) else {
             dd_crash_beacon_finish(DDCrashBeaconResultFailed, 0)
             return
         }
@@ -166,18 +172,26 @@ internal final class CrashBeacon {
         dd_crash_beacon_finish(result, Int32(Date().timeIntervalSince(start) * 1_000))
     }
 
-    internal func payload(signal: Int32, context: DatadogContext, source: CrashBeaconSource) -> Payload {
+    /// The process start corrected to server time, in ms: the beacon's `launch_time`, which the
+    /// intake files the crash under. The late report hands the same value back.
+    static func launchTime(in context: DatadogContext) -> Int64 {
+        context.launchInfo.processLaunchDate
+            .addingTimeInterval(context.serverTimeOffset)
+            .timeIntervalSince1970.dd.toInt64Milliseconds
+    }
+
+    /// - Parameter launchTime: the value result records carry, when one is set.
+    internal func payload(signal: Int32, context: DatadogContext, source: CrashBeaconSource, launchTime: Int64 = 0) -> Payload {
         let rum = context.additionalContext(ofType: RUMFatalErrorContext.self)
         let lastView = Self.lastViewSeen(in: rum, context: context)
         let now = Date().addingTimeInterval(context.serverTimeOffset)
-        let launch = context.launchInfo.processLaunchDate.addingTimeInterval(context.serverTimeOffset)
         let exceptionName = String(cString: dd_crash_beacon_exception_name())
         let exceptionReason = String(cString: dd_crash_beacon_exception_reason())
 
         return Payload(
             crashId: crashId,
             applicationId: source.applicationID,
-            launchTime: launch.timeIntervalSince1970.dd.toInt64Milliseconds,
+            launchTime: launchTime > 0 ? launchTime : Self.launchTime(in: context),
             date: now.timeIntervalSince1970.dd.toInt64Milliseconds,
             crashType: exceptionName.isEmpty ? Self.signalName(signal) : exceptionName,
             crashMessage: exceptionReason.isEmpty ? nil : String(exceptionReason.prefix(256)),
@@ -308,6 +322,8 @@ internal struct CrashBeaconResults {
         }
         let bytes = [UInt8](data)
         let duration = Int64(Int32(bitPattern: UInt32(bytes[1]) | UInt32(bytes[2]) << 8 | UInt32(bytes[3]) << 16 | UInt32(bytes[4]) << 24))
+        let launchTimeOffset = 1 + 4 + Int(DDCrashBeaconIdLength)
+        let launchTime = Int64(bitPattern: (0..<8).reduce(UInt64(0)) { $0 | UInt64(bytes[launchTimeOffset + $1]) << (8 * UInt64($1)) })
 
         let status: CrashBeaconResult.Status
         switch bytes[0] {
@@ -317,7 +333,7 @@ internal struct CrashBeaconResults {
         case UInt8(DDCrashBeaconResultSkipped.rawValue): status = .skipped
         default: return nil
         }
-        return CrashBeaconResult(status: status, duration: duration)
+        return CrashBeaconResult(status: status, duration: duration, launchTime: launchTime > 0 ? launchTime : nil)
     }
 
     func remove(crashId: String) {

@@ -35,8 +35,9 @@ typedef enum {
 enum {
     /// Length of a lowercase UUID string, the form crash ids take.
     DDCrashBeaconIdLength = 36,
-    /// Size of a result record: result (1 byte), duration in ms (int32, little-endian), crash id.
-    DDCrashBeaconRecordSize = 1 + 4 + 36,
+    /// Size of a result record: result (1 byte), duration in ms (int32, little-endian), crash id,
+    /// then the `launch_time` the beacon carries (int64 ms, little-endian).
+    DDCrashBeaconRecordSize = 1 + 4 + 36 + 8,
 };
 
 /// Creates the pipes and installs the signal handler and the uncaught exception hook. Must run
@@ -59,6 +60,12 @@ void dd_crash_beacon_set_foreground(bool foreground);
 /// How long the crashed thread waits, clamped to 500...2000 ms.
 void dd_crash_beacon_set_timeout_ms(int32_t timeoutMs);
 int32_t dd_crash_beacon_timeout_ms(void);
+/// The `launch_time` the beacon sends (server-corrected process start, ms since 1970). Kept here so
+/// that every result record carries the same value, including the one the crashed thread writes
+/// on a timeout, and the late report can hand it back to the intake.
+void dd_crash_beacon_set_launch_time_ms(int64_t launchTimeMs);
+/// The value set when the crash fired (0 before any crash): later updates do not change it.
+int64_t dd_crash_beacon_launch_time_ms(void);
 
 /// Blocks the beacon thread until a crash wakes it. Returns the signal number, or -1.
 int dd_crash_beacon_wait_for_wake(void);

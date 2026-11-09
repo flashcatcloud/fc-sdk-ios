@@ -400,7 +400,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             timeSinceAppStart: timeSinceAppStart
         )
         builder.errorBeacon = crashContext.crashBeaconResult.map {
-            RUMErrorEvent.Error.Beacon(status: $0.status.rawValue, duration: $0.duration)
+            RUMErrorEvent.Error.Beacon(status: $0.status.rawValue, duration: $0.duration, launchTime: $0.launchTime)
         }
         return builder
     }
