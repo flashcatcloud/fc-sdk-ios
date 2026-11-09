@@ -280,6 +280,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
                 // Without it an operator who set the rate to zero would still be sent crashes.
                 remoteSamplingRates: { [weak remoteSamplingReader] in remoteSamplingReader?.remoteSamplingRates },
                 sessionOnError: configuration.sessionOnError,
+                beforeSampling: configuration.beforeSampling,
                 uuidGenerator: configuration.uuidGenerator,
                 ciTest: configuration.ciTestExecutionID.map { RUMCITest(testExecutionId: $0) },
                 syntheticsTest: {
