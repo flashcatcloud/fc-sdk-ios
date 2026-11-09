@@ -28,6 +28,10 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
     /// FLASHCAT FORK - the console's rates as they stand right now; always nil when the
     /// application did not opt in to remote configuration.
     let remoteSamplingRates: () -> RemoteSamplingRates?
+    /// FLASHCAT FORK - whether a session the rate leaves out is kept in case it reports an error, as
+    /// the application was initialised. The console's `sessionOnError` takes precedence where it
+    /// published one, as for every new session.
+    let sessionOnError: Bool
     let uuidGenerator: RUMUUIDGenerator
     /// Integration with CIApp tests. It contains the CIApp test context when active.
     let ciTest: RUMCITest?
@@ -63,6 +67,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         dateProvider: DateProvider,
         sessionSampler: Sampler,
         remoteSamplingRates: @escaping () -> RemoteSamplingRates? = { nil },
+        sessionOnError: Bool,
         uuidGenerator: RUMUUIDGenerator,
         ciTest: RUMCITest?,
         syntheticsTest: RUMSyntheticsTest?,
@@ -73,6 +78,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         self.dateProvider = dateProvider
         self.sessionSampler = sessionSampler
         self.remoteSamplingRates = remoteSamplingRates
+        self.sessionOnError = sessionOnError
         self.uuidGenerator = uuidGenerator
         self.ciTest = ciTest
         self.syntheticsTest = syntheticsTest
@@ -152,7 +158,12 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 completion: completion
             )
         } else if Sampler(samplingRate: drawnSessionSampleRate(under: remoteRates)).sample() { // before producing a new RUM session, we must consider sampling
-            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates, completion: completion)
+            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates, sampledForError: false, completion: completion)
+        } else if remoteRates?.sessionOnError ?? sessionOnError {
+            // FLASHCAT FORK - the new session is drawn like any other: one the rate leaves out is
+            // kept on error, and this one reports a crash. It stands for itself, as the views of a
+            // session kept on error do.
+            sendCrashReportToNewSession(report, crashContext: context, using: adjustedCrashTimings, under: remoteRates, sampledForError: true, completion: completion)
         } else {
             DD.logger.debug("There was a crash in previous session, but it is ignored due to sampling.")
             completion(.processed)
@@ -227,6 +238,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 sessionUUID: RUMUUID(rawValue: lastRUMSessionState.sessionUUID), // link it to previous RUM Session
                 context: crashContext,
                 hasReplay: lastRUMSessionState.didStartWithReplay,
+                sampledForError: lastRUMSessionState.sampledForError == true,
                 drawnBy: lastRUMSessionState,
                 under: remoteRates
             )
@@ -240,6 +252,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
                 sessionUUID: RUMUUID(rawValue: lastRUMSessionState.sessionUUID), // link it to previous RUM Session
                 context: crashContext,
                 hasReplay: lastRUMSessionState.didStartWithReplay,
+                sampledForError: lastRUMSessionState.sampledForError == true,
                 drawnBy: lastRUMSessionState,
                 under: remoteRates
             )
@@ -262,12 +275,14 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         crashContext: CrashContext,
         using crashTimings: AdjustedCrashTimings,
         under remoteRates: RemoteSamplingRates?,
+        sampledForError: Bool,
         completion: @escaping (CrashReportOutcome) -> Void
     ) {
         // There was no session, so there is no history of views: a crash in foreground happened during the
         // application launch, a crash in background happened in background. FLASHCAT FORK - it is reported in
         // background too, whether or not Background Events Tracking is enabled (see `sendCrashReportToPreviousSession()`).
-        // The new session it creates was drawn by the sampler before getting here.
+        // The new session it creates was drawn by the sampler before getting here, and kept on error
+        // when the draw missed and `sessionOnError` is on.
         let isAppInForeground = crashContext.lastIsAppInForeground
         let newRUMView = createNewRUMViewEvent(
             named: isAppInForeground
@@ -283,6 +298,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
             // we can't know if Session Replay was configured. However, lack of view implies
             // that there must be no replay collected:
             hasReplay: false,
+            sampledForError: sampledForError,
             under: remoteRates
         )
 
@@ -397,6 +413,7 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         sessionUUID: RUMUUID,
         context: CrashContext,
         hasReplay: Bool?,
+        sampledForError: Bool,
         drawnBy drawnSession: RUMSessionState? = nil,
         under remoteRates: RemoteSamplingRates? = nil
     ) -> RUMViewEvent {
@@ -411,7 +428,6 @@ internal struct CrashReportReceiver: FeatureMessageReceiver {
         //
         // A session kept only because it reports an error stands for itself, so it reports 0
         // whatever it was drawn at - exactly as its own events would have.
-        let sampledForError = drawnSession?.sampledForError == true
         let drawnRate = sampledForError
             ? 0
             : drawnSession?.drawnSessionSampleRate ?? Double(drawnSessionSampleRate(under: remoteRates))

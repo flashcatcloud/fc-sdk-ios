@@ -279,6 +279,7 @@ internal final class RUMFeature: DatadogRemoteFeature {
                 // reported at the rate the console set, exactly as an ordinary session would be.
                 // Without it an operator who set the rate to zero would still be sent crashes.
                 remoteSamplingRates: { [weak remoteSamplingReader] in remoteSamplingReader?.remoteSamplingRates },
+                sessionOnError: configuration.sessionOnError,
                 uuidGenerator: configuration.uuidGenerator,
                 ciTest: configuration.ciTestExecutionID.map { RUMCITest(testExecutionId: $0) },
                 syntheticsTest: {
