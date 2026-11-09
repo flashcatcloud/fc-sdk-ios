@@ -13,6 +13,10 @@
 
 - `RUM.Configuration.trackActiveDevices` (default `true`, also `DDRUMConfiguration.trackActiveDevices`): the SDK sends one small request to `{intake}/api/v2/rum/active` when the app is in use, at most once per local day, device and user, so a session too short to upload its events (they are only sent on the next launch) still counts the device as active that day. Sent straight away, not with the event batches, only while the app is active in the foreground with tracking consent granted, and regardless of session sampling; it carries the app, OS and device fields with the anonymous and user ids. One that cannot be delivered is kept and sent later with its age, up to 72 hours after the app was used. Withdrawing consent or turning the option off deletes what was kept.
 
+### Fixed
+
+- The SDK's C++ terminate handler no longer stays on the stack of an uncaught C++ exception: it hands over to KSCrash's with a tail call. Since 0.9.0 its frames sat between the crash handler and the C++ runtime, so another crash reporter in the app that groups crashes by their top frames left out the throw site, grouped C++ crashes thrown at different places together, and showed them as coming from this SDK.
+
 ---
 
 ## [0.9.1] - 2026-11-06

@@ -2218,6 +2218,10 @@
 		F603F12C2CAEA7180088E6B7 /* DDInternalLoggerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F603F1282CAEA4E90088E6B7 /* DDInternalLoggerTests.swift */; };
 		F603F1302CAEA7620088E6B7 /* DDInternalLogger+apiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F603F12D2CAEA7590088E6B7 /* DDInternalLogger+apiTests.m */; };
 		F603F1312CAEA7630088E6B7 /* DDInternalLogger+apiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F603F12D2CAEA7590088E6B7 /* DDInternalLogger+apiTests.m */; };
+		8348CC672F93B0760C040FCC /* DDTerminateHandler.h in Headers */ = {isa = PBXBuildFile; fileRef = 2906593FEA66A8192ABCF35F /* DDTerminateHandler.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		E4709C3655CD2495CA457353 /* DDTerminateHandler.h in Headers */ = {isa = PBXBuildFile; fileRef = 2906593FEA66A8192ABCF35F /* DDTerminateHandler.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		ABCD31CFF0FF02FD0F25846C /* DDTerminateHandler.c in Sources */ = {isa = PBXBuildFile; fileRef = 10066E3C9B36EE72CC521BAA /* DDTerminateHandler.c */; };
+		CED36D4C03C76B5FCA87731A /* DDTerminateHandler.c in Sources */ = {isa = PBXBuildFile; fileRef = 10066E3C9B36EE72CC521BAA /* DDTerminateHandler.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -3986,6 +3990,8 @@
 		F603F1282CAEA4E90088E6B7 /* DDInternalLoggerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DDInternalLoggerTests.swift; sourceTree = "<group>"; };
 		F603F12D2CAEA7590088E6B7 /* DDInternalLogger+apiTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "DDInternalLogger+apiTests.m"; sourceTree = "<group>"; };
 		F637AED12697404200516F32 /* UIKitRUMUserActionsPredicate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitRUMUserActionsPredicate.swift; sourceTree = "<group>"; };
+		2906593FEA66A8192ABCF35F /* DDTerminateHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DDTerminateHandler.h; path = ../DatadogCrashReporting/Private/include/DDTerminateHandler.h; sourceTree = SOURCE_ROOT; };
+		10066E3C9B36EE72CC521BAA /* DDTerminateHandler.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = DDTerminateHandler.c; path = ../DatadogCrashReporting/Private/DDTerminateHandler.c; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -6222,6 +6228,7 @@
 			children = (
 				615D9E2626048EAF006DC6D1 /* DatadogCrashReporting.xcconfig */,
 				61B7885625C180CB002675B5 /* DatadogCrashReporting.h */,
+				2906593FEA66A8192ABCF35F /* DDTerminateHandler.h */,
 				61B7885725C180CB002675B5 /* Info.plist */,
 			);
 			path = DatadogCrashReporting;
@@ -6241,6 +6248,7 @@
 			children = (
 				D2A7A9012BA1C4B100F46845 /* PrivacyInfo.xcprivacy */,
 				6161247825CA9CA6009901BE /* CrashReporting.swift */,
+				10066E3C9B36EE72CC521BAA /* DDTerminateHandler.c */,
 				61DE333525C8278A008E3EC2 /* CrashReportingPlugin.swift */,
 				D293302B2A137DAD0029C9EA /* CrashReportingFeature.swift */,
 				D296F1152EF97E8F00BD088B /* CrashContextProvider.swift */,
@@ -7957,6 +7965,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8348CC672F93B0760C040FCC /* DDTerminateHandler.h in Headers */,
 				61B7886425C180CB002675B5 /* DatadogCrashReporting.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -8076,6 +8085,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E4709C3655CD2495CA457353 /* DDTerminateHandler.h in Headers */,
 				D2CB6FBE27C5348200A62B57 /* DatadogCrashReporting.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -10264,6 +10274,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABCD31CFF0FF02FD0F25846C /* DDTerminateHandler.c in Sources */,
 				D253E65C2EBA31C40074BEC4 /* KSCrashBacktrace.swift in Sources */,
 				D2268AD22EB4DA4100875E44 /* DatadogTypeSafeFilter.swift in Sources */,
 				D293302C2A137DAD0029C9EA /* CrashReportingFeature.swift in Sources */,
@@ -11654,6 +11665,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CED36D4C03C76B5FCA87731A /* DDTerminateHandler.c in Sources */,
 				D253E65B2EBA31C40074BEC4 /* KSCrashBacktrace.swift in Sources */,
 				D2268AD32EB4DA4100875E44 /* DatadogTypeSafeFilter.swift in Sources */,
 				D293302D2A137DAD0029C9EA /* CrashReportingFeature.swift in Sources */,

@@ -7,6 +7,16 @@
 import Foundation
 import MachO
 
+// swiftlint:disable duplicate_imports
+#if SPM_BUILD
+    #if swift(>=6.0)
+    internal import DatadogCrashReportingPrivate
+    #else
+    @_implementationOnly import DatadogCrashReportingPrivate
+    #endif
+#endif
+// swiftlint:enable duplicate_imports
+
 /// Records the stack of an uncaught C++ exception at its throw site, for the crash report of the next launch.
 ///
 /// The crash reporter learns the throw site of a C++ exception by intercepting `__cxa_throw`, which it does by rewriting
@@ -132,8 +142,8 @@ internal enum ThrowSiteRecorder {
         prepare(file: file)
         terminateState.pointee.currentExceptionType = currentExceptionType
         terminateState.pointee.recordingThread = pthread_self()
-        let handler = unsafeBitCast(recordingTerminateHandler, to: UnsafeMutableRawPointer.self)
-        terminateState.pointee.previousHandler = unsafeBitCast(setTerminate, to: SetTerminateFunction.self)(handler)
+        DDRecorderTerminatePrelude = recordingTerminatePrelude
+        terminateState.pointee.previousHandler = unsafeBitCast(setTerminate, to: SetTerminateFunction.self)(recordingTerminateHandler)
         terminateState.pointee.isInstalled = 1
         return true
     }
@@ -148,8 +158,7 @@ internal enum ThrowSiteRecorder {
         else {
             return
         }
-        let handler = unsafeBitCast(recordingTerminateHandler, to: UnsafeMutableRawPointer.self)
-        guard unsafeBitCast(getTerminate, to: CurrentExceptionTypeFunction.self)() == handler else {
+        guard unsafeBitCast(getTerminate, to: CurrentExceptionTypeFunction.self)() == recordingTerminateHandler else {
             return
         }
         _ = unsafeBitCast(setTerminate, to: SetTerminateFunction.self)(terminateState.pointee.previousHandler)
@@ -236,7 +245,6 @@ internal enum ThrowSiteRecorder {
 private typealias SetTerminateFunction = @convention(c) (UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer?
 /// Also the type of `std::get_terminate`.
 private typealias CurrentExceptionTypeFunction = @convention(c) () -> UnsafeMutableRawPointer?
-private typealias TerminateFunction = @convention(c) () -> Void
 
 /// Plain values only: it is read in the terminate handler.
 private struct TerminateState {
@@ -253,9 +261,17 @@ private let terminateState: UnsafeMutablePointer<TerminateState> = {
     return pointer
 }()
 
+/// The terminate handler `installTerminateHandler(file:)` installs: `DDRecorderTerminateHandler`, which runs
+/// `recordingTerminatePrelude` and then hands over to the handler it returns with a tail call, so that the handler's frame
+/// is not on the stack the next handler and any other crash reporter see.
+private let recordingTerminateHandler = unsafeBitCast(
+    DDRecorderTerminateHandler as @convention(c) () -> Void,
+    to: UnsafeMutableRawPointer.self
+)
+
 /// Runs when a C++ exception is not caught, or `std::terminate()` is called. Records the throw site of an uncaught C++
-/// exception on the recording thread, then hands over to the handler it replaced, unchanged.
-private let recordingTerminateHandler: TerminateFunction = {
+/// exception on the recording thread, then returns the handler it replaced, to hand over to unchanged (`nil` aborts).
+private let recordingTerminatePrelude: DDTerminatePrelude = {
     let exceptionType = terminateState.pointee.currentExceptionType.flatMap {
         unsafeBitCast($0, to: CurrentExceptionTypeFunction.self)()
     }
@@ -265,8 +281,5 @@ private let recordingTerminateHandler: TerminateFunction = {
        ThrowSiteRecorder.shouldRecord(exceptionType: exceptionType) {
         ThrowSiteRecorder.record()
     }
-    if let previous = terminateState.pointee.previousHandler {
-        unsafeBitCast(previous, to: TerminateFunction.self)()
-    }
-    abort()
+    return terminateState.pointee.previousHandler
 }
