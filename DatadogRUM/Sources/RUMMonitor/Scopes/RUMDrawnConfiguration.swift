@@ -70,3 +70,14 @@ internal func remoteSamplingConfigurationURL(customEndpoint: URL?, context: Data
     ]
     return components?.url
 }
+
+/// FLASHCAT FORK - builds the URL Crash Reporting sends a crash beacon to: `crash` beside the RUM
+/// intake, the way the configuration sits beside it, so a custom endpoint carries both.
+internal func crashBeaconURL(customEndpoint: URL?, context: DatadogContext) -> URL? {
+    let intake = customEndpoint ?? context.site.endpoint.appendingPathComponent("api/v2/rum")
+    var components = URLComponents(url: intake.appendingPathComponent("crash"), resolvingAgainstBaseURL: false)
+    components?.queryItems = [
+        URLQueryItem(name: "client_token", value: context.clientToken)
+    ]
+    return components?.url
+}

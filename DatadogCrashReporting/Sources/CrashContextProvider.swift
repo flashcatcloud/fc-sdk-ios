@@ -17,6 +17,13 @@ internal protocol CrashContextProvider: AnyObject {
 
 /// Manages the `CrashContext` reads and writes in a thread-safe manner.
 internal class CrashContextCoreProvider: CrashContextProvider {
+    /// FLASHCAT FORK - this process's crash id, carried by every `CrashContext` it builds.
+    private let crashId: String?
+
+    init(crashId: String? = nil) {
+        self.crashId = crashId
+    }
+
     /// Queue for synchronizing `unsafeCrashContext` updates.
     private let queue = DispatchQueue(
         label: "com.datadoghq.crash-context",
@@ -75,7 +82,8 @@ extension CrashContextCoreProvider: FeatureMessageReceiver {
             }
 
             let rumContext = context.additionalContext(ofType: RUMFatalErrorContext.self)
-            let crashContext = CrashContext(context, lastLogAttributes: self.logAttributes)
+            var crashContext = CrashContext(context, lastLogAttributes: self.logAttributes)
+            crashContext.crashId = self.crashId
 
             if crashContext != self._context || rumContext !== self.rumContext {
                 self.rumContext = rumContext

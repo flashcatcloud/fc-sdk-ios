@@ -83,6 +83,15 @@ public struct CrashContext: Codable, Equatable {
     /// Last global RUM attributes. It gets updated with adding or removing attributes on `RUMMonitor`.
     public var lastRUMAttributes: RUMEventAttributes?
 
+    // FLASHCAT FORK - crash beacon.
+    /// The id this process's crash is reported under: the crash beacon's `crash_id` and the late
+    /// report's `error.id`, so the two count as one crash. Drawn once per process; `nil` in reports
+    /// written by SDKs that predate it.
+    public var crashId: String?
+
+    /// What became of the crash beacon, set on the next launch when the report is read.
+    public var crashBeaconResult: CrashBeaconResult?
+
     // MARK: - Initialization
 
     public init(

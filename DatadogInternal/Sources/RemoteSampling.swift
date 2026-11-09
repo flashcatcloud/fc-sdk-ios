@@ -53,6 +53,13 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
     /// `0` means the console never provided a configuration.
     public let version: Int64
 
+    // FLASHCAT FORK - crash beacon.
+    /// `rum.crashBeaconEnabled`: `false` stops crash beacons; absent leaves them as configured.
+    public let crashBeaconEnabled: Bool?
+
+    /// `rum.crashBeaconTimeoutMs`: how long a crash waits for its beacon; absent means the default.
+    public let crashBeaconTimeoutMs: Int?
+
     /// The console's custom values, as the raw JSON object they were delivered in.
     ///
     /// Delivery is the platform's job; the meaning belongs to the host application, which reads
@@ -65,9 +72,13 @@ public struct RemoteSamplingRates: AdditionalContext, Equatable {
         version: Int64 = 0,
         custom: String? = nil,
         sessionOnError: Bool? = nil,
-        sessionReplayOnError: Bool? = nil
+        sessionReplayOnError: Bool? = nil,
+        crashBeaconEnabled: Bool? = nil,
+        crashBeaconTimeoutMs: Int? = nil
     ) {
         self.sessionSampleRate = sessionSampleRate
+        self.crashBeaconEnabled = crashBeaconEnabled
+        self.crashBeaconTimeoutMs = crashBeaconTimeoutMs
         self.sessionOnError = sessionOnError
         self.sessionReplayOnError = sessionReplayOnError
         self.version = version

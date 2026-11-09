@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.source_files = ["DatadogCrashReporting/Sources/**/*.swift",
-                    "DatadogCrashReporting/Private/**/*.{h,c}"]
+                    "DatadogCrashReporting/Private/**/*.{h,c,m}"]
   s.dependency 'FlashcatInternal', s.version.to_s
   s.dependency 'KSCrash/Recording', '2.5.1'
   s.dependency 'KSCrash/Filters', '2.5.1'
