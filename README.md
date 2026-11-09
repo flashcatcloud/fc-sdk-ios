@@ -56,15 +56,20 @@ Then add the products you need:
 
 ### CocoaPods
 
-Add to your `Podfile`:
+Add both sources and the pods to your `Podfile`. Flashcat pods are published to the Flashcat specs repository; their third-party dependencies (such as KSCrash) come from the CocoaPods CDN, so both sources are needed:
 
 ```ruby
+source 'https://github.com/flashcatcloud/fc-sdk-ios-specs.git'
+source 'https://cdn.cocoapods.org/'
+
 pod 'FlashcatCore'
 pod 'FlashcatRUM'
 pod 'FlashcatTrace'
 pod 'FlashcatCrashReporting'
 pod 'FlashcatWebViewTracking'
 ```
+
+When upgrading to a new version, run `pod install --repo-update` (or `pod repo update` first) so that your local copy of the specs repository includes it.
 
 ## Getting Started
 
