@@ -197,7 +197,7 @@ internal final class CrashBeacon {
             crashType: exceptionName.isEmpty ? Self.signalName(signal) : exceptionName,
             crashMessage: exceptionReason.isEmpty ? nil : String(exceptionReason.prefix(256)),
             sessionId: lastView?.session.id ?? rum?.sessionState?.sessionUUID.uuidString.lowercased(),
-            sessionSampledForError: rum?.sessionState?.sampledForError == true ? true : nil,
+            sessionSampledForError: Self.isSampledForError(lastView: lastView, sessionState: rum?.sessionState) ? true : nil,
             viewId: lastView?.view.id,
             viewUrl: lastView?.view.url,
             viewName: lastView?.view.name,
@@ -216,15 +216,29 @@ internal final class CrashBeacon {
     }
 
     /// The view the late report will link this crash to, by the rule of RUM's `CrashReportReceiver`:
-    /// a view that stopped still counts in foreground, as the last screen the user saw, but not in
-    /// background.
+    /// only a view of the crashed session, and a view that stopped still counts in foreground, as
+    /// the last screen the user saw, but not in background.
     private static func lastViewSeen(in rum: RUMFatalErrorContext?, context: DatadogContext) -> RUMViewEvent? {
         guard let view = rum?.view else {
+            return nil
+        }
+        // A view of another session (e.g. a late update of a stopped or expired one) is never the
+        // last screen of the crashed session.
+        if let sessionState = rum?.sessionState, UUID(uuidString: view.session.id) != sessionState.sessionUUID {
             return nil
         }
         let isStoppedView = view.view.isActive == false
         let isInForeground = context.applicationStateHistory.currentState.isRunningInForeground
         return isStoppedView && !isInForeground ? nil : view
+    }
+
+    /// Whether the session the beacon names is kept on error, read from the same source as its id:
+    /// the view when there is one, the session state otherwise.
+    private static func isSampledForError(lastView: RUMViewEvent?, sessionState: RUMSessionState?) -> Bool {
+        if let lastView = lastView {
+            return lastView.session.sampledForError == true
+        }
+        return sessionState?.sampledForError == true
     }
 
     static func signalName(_ signal: Int32) -> String {
