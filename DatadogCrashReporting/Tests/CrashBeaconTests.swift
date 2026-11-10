@@ -88,6 +88,30 @@ class CrashBeaconTests: XCTestCase {
         dd_crash_beacon_set_launch_time_ms(1_762_300_009_999)
 
         XCTAssertEqual(dd_crash_beacon_launch_time_ms(), 1_762_300_000_123, "A context update while the crash waits must not change it")
+
+        // The first crash settled: a later one goes on at once.
+        let start = Date()
+        dd_crash_beacon_handle_crash(SIGSEGV)
+        XCTAssertLessThan(Date().timeIntervalSince(start), 0.5)
+    }
+
+    func testALaterCrashWaitsForTheFirstOneToSettle() {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.2) { firstCrashOfThisTest.set() }
+
+        let start = Date()
+        let settled = dd_crash_beacon_wait_until({ firstCrashOfThisTest.get() }, 2_000)
+
+        XCTAssertTrue(settled)
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(start), 0.15, "It must not go on while the first crash waits for its beacon")
+    }
+
+    func testALaterCrashStopsWaitingAtTheLimit() {
+        let start = Date()
+        let settled = dd_crash_beacon_wait_until({ false }, 100)
+
+        XCTAssertFalse(settled)
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(start), 0.09)
+        XCTAssertLessThan(Date().timeIntervalSince(start), 1, "A first crash that never settles must not hold a later one for good")
     }
 
     func testItIgnoresAMalformedRecord() throws {
@@ -282,5 +306,25 @@ class CrashBeaconTests: XCTestCase {
 
         XCTAssertNil(sender.sentCrashContext?.crashBeaconResult)
         XCTAssertNotNil(results.result(forCrashId: crashId))
+    }
+}
+
+/// Whether the first crash of `testALaterCrashWaitsForTheFirstOneToSettle` settled, read from a C callback.
+private let firstCrashOfThisTest = SettledFlag()
+
+private final class SettledFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+
+    func set() {
+        lock.lock()
+        value = true
+        lock.unlock()
+    }
+
+    func get() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
     }
 }

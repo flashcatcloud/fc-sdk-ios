@@ -37,6 +37,8 @@ static _Atomic int64_t g_launchTimeMs = 0;
 // the crashed thread waits, so the beacon and every result record take this copy.
 static _Atomic int64_t g_crashLaunchTimeMs = 0;
 static atomic_flag g_fired = ATOMIC_FLAG_INIT;
+// Set once the first fatal signal is done waiting for its beacon.
+static atomic_bool g_firstCrashSettled = false;
 
 static char g_resultPath[1024];
 static char g_crashId[DDCrashBeaconIdLength + 1];
@@ -114,14 +116,36 @@ static void waitForBeacon(int sigNum)
     }
 }
 
+static bool firstCrashSettled(void) { return atomic_load(&g_firstCrashSettled); }
+
+bool dd_crash_beacon_wait_until(bool (*isSettled)(void), int32_t limitMs)
+{
+    if (timebase()->denom == 0) { // the beacon was never installed
+        mach_timebase_info(timebase());
+    }
+    const uint64_t start = mach_absolute_time();
+    while (!isSettled()) {
+        if (elapsedMs(start) >= limitMs) {
+            return false;
+        }
+        poll(NULL, 0, 5);
+    }
+    return true;
+}
+
 void dd_crash_beacon_handle_crash(int sigNum)
 {
-    // Only the first fatal signal waits. Another one (a second thread, or the beacon thread
-    // crashing itself) goes straight through.
+    // Only the first fatal signal sends the beacon.
     if (!atomic_flag_test_and_set(&g_fired)) {
         atomic_store(&g_crashLaunchTimeMs, atomic_load(&g_launchTimeMs));
         waitForBeacon(sigNum);
+        atomic_store(&g_firstCrashSettled, true);
+        return;
     }
+    // Another one (a second thread, or the beacon thread crashing itself) would end the process
+    // under the first one's wait, cutting the beacon and its result record short: it waits for
+    // that wait to end, bounded by the same timeout plus the time to record a result.
+    dd_crash_beacon_wait_until(firstCrashSettled, atomic_load(&g_timeoutMs) + 100);
 }
 
 static void handleSignal(int sigNum, siginfo_t *info, void *userContext)

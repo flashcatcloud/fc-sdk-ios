@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Crash beacon: a fatal signal that arrives while an earlier crash waits for its beacon (another thread crashing at the same time, or the beacon's own thread crashing) now waits for that beacon to end, at most the beacon timeout, instead of ending the process at once. The beacon is no longer cut short and its result is recorded; with `handlesMachExceptions` enabled, two threads crashing at the same time used to leave no beacon at all.
+
 ---
 
 ## [0.10.0] - 2026-11-10
