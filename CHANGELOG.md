@@ -9,18 +9,28 @@
 
 ## [Unreleased]
 
+---
+
+## [0.10.0] - 2026-11-10
+
+**Based on Datadog iOS SDK 3.6.0** (same upstream as 0.9.1, no upstream sync)
+
 ### Added
 
 - Crash beacon (`CrashReporting.Configuration(crashBeaconEnabled:)`, default `false`; Objective-C: `enable(symbolicateInProcess:handlesMachExceptions:takesOverCrashHandlers:crashBeaconEnabled:)`): when the app crashes in the foreground, a beacon of a few hundred bytes, without stack, is sent while the crash ends the process, so the crash is counted even if the app is never opened again. The full report still follows on the next launch, with the same id as `error.id`, and carries what became of the beacon in `error.beacon`.
   - The crashed thread waits for the beacon at most 1 second, so a foreground crash keeps the process up to 1 second longer (a crash on the main thread shows as a short freeze). Remote configuration can set the wait between 0.5 and 2 seconds (`rum.crashBeaconTimeoutMs`) or turn beacons off (`rum.crashBeaconEnabled`), but cannot turn them on.
   - The beacon carries the name and reason of an uncaught `NSException`. Other crashes, C++ exceptions included, are reported in the beacon by their signal only (e.g. `SIGABRT`).
   - `error.beacon.launch_time` repeats the beacon's `launch_time`, so the intake files the beacon and the late report under the same launch.
+  - A beacon for a session kept only because it reports an error (`sessionOnError`) carries `session_sampled_for_error: true`, so the intake can keep that crash out of rates computed over sampled sessions even when the late report never arrives.
   - Sent only in foreground, with tracking consent granted, for a session RUM tracks, and never while a debugger is attached. It goes to `<RUM intake>/crash` (the RUM custom endpoint, when set) on the HTTP client of the uploads.
   - The crashed thread only runs async-signal-safe code (a pipe write and a bounded `poll()`); the beacon is built and sent by a thread prepared at startup. It also runs when `takesOverCrashHandlers` is enabled.
 - `RUM.Configuration.trackActiveDevices` (default `true`, also `DDRUMConfiguration.trackActiveDevices`): the SDK sends one small request to `{intake}/api/v2/rum/active` when the app is in use, at most once per local day, device and user, so a session too short to upload its events (they are only sent on the next launch) still counts the device as active that day. Sent straight away, not with the event batches, only while the app is active in the foreground with tracking consent granted, and regardless of session sampling; it carries the app, OS and device fields with the anonymous and user ids. One that cannot be delivered is kept and sent later with its age, up to 72 hours after the app was used. Withdrawing consent or turning the option off deletes what was kept.
 
 ### Fixed
 
+- A crash with no session of its own (it happened before the first session started, or its crash context was lost) is no longer dropped when session-on-error is in force and the sample rate misses the new session it is reported in. That session is drawn like any other new session (remote configuration, then `beforeSampling`), and when the rate misses it the crash is reported in a session kept on error (`session.sampled_for_error = true`, session sample rate 0).
+- CPU usage stays accurate around app activity changes: it no longer freezes when the CPU time cannot be read as the app becomes active, a failed read as the app resigns active starts the inactive period at the last successful read, and a repeated resign-active notification is ignored. Values are now reported for views whose samples are at least 0.9 seconds apart (previously more than 1 second), so views shown for about 1 second get a value.
+- With `handlesMachExceptions` enabled and `takesOverCrashHandlers` disabled, the crash reporter no longer lists the process's threads at install; the list is only needed by the takeover.
 - The SDK's C++ terminate handler no longer stays on the stack of an uncaught C++ exception: it hands over to KSCrash's with a tail call. Since 0.9.0 its frames sat between the crash handler and the C++ runtime, so another crash reporter in the app that groups crashes by their top frames left out the throw site, grouped C++ crashes thrown at different places together, and showed them as coming from this SDK.
 
 ---
