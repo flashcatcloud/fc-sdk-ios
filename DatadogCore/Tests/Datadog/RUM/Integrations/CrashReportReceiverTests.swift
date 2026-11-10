@@ -1236,7 +1236,9 @@ class CrashReportReceiverTests: XCTestCase {
     /// written.
     private func eventsForCrashWithNoSessionOfItsOwn(
         initialisedAt initialSampleRate: SampleRate,
-        console remoteRates: RemoteSamplingRates?
+        console remoteRates: RemoteSamplingRates?,
+        sessionOnError: Bool = false,
+        beforeSampling: BeforeSamplingCallback? = nil
     ) -> FeatureScopeMock {
         let featureScope = FeatureScopeMock()
         let crashDate: Date = .mockDecember15th2019At10AMUTC()
@@ -1245,6 +1247,8 @@ class CrashReportReceiverTests: XCTestCase {
             dateProvider: RelativeDateProvider(using: crashDate),
             sessionSampler: Sampler(samplingRate: initialSampleRate),
             remoteSamplingRates: { remoteRates },
+            sessionOnError: sessionOnError,
+            beforeSampling: beforeSampling,
             uuidGenerator: DefaultRUMUUIDGenerator()
         )
 
@@ -1298,6 +1302,87 @@ class CrashReportReceiverTests: XCTestCase {
         let view = try XCTUnwrap(kept.eventsWritten(ofType: RUMViewEvent.self).first)
         XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 100)
         XCTAssertNil(view.dd.configuration?.rcVersion)
+    }
+
+    // MARK: - FLASHCAT FORK - a crash with no session of its own, under session on error
+
+    func testACrashWithNoSessionOfItsOwn_drawnByTheRate_isReportedInAnOrdinarySession() throws {
+        let kept = eventsForCrashWithNoSessionOfItsOwn(initialisedAt: 100, console: nil, sessionOnError: true)
+
+        let view = try XCTUnwrap(kept.eventsWritten(ofType: RUMViewEvent.self).first)
+        XCTAssertEqual(kept.eventsWritten(ofType: RUMErrorEvent.self).count, 1)
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 100)
+        XCTAssertNil(view.session.sampledForError, "The rate drew it: it stands for 100 / rate sessions")
+    }
+
+    func testACrashWithNoSessionOfItsOwn_missedByTheRate_isKeptOnError_whenTheAppEnabledSessionOnError() throws {
+        let kept = eventsForCrashWithNoSessionOfItsOwn(initialisedAt: 0, console: nil, sessionOnError: true)
+
+        let view = try XCTUnwrap(kept.eventsWritten(ofType: RUMViewEvent.self).first, "A new session missed by the rate is kept on error")
+        XCTAssertEqual(kept.eventsWritten(ofType: RUMErrorEvent.self).count, 1)
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 0, "It stands for itself")
+        XCTAssertEqual(view.session.sampledForError, true)
+        XCTAssertEqual(view.view.crash?.count, 1)
+    }
+
+    func testACrashWithNoSessionOfItsOwn_missedByTheRate_isKeptOnError_whenTheConsoleEnabledSessionOnError() throws {
+        let kept = eventsForCrashWithNoSessionOfItsOwn(
+            initialisedAt: 100,
+            console: RemoteSamplingRates(sessionSampleRate: 0, version: 7, sessionOnError: true),
+            sessionOnError: false
+        )
+
+        let view = try XCTUnwrap(kept.eventsWritten(ofType: RUMViewEvent.self).first)
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 0)
+        XCTAssertEqual(view.dd.configuration?.rcVersion, 7)
+        XCTAssertEqual(view.session.sampledForError, true)
+    }
+
+    func testACrashWithNoSessionOfItsOwn_missedByTheRate_isDropped_whenTheConsoleDisabledSessionOnError() throws {
+        let dropped = eventsForCrashWithNoSessionOfItsOwn(
+            initialisedAt: 100,
+            console: RemoteSamplingRates(sessionSampleRate: 0, version: 7, sessionOnError: false),
+            sessionOnError: true
+        )
+
+        XCTAssertTrue(dropped.eventsWritten.isEmpty, "The console's sessionOnError takes precedence over the app's")
+    }
+
+    func testACrashWithNoSessionOfItsOwn_isDropped_whenBeforeSamplingReturnsZero() throws {
+        // The hook's "0 never collects" turns the on-error switch off too, as for a new session.
+        let dropped = eventsForCrashWithNoSessionOfItsOwn(
+            initialisedAt: 0,
+            console: nil,
+            sessionOnError: true,
+            beforeSampling: { _ in 0 }
+        )
+
+        XCTAssertTrue(dropped.eventsWritten.isEmpty)
+    }
+
+    func testACrashWithNoSessionOfItsOwn_isReportedInAnOrdinarySession_whenBeforeSamplingReturns100() throws {
+        var hookContext: BeforeSamplingContext?
+        let kept = eventsForCrashWithNoSessionOfItsOwn(
+            initialisedAt: 0,
+            console: RemoteSamplingRates(sessionSampleRate: 0, version: 7, custom: #"{"tier":"gold"}"#, sessionOnError: true),
+            sessionOnError: true,
+            beforeSampling: { context in
+                hookContext = context
+                return 100
+            }
+        )
+
+        let view = try XCTUnwrap(kept.eventsWritten(ofType: RUMViewEvent.self).first)
+        XCTAssertEqual(view.dd.configuration?.sessionSampleRate, 100, "It reports the rate the hook drew it at")
+        XCTAssertNil(view.session.sampledForError, "The hook drew it: it is not kept on error")
+        XCTAssertEqual(hookContext?.sessionSampleRate, 0, "The hook sees the rate a new session would be drawn at")
+        XCTAssertEqual(hookContext?.custom?["tier"] as? String, "gold", "The hook sees the console's custom values")
+    }
+
+    func testACrashWithNoSessionOfItsOwn_missedByTheRate_isDropped_withoutSessionOnError() throws {
+        let dropped = eventsForCrashWithNoSessionOfItsOwn(initialisedAt: 0, console: nil, sessionOnError: false)
+
+        XCTAssertTrue(dropped.eventsWritten.isEmpty)
     }
 
     /// Sends a crash that has to be rebuilt into a view, and hands back that view.

@@ -45,6 +45,42 @@ internal struct RUMDrawnConfiguration: Equatable {
         self.sessionSampleRate = drawnSessionSampleRate
         self.version = configurationVersion ?? 0
     }
+
+    /// The rate a new session is drawn at: the console's where it published one, the init value
+    /// otherwise, with the host application's hook having the final say. And whether a session
+    /// the rate leaves out is kept in case it reports an error, in the same order.
+    ///
+    /// Every draw of a new session goes through here: the session scope, and the session RUM
+    /// creates on the next launch for a crash that had none of its own.
+    static func resolveSampling(
+        remoteRates: RemoteSamplingRates?,
+        initialSessionSampleRate: SampleRate,
+        sessionOnError initialSessionOnError: Bool,
+        beforeSampling: BeforeSamplingCallback?,
+        telemetry: Telemetry
+    ) -> (rate: SampleRate, sessionOnError: Bool) {
+        let base = remoteRates?.sessionSampleRate ?? initialSessionSampleRate
+        let sessionOnError = remoteRates?.sessionOnError ?? initialSessionOnError
+        guard let hook = beforeSampling else {
+            return (base, sessionOnError)
+        }
+        let custom = remoteRates?.custom
+            .flatMap { $0.data(using: .utf8) }
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) }
+            .flatMap { $0 as? [String: Any] }
+        guard let override = hook(BeforeSamplingContext(sessionSampleRate: base, custom: custom)) else {
+            return (base, sessionOnError)
+        }
+        // A rate we cannot trust is not a rate to sample a customer's traffic with, and a mistake
+        // in the host application must never take their collection down with it.
+        guard override >= 0, override <= 100 else {
+            telemetry.error("beforeSampling returned \(override), which is not a rate; drawing at \(base) instead")
+            return (base, sessionOnError)
+        }
+        // The hook's documented contract is "0 never collects". A session it draws at 0 must not
+        // be kept by the on-error switch either, or "never" would quietly become "on error".
+        return (override, sessionOnError && override != 0)
+    }
 }
 
 /// Builds the URL the core asks for the remote sampling configuration.

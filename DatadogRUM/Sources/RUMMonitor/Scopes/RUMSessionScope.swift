@@ -159,9 +159,12 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
         // visible to THIS draw — which is the draw the stored snapshot exists for.
         let remoteRates = dependencies.remoteSamplingRates()
             ?? context.additionalContext(ofType: RemoteSamplingRates.self)
-        let (drawnRate, sessionOnError) = Self.resolveSampling(
+        let (drawnRate, sessionOnError) = RUMDrawnConfiguration.resolveSampling(
             remoteRates: remoteRates,
-            dependencies: dependencies
+            initialSessionSampleRate: dependencies.sessionSampler.samplingRate,
+            sessionOnError: dependencies.sessionOnError,
+            beforeSampling: dependencies.beforeSampling,
+            telemetry: dependencies.telemetry
         )
         // A forced session skips the draw entirely: the app has said this visitor must be
         // collected, and a coin flip could still say no.
@@ -294,36 +297,6 @@ internal class RUMSessionScope: RUMScope, RUMContextProvider {
                 self.viewScopes = []
             }
         }
-    }
-
-    /// The rate this session is drawn at: the console's where it published one, the init value
-    /// otherwise, with the host application's hook having the final say. And whether a session
-    /// the rate leaves out is kept in case it reports an error, in the same order.
-    private static func resolveSampling(
-        remoteRates: RemoteSamplingRates?,
-        dependencies: RUMScopeDependencies
-    ) -> (rate: SampleRate, sessionOnError: Bool) {
-        let base = remoteRates?.sessionSampleRate ?? dependencies.sessionSampler.samplingRate
-        let sessionOnError = remoteRates?.sessionOnError ?? dependencies.sessionOnError
-        guard let hook = dependencies.beforeSampling else {
-            return (base, sessionOnError)
-        }
-        let custom = remoteRates?.custom
-            .flatMap { $0.data(using: .utf8) }
-            .flatMap { try? JSONSerialization.jsonObject(with: $0) }
-            .flatMap { $0 as? [String: Any] }
-        guard let override = hook(BeforeSamplingContext(sessionSampleRate: base, custom: custom)) else {
-            return (base, sessionOnError)
-        }
-        // A rate we cannot trust is not a rate to sample a customer's traffic with, and a mistake
-        // in the host application must never take their collection down with it.
-        guard override >= 0, override <= 100 else {
-            dependencies.telemetry.error("beforeSampling returned \(override), which is not a rate; drawing at \(base) instead")
-            return (base, sessionOnError)
-        }
-        // The hook's documented contract is "0 never collects". A session it draws at 0 must not
-        // be kept by the on-error switch either, or "never" would quietly become "on error".
-        return (override, sessionOnError && override != 0)
     }
 
     // MARK: - RUMContextProvider
