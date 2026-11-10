@@ -77,7 +77,8 @@ internal final class CrashBeacon {
     /// configured at initialisation. Retained: the core must not go away under a crash.
     private let sender: CrashBeaconRequestSender
 
-    private init(crashId: String, sender: CrashBeaconRequestSender) {
+    /// Use `install(...)`: this only builds the beacon, without its signal handler or thread.
+    internal init(crashId: String, sender: CrashBeaconRequestSender) {
         self.crashId = crashId
         self.sender = sender
     }
@@ -196,6 +197,7 @@ internal final class CrashBeacon {
             crashType: exceptionName.isEmpty ? Self.signalName(signal) : exceptionName,
             crashMessage: exceptionReason.isEmpty ? nil : String(exceptionReason.prefix(256)),
             sessionId: lastView?.session.id ?? rum?.sessionState?.sessionUUID.uuidString.lowercased(),
+            sessionSampledForError: Self.isSampledForError(lastView: lastView, sessionState: rum?.sessionState) ? true : nil,
             viewId: lastView?.view.id,
             viewUrl: lastView?.view.url,
             viewName: lastView?.view.name,
@@ -214,15 +216,29 @@ internal final class CrashBeacon {
     }
 
     /// The view the late report will link this crash to, by the rule of RUM's `CrashReportReceiver`:
-    /// a view that stopped still counts in foreground, as the last screen the user saw, but not in
-    /// background.
+    /// only a view of the crashed session, and a view that stopped still counts in foreground, as
+    /// the last screen the user saw, but not in background.
     private static func lastViewSeen(in rum: RUMFatalErrorContext?, context: DatadogContext) -> RUMViewEvent? {
         guard let view = rum?.view else {
+            return nil
+        }
+        // A view of another session (e.g. a late update of a stopped or expired one) is never the
+        // last screen of the crashed session.
+        if let sessionState = rum?.sessionState, UUID(uuidString: view.session.id) != sessionState.sessionUUID {
             return nil
         }
         let isStoppedView = view.view.isActive == false
         let isInForeground = context.applicationStateHistory.currentState.isRunningInForeground
         return isStoppedView && !isInForeground ? nil : view
+    }
+
+    /// Whether the session the beacon names is kept on error, read from the same source as its id:
+    /// the view when there is one, the session state otherwise.
+    private static func isSampledForError(lastView: RUMViewEvent?, sessionState: RUMSessionState?) -> Bool {
+        if let lastView = lastView {
+            return lastView.session.sampledForError == true
+        }
+        return sessionState?.sampledForError == true
     }
 
     static func signalName(_ signal: Int32) -> String {
@@ -248,6 +264,10 @@ internal final class CrashBeacon {
         let crashType: String
         let crashMessage: String?
         let sessionId: String?
+        /// `true` when the session is collected only because it reports an error (`sessionOnError`),
+        /// left out otherwise. Such a session stands for itself, not for `100 / rate` sessions, so
+        /// the intake keeps its crash out of the crash-free rate even when no late report follows.
+        let sessionSampledForError: Bool?
         let viewId: String?
         let viewUrl: String?
         let viewName: String?
@@ -271,6 +291,7 @@ internal final class CrashBeacon {
             case crashType = "crash_type"
             case crashMessage = "crash_message"
             case sessionId = "session_id"
+            case sessionSampledForError = "session_sampled_for_error"
             case viewId = "view_id"
             case viewUrl = "view_url"
             case viewName = "view_name"
