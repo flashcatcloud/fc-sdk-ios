@@ -9,13 +9,9 @@
 
 ## [Unreleased]
 
-### Fixed
-
-- Crash beacon: a fatal signal that arrives while an earlier crash waits for its beacon (another thread crashing at the same time, or the beacon's own thread crashing) now waits for that beacon to end, at most the beacon timeout plus 100 ms, instead of ending the process at once. The beacon is no longer cut short and its result is recorded; with `handlesMachExceptions` enabled, two threads crashing at the same time used to leave no beacon at all.
-
 ---
 
-## [0.10.0] - 2026-11-10
+## [0.10.0] - 2026-11-11
 
 **Based on Datadog iOS SDK 3.6.0** (same upstream as 0.9.1, no upstream sync)
 
@@ -28,6 +24,7 @@
   - A beacon for a session kept only because it reports an error (`sessionOnError`) carries `session_sampled_for_error: true`, so the intake can keep that crash out of rates computed over sampled sessions even when the late report never arrives.
   - Sent only in foreground, with tracking consent granted, for a session RUM tracks, and never while a debugger is attached. It goes to `<RUM intake>/crash` (the RUM custom endpoint, when set) on the HTTP client of the uploads.
   - The crashed thread only runs async-signal-safe code (a pipe write and a bounded `poll()`); the beacon is built and sent by a thread prepared at startup. It also runs when `takesOverCrashHandlers` is enabled.
+  - Only the first fatal signal sends a beacon. A fatal signal on another thread while it waits (two threads crashing at the same time, also with `handlesMachExceptions` enabled) waits for that beacon to end, at most the beacon timeout plus 100 ms, before it ends the process, so the beacon is not cut short. When the beacon's own thread crashes while sending, the wait times out and the result is recorded as `timeout`.
 - `RUM.Configuration.trackActiveDevices` (default `true`, also `DDRUMConfiguration.trackActiveDevices`): the SDK sends one small request to `{intake}/api/v2/rum/active` when the app is in use, at most once per local day, device and user, so a session too short to upload its events (they are only sent on the next launch) still counts the device as active that day. Sent straight away, not with the event batches, only while the app is active in the foreground with tracking consent granted, and regardless of session sampling; it carries the app, OS and device fields with the anonymous and user ids. One that cannot be delivered is kept and sent later with its age, up to 72 hours after the app was used. Withdrawing consent or turning the option off deletes what was kept.
 
 ### Fixed
