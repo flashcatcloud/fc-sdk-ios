@@ -49,8 +49,9 @@ enum {
 ///   - crashId: this process's crash id, `DDCrashBeaconIdLength` characters (copied).
 bool dd_crash_beacon_install(const char *resultPath, const char *crashId);
 
-/// Runs the beacon for a crash on the crashed thread, if it has not run yet. For a caller that may keep
-/// the signal from reaching the handler `dd_crash_beacon_install` installed. Async-signal-safe.
+/// Runs the beacon for a crash on the crashed thread, if it has not run yet; a later crash waits for
+/// that beacon to end, at most the beacon timeout plus 100 ms. For a caller that may keep the signal
+/// from reaching the handler `dd_crash_beacon_install` installed. Async-signal-safe.
 void dd_crash_beacon_handle_crash(int sigNum);
 
 /// Whether a crash now sends a beacon. Off until the app is ready to send one.
