@@ -80,38 +80,88 @@ class CrashBeaconTests: XCTestCase {
         XCTAssertNil(results.result(forCrashId: crashId)?.launchTime, "Skipped before any context: no launch time to match")
     }
 
-    func testTheLaunchTimeOfTheBeaconIsTheOneOfTheMomentOfTheCrash() {
-        // Fires the handler of this process, which waits only once: no other test drives it.
-        // Not armed and not installed, it records nothing and returns.
+    /// Drives the signal handler's entry point through a whole crash: a first fatal signal, and later ones on other threads.
+    ///
+    /// The handler keeps the first crash for the life of the process, and can be installed once: this is the only test
+    /// that installs it or calls `dd_crash_beacon_handle_crash`, so it does not depend on the order of the others. It
+    /// stands for the beacon thread, and records to a FIFO: the first crash then blocks while it records its result,
+    /// until this test reads it, which is how it holds a first crash that is not done yet.
+    func testALaterCrashWaitsForTheFirstOneUpToTheLimit() throws {
+        let signals = [SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGPIPE, SIGSEGV, SIGSYS, SIGTRAP]
+        let previousActions: [sigaction] = signals.map { signal in
+            var action = sigaction()
+            sigaction(signal, nil, &action)
+            return action
+        }
+        let previousExceptionHandler = NSGetUncaughtExceptionHandler()
+        let fifo = directory.appendingPathComponent("result").path
+        XCTAssertEqual(mkfifo(fifo, 0o600), 0)
+        var reader: Int32 = -1
+        defer {
+            // Lets the first crash go if an assertion failed before its result was read.
+            if reader < 0 {
+                reader = open(fifo, O_RDONLY | O_NONBLOCK)
+            }
+            close(reader)
+            dd_crash_beacon_set_armed(false)
+            for (signal, action) in zip(signals, previousActions) {
+                var action = action
+                sigaction(signal, &action, nil)
+            }
+            NSSetUncaughtExceptionHandler(previousExceptionHandler)
+        }
+        guard dd_crash_beacon_install(fifo, crashId) else {
+            throw XCTSkip("The beacon is installed once per process, and not under a debugger")
+        }
+        dd_crash_beacon_set_timeout_ms(1_000)
+        dd_crash_beacon_set_foreground(true)
+        dd_crash_beacon_set_armed(true)
         dd_crash_beacon_set_launch_time_ms(1_762_300_000_123)
-        dd_crash_beacon_handle_crash(SIGTRAP)
+
+        func crash(_ signal: Int32) -> (returned: DispatchSemaphore, duration: () -> TimeInterval) {
+            let returned = DispatchSemaphore(value: 0)
+            let start = Date()
+            var end = start
+            Thread.detachNewThread {
+                dd_crash_beacon_handle_crash(signal)
+                end = Date()
+                returned.signal()
+            }
+            return (returned, { end.timeIntervalSince(start) })
+        }
+
+        // The first crash wakes the beacon thread, which never answers: it stops waiting at the timeout (1 s), then
+        // blocks recording that.
+        let first = crash(SIGTRAP)
+        XCTAssertEqual(dd_crash_beacon_wait_for_wake(), SIGTRAP)
         dd_crash_beacon_set_launch_time_ms(1_762_300_009_999)
 
-        XCTAssertEqual(dd_crash_beacon_launch_time_ms(), 1_762_300_000_123, "A context update while the crash waits must not change it")
+        // A later crash while the first one is not done: held, but not past the limit (1.1 s).
+        let heldToTheLimit = crash(SIGSEGV)
+        XCTAssertEqual(heldToTheLimit.returned.wait(timeout: .now() + 3), .success, "A first crash that never ends must not hold a later one for good")
+        XCTAssertGreaterThanOrEqual(heldToTheLimit.duration(), 1.0, "It must not go on while the first crash waits for its beacon")
+        XCTAssertEqual(first.returned.wait(timeout: .now()), .timedOut, "The first crash is still recording its result")
 
-        // The first crash settled: a later one goes on at once.
+        // Another one, let go as soon as the first crash is done: well before its own limit.
+        let heldUntilDone = crash(SIGBUS)
+        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertEqual(heldUntilDone.returned.wait(timeout: .now()), .timedOut, "It must not go on while the first crash records its result")
+        reader = open(fifo, O_RDONLY | O_NONBLOCK)
+        XCTAssertEqual(first.returned.wait(timeout: .now() + 3), .success)
+        XCTAssertEqual(heldUntilDone.returned.wait(timeout: .now() + 3), .success)
+        XCTAssertLessThan(heldUntilDone.duration(), 0.9, "It must go on once the first crash is done, not at the limit")
+
+        // The first crash is done: a later one goes on at once.
         let start = Date()
         dd_crash_beacon_handle_crash(SIGSEGV)
         XCTAssertLessThan(Date().timeIntervalSince(start), 0.5)
-    }
 
-    func testALaterCrashWaitsForTheFirstOneToSettle() {
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.2) { firstCrashOfThisTest.set() }
-
-        let start = Date()
-        let settled = dd_crash_beacon_wait_until({ firstCrashOfThisTest.get() }, 2_000)
-
-        XCTAssertTrue(settled)
-        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(start), 0.15, "It must not go on while the first crash waits for its beacon")
-    }
-
-    func testALaterCrashStopsWaitingAtTheLimit() {
-        let start = Date()
-        let settled = dd_crash_beacon_wait_until({ false }, 100)
-
-        XCTAssertFalse(settled)
-        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(start), 0.09)
-        XCTAssertLessThan(Date().timeIntervalSince(start), 1, "A first crash that never settles must not hold a later one for good")
+        // What the first crash recorded: the timeout, with the launch time of the moment of the crash.
+        var record = [UInt8](repeating: 0, count: Int(DDCrashBeaconRecordSize))
+        XCTAssertEqual(read(reader, &record, record.count), record.count)
+        try Data(record).write(to: results.url(forCrashId: crashId))
+        XCTAssertEqual(results.result(forCrashId: crashId), CrashBeaconResult(status: .timeout, duration: 1_000, launchTime: 1_762_300_000_123))
+        XCTAssertEqual(dd_crash_beacon_launch_time_ms(), 1_762_300_000_123, "A context update while the crash waits must not change it")
     }
 
     func testItIgnoresAMalformedRecord() throws {
@@ -306,25 +356,5 @@ class CrashBeaconTests: XCTestCase {
 
         XCTAssertNil(sender.sentCrashContext?.crashBeaconResult)
         XCTAssertNotNil(results.result(forCrashId: crashId))
-    }
-}
-
-/// Whether the first crash of `testALaterCrashWaitsForTheFirstOneToSettle` settled, read from a C callback.
-private let firstCrashOfThisTest = SettledFlag()
-
-private final class SettledFlag: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value = false
-
-    func set() {
-        lock.lock()
-        value = true
-        lock.unlock()
-    }
-
-    func get() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return value
     }
 }
