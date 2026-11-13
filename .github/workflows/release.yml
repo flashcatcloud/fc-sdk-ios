@@ -189,11 +189,26 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Publish FlashcatInternal
+      - name: Configure specs repository access
         env:
-          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+          SPECS_DEPLOY_KEY: ${{ secrets.SPECS_DEPLOY_KEY }}
         run: |
-          ./tools/release/trunk-push-if-missing.sh FlashcatInternal.podspec
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SPECS_DEPLOY_KEY" > ~/.ssh/fc_sdk_ios_specs
+          chmod 600 ~/.ssh/fc_sdk_ios_specs
+          echo "GIT_SSH_COMMAND=ssh -i $HOME/.ssh/fc_sdk_ios_specs -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" >> "$GITHUB_ENV"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Check out the release tools of this workflow
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tools
+          sparse-checkout: tools/release
+
+      - name: Publish FlashcatInternal
+        run: .release-tools/tools/release/specs-push-if-missing.sh FlashcatInternal.podspec
 
   publish-cocoapods-core:
     name: Publish CocoaPods (Core)
@@ -214,14 +229,26 @@ jobs:
           ruby-version: "3.2"
           bundler-cache: true
 
-      - name: Wait for CDN sync
-        run: sleep 600 # Wait 10 minutes for CocoaPods CDN to sync FlashcatInternal
+      - name: Configure specs repository access
+        env:
+          SPECS_DEPLOY_KEY: ${{ secrets.SPECS_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SPECS_DEPLOY_KEY" > ~/.ssh/fc_sdk_ios_specs
+          chmod 600 ~/.ssh/fc_sdk_ios_specs
+          echo "GIT_SSH_COMMAND=ssh -i $HOME/.ssh/fc_sdk_ios_specs -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" >> "$GITHUB_ENV"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Check out the release tools of this workflow
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tools
+          sparse-checkout: tools/release
 
       - name: Publish FlashcatCore
-        env:
-          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
-        run: |
-          ./tools/release/trunk-push-if-missing.sh FlashcatCore.podspec
+        run: .release-tools/tools/release/specs-push-if-missing.sh FlashcatCore.podspec
 
   publish-cocoapods-modules:
     name: Publish CocoaPods (Modules)
@@ -239,6 +266,8 @@ jobs:
             FlashcatWebViewTracking,
           ]
       fail-fast: false
+      # Every module commits to the same specs repository; one push at a time avoids rejected pushes.
+      max-parallel: 1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -253,14 +282,26 @@ jobs:
           ruby-version: "3.2"
           bundler-cache: true
 
-      - name: Wait for CDN sync
-        run: sleep 600 # Wait 10 minutes for CocoaPods CDN to sync FlashcatCore
+      - name: Configure specs repository access
+        env:
+          SPECS_DEPLOY_KEY: ${{ secrets.SPECS_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SPECS_DEPLOY_KEY" > ~/.ssh/fc_sdk_ios_specs
+          chmod 600 ~/.ssh/fc_sdk_ios_specs
+          echo "GIT_SSH_COMMAND=ssh -i $HOME/.ssh/fc_sdk_ios_specs -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" >> "$GITHUB_ENV"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Check out the release tools of this workflow
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tools
+          sparse-checkout: tools/release
 
       - name: Publish ${{ matrix.module }}
-        env:
-          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
-        run: |
-          ./tools/release/trunk-push-if-missing.sh ${{ matrix.module }}.podspec
+        run: .release-tools/tools/release/specs-push-if-missing.sh ${{ matrix.module }}.podspec
 
   summary:
     name: Release Summary
