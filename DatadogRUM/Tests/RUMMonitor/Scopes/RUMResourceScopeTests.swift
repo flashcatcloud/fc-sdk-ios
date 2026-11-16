@@ -1002,6 +1002,189 @@ class RUMResourceScopeTests: XCTestCase {
         XCTAssertEqual(event.os?.name, "device-os")
     }
 
+    // MARK: - Resources Spanning App Background (FLASHCAT FORK)
+
+    /// Sends a resource loaded from `start` to `start + 10s` under the given app state history.
+    private func sendResource(
+        startingAt start: Date,
+        appStateHistory: AppStateHistory,
+        metrics: ResourceMetrics? = nil
+    ) throws -> RUMResourceEvent {
+        var context = self.context
+        context.applicationStateHistory = appStateHistory
+        let writer = FileWriterMock()
+        let scope = RUMResourceScope.mockWith(
+            parent: provider,
+            dependencies: dependencies,
+            resourceKey: "/resource/1",
+            startTime: start,
+            url: "https://foo.com/resource/1",
+            httpMethod: .post,
+            spanContext: .init(traceID: .init(idLo: 100), spanID: .init(rawValue: 200), samplingRate: 0.42)
+        )
+        if let metrics = metrics {
+            let command = RUMAddResourceMetricsCommand(resourceKey: "/resource/1", time: start, attributes: [:], metrics: metrics)
+            XCTAssertTrue(scope.process(command: command, context: context, writer: writer))
+        }
+        XCTAssertFalse(
+            scope.process(
+                command: RUMStopResourceCommand(
+                    resourceKey: "/resource/1",
+                    time: start.addingTimeInterval(10),
+                    attributes: [:],
+                    kind: .xhr,
+                    httpStatusCode: 200,
+                    size: 1_024
+                ),
+                context: context,
+                writer: writer
+            )
+        )
+        return try XCTUnwrap(writer.events(ofType: RUMResourceEvent.self).first)
+    }
+
+    func testGivenAppStaysInForeground_whenResourceLoadingEnds_itSendsResourceDuration() throws {
+        let start: Date = .mockDecember15th2019At10AMUTC()
+        let history: AppStateHistory = .mockWith(initialState: .active, date: start.addingTimeInterval(-60))
+
+        let event = try sendResource(startingAt: start, appStateHistory: history)
+
+        XCTAssertEqual(event.resource.duration, 10_000_000_000)
+    }
+
+    func testGivenAppEntersBackgroundDuringResource_whenResourceLoadingEnds_itSendsResourceWithoutDuration() throws {
+        let start: Date = .mockDecember15th2019At10AMUTC()
+        let history: AppStateHistory = .mockWith(
+            initialState: .active,
+            date: start.addingTimeInterval(-60),
+            transitions: [
+                (state: .inactive, date: start.addingTimeInterval(2)),
+                (state: .background, date: start.addingTimeInterval(3)),
+                (state: .inactive, date: start.addingTimeInterval(8)),
+                (state: .active, date: start.addingTimeInterval(9)),
+            ]
+        )
+
+        let event = try sendResource(startingAt: start, appStateHistory: history)
+
+        XCTAssertNil(event.resource.duration)
+        // Everything else is still reported:
+        XCTAssertEqual(event.date, start.timeIntervalSince1970.dd.toInt64Milliseconds)
+        XCTAssertEqual(event.resource.url, "https://foo.com/resource/1")
+        XCTAssertEqual(event.resource.method, .post)
+        XCTAssertEqual(event.resource.statusCode, 200)
+        XCTAssertEqual(event.resource.size, 1_024)
+        XCTAssertEqual(event.resource.type, .xhr)
+        XCTAssertEqual(event.dd.traceId, "64")
+        XCTAssertEqual(event.dd.spanId, "200")
+    }
+
+    func testGivenAppEntersBackgroundBeforeResourceEnds_whenResourceLoadingEndsInBackground_itSendsResourceWithoutDuration() throws {
+        let start: Date = .mockDecember15th2019At10AMUTC()
+        let history: AppStateHistory = .mockWith(
+            initialState: .active,
+            date: start.addingTimeInterval(-60),
+            transitions: [
+                (state: .background, date: start.addingTimeInterval(9)),
+            ]
+        )
+
+        let event = try sendResource(startingAt: start, appStateHistory: history)
+
+        XCTAssertNil(event.resource.duration)
+    }
+
+    func testGivenResourceStartedInBackground_whenResourceLoadingEndsInForeground_itSendsResourceWithoutDuration() throws {
+        let start: Date = .mockDecember15th2019At10AMUTC()
+        let history: AppStateHistory = .mockWith(
+            initialState: .background,
+            date: start.addingTimeInterval(-60),
+            transitions: [
+                (state: .inactive, date: start.addingTimeInterval(2)),
+                (state: .active, date: start.addingTimeInterval(3)),
+            ]
+        )
+
+        let event = try sendResource(startingAt: start, appStateHistory: history)
+
+        XCTAssertNil(event.resource.duration)
+    }
+
+    func testGivenAppIsOnlyInactiveDuringResource_whenResourceLoadingEnds_itSendsResourceDuration() throws {
+        let start: Date = .mockDecember15th2019At10AMUTC()
+        let history: AppStateHistory = .mockWith(
+            initialState: .active,
+            date: start.addingTimeInterval(-60),
+            transitions: [
+                (state: .inactive, date: start.addingTimeInterval(3)),
+                (state: .active, date: start.addingTimeInterval(5)),
+            ]
+        )
+
+        let event = try sendResource(startingAt: start, appStateHistory: history)
+
+        XCTAssertEqual(event.resource.duration, 10_000_000_000)
+    }
+
+    func testGivenAppInBackgroundOnlyOutsideOfResource_whenResourceLoadingEnds_itSendsResourceDuration() throws {
+        let start: Date = .mockDecember15th2019At10AMUTC()
+        let history: AppStateHistory = .mockWith(
+            initialState: .active,
+            date: start.addingTimeInterval(-60),
+            transitions: [
+                (state: .background, date: start.addingTimeInterval(-50)),
+                (state: .active, date: start.addingTimeInterval(-40)),
+                (state: .background, date: start.addingTimeInterval(20)),
+            ]
+        )
+
+        let event = try sendResource(startingAt: start, appStateHistory: history)
+
+        XCTAssertEqual(event.resource.duration, 10_000_000_000)
+    }
+
+    func testGivenResourceMetrics_whenAppEntersBackgroundDuringFetch_itSendsResourceWithoutDuration() throws {
+        let start: Date = .mockDecember15th2019At10AMUTC()
+        let fetchStart = start.addingTimeInterval(1)
+        let metrics: ResourceMetrics = .mockWith(
+            fetch: .init(start: fetchStart, end: fetchStart.addingTimeInterval(5))
+        )
+        let history: AppStateHistory = .mockWith(
+            initialState: .active,
+            date: start.addingTimeInterval(-60),
+            transitions: [
+                (state: .background, date: fetchStart.addingTimeInterval(2)),
+                (state: .active, date: fetchStart.addingTimeInterval(3)),
+            ]
+        )
+
+        let event = try sendResource(startingAt: start, appStateHistory: history, metrics: metrics)
+
+        XCTAssertNil(event.resource.duration)
+        XCTAssertEqual(event.date, fetchStart.timeIntervalSince1970.dd.toInt64Milliseconds)
+    }
+
+    func testGivenResourceMetrics_whenAppIsInBackgroundOnlyOutsideOfFetch_itSendsMetricsDuration() throws {
+        let start: Date = .mockDecember15th2019At10AMUTC()
+        let fetchStart = start.addingTimeInterval(1)
+        let metrics: ResourceMetrics = .mockWith(
+            fetch: .init(start: fetchStart, end: fetchStart.addingTimeInterval(5))
+        )
+        // The stop command arrives at `start + 10s`, after the app went to background, but the
+        // metrics window (`fetchStart ... fetchStart + 5s`) is entirely in foreground.
+        let history: AppStateHistory = .mockWith(
+            initialState: .active,
+            date: start.addingTimeInterval(-60),
+            transitions: [
+                (state: .background, date: fetchStart.addingTimeInterval(7)),
+            ]
+        )
+
+        let event = try sendResource(startingAt: start, appStateHistory: history, metrics: metrics)
+
+        XCTAssertEqual(event.resource.duration, 5_000_000_000)
+    }
+
     func testGivenMultipleResourceScopes_whenSendingResourceEvents_eachEventHasUniqueResourceID() throws {
         let resourceKey: String = .mockAny()
         func createScope(url: String) -> RUMResourceScope {

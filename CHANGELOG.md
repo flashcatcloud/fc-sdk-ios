@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- A RUM resource whose request spans a period with the app in the background (including one started while the app is in the background) is reported without `resource.duration`: a response that arrives while the app is suspended is only processed once the app resumes, so the measured time includes the suspended time. Everything else on the resource (URL, method, status code, size, timing phases, trace ids) is unchanged; `inactive` counts as foreground, as for the Time-to-Network-Settled metric.
+
 ---
 
 ## [0.10.0] - 2026-11-11
