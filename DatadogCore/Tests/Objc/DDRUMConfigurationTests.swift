@@ -99,6 +99,31 @@ class DDRUMConfigurationTests: XCTestCase {
         XCTAssertNil(override, "a block that raises is read exactly as one that returned nil, so the incoming rate applies")
     }
 
+    func testBeforeSamplingIgnoresAnObjectThatIsNotANumber() throws {
+        // Objective-C does not check the object a block returns against its declared type, so an
+        // application can hand back anything typed as `NSNumber *`. Neither of these is a rate:
+        // an array has no `floatValue` at all, and a string has one that reads "abc" as 0, which
+        // would silently stop collection. Both must leave the incoming rate in place.
+        //
+        // The block is a real Objective-C block set through the Objective-C setter, as an
+        // Objective-C caller would: its declared return is `id`, which the `NSNumber *` block
+        // parameter accepts at the ABI level without any check, so the object reaches the bridge
+        // exactly as it would from Objective-C code.
+        registerObjcExceptionHandlerOnce()
+        let notNumbers: [AnyObject] = [NSArray(), NSString(string: "abc"), NSString(string: "50")]
+
+        for object in notNumbers {
+            let block: @convention(block) (objc_RUMBeforeSamplingContext) -> AnyObject? = { _ in object }
+            objc.perform(NSSelectorFromString("setBeforeSampling:"), with: block)
+            let swiftHook = try XCTUnwrap(swift.beforeSampling)
+
+            XCTAssertNil(
+                swiftHook(BeforeSamplingContext(sessionSampleRate: 20, custom: nil)),
+                "\(type(of: object)) is not a rate, so the incoming rate applies"
+            )
+        }
+    }
+
     func testBeforeSamplingClearedAgain() {
         objc.beforeSampling = { _ in NSNumber(value: 100) }
         objc.beforeSampling = nil

@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `DDRUMConfiguration.beforeSampling` (Objective-C) now leaves the incoming rate in place when the block returns an object that is not an `NSNumber`. Objective-C does not check the declared return type, so such a block crashed session creation (for example an `NSArray`) or, for an `NSString`, was read as its numeric value, `@"abc"` as 0, which stopped collection.
+
 ---
 
 ## [0.10.0] - 2026-11-11

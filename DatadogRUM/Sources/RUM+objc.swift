@@ -561,10 +561,19 @@ public class objc_RUMConfiguration: NSObject {
                     // sampling decision — it is making a mistake, and a mistake about which
                     // sessions to keep must never be fatal. A block that raises is read exactly as
                     // one that returned nil: no opinion, so the incoming rate applies.
-                    guard let rate = try? objc_rethrow({ block(objc_RUMBeforeSamplingContext(context)) }) else {
-                        return nil
+                    //
+                    // Objective-C does not check what the block hands back, so the declared
+                    // `NSNumber *` may be any object. Reading `floatValue` off one that is not a
+                    // number either raises (so it stays inside the guard) or, for a string, quietly
+                    // yields 0 — which would mean "never collect". Anything but a number is read as
+                    // no opinion.
+                    return try? objc_rethrow { () -> SampleRate? in
+                        guard let number = block(objc_RUMBeforeSamplingContext(context)),
+                              number.isKind(of: NSNumber.self) else {
+                            return nil
+                        }
+                        return SampleRate(number.floatValue)
                     }
-                    return SampleRate(rate.floatValue)
                 }
             }
         }
