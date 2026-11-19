@@ -35,6 +35,23 @@ class AnonymousIdentifierManagerTests: XCTestCase {
         XCTAssertNotNil(featureScopeMock.anonymousId)
     }
 
+    func testWhenDataStoreReadsAsynchronously_itSetsStoredIdentifierBeforeReturning() throws {
+        // Given
+        let storedId = RUMUUID.mockRandom().toRUMDataFormat
+        featureScopeMock.dataStoreMock.setValue(
+            try JSONEncoder().encode(storedId),
+            forKey: RUMDataStore.Key.anonymousId.rawValue,
+            version: dataStoreDefaultKeyVersion
+        )
+        featureScopeMock.dataStoreMock.queue = DispatchQueue(label: "data-store-mock")
+
+        // When
+        anonymousIdentifierManager.manageAnonymousIdentifier(shouldTrack: true)
+
+        // Then
+        XCTAssertEqual(featureScopeMock.anonymousId, storedId, "The first RUM events must see the stored identifier")
+    }
+
     func testWhenShouldNotTrack_itClearsAnonymousIdentifier() {
         anonymousIdentifierManager.manageAnonymousIdentifier(shouldTrack: false)
         XCTAssertNil(featureScopeMock.anonymousId)

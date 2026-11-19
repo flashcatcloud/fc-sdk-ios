@@ -11,6 +11,10 @@ public class DataStoreMock: DataStore {
     @ReadWriteLock
     public var storage: [String: DataStoreValueResult]
 
+    /// When set, `value(forKey:callback:)` answers asynchronously on this queue and `flush()` waits for it,
+    /// like the SDK's data store does. When `nil`, values are returned synchronously.
+    public var queue: DispatchQueue?
+
     public init(storage: [String: DataStoreValueResult] = [:]) {
         self.storage = storage
     }
@@ -20,7 +24,11 @@ public class DataStoreMock: DataStore {
     }
 
     public func value(forKey key: String, callback: @escaping (DataStoreValueResult) -> Void) {
-        callback(storage[key] ?? .noValue)
+        guard let queue = queue else {
+            callback(storage[key] ?? .noValue)
+            return
+        }
+        queue.async { callback(self.storage[key] ?? .noValue) }
     }
 
     public func removeValue(forKey key: String) {
@@ -32,7 +40,7 @@ public class DataStoreMock: DataStore {
     }
 
     public func flush() {
-        // no-op
+        queue?.sync {}
     }
 
     // MARK: - Side Effects Observation

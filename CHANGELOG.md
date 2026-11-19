@@ -12,6 +12,7 @@
 ### Fixed
 
 - `DDRUMConfiguration.beforeSampling` (Objective-C) now leaves the incoming rate in place when the block returns an object that is not an `NSNumber`. Objective-C does not check the declared return type, so such a block crashed session creation (for example an `NSArray`) or, for an `NSString`, was read as its numeric value, `@"abc"` as 0, which stopped collection.
+- The first events after `RUM.enable` now carry `usr.anonymous_id`. The stored identifier was read in the background, so a view that ended before the read completed, typically the `ApplicationLaunch` view of an app whose first screen starts right after the SDK (as in React Native), had no anonymous id, and neither did the session it started. `RUM.enable` now waits for that read (a few milliseconds).
 
 ---
 
