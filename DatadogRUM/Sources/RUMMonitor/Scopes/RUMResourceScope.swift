@@ -117,7 +117,7 @@ internal class RUMResourceScope: RUMScope {
 
     private func sendResourceEvent(on command: RUMStopResourceCommand, context: DatadogContext, writer: Writer) {
         let resourceStartTime: Date
-        let resourceDuration: TimeInterval
+        let resourceEndTime: Date
         let size: Int64?
 
         // Check trace attributes
@@ -159,13 +159,22 @@ internal class RUMResourceScope: RUMScope {
         // Metrics values take precedence over other values.
         if let metrics = resourceMetrics {
             resourceStartTime = metrics.fetch.start
-            resourceDuration = metrics.fetch.end.timeIntervalSince(metrics.fetch.start)
+            resourceEndTime = metrics.fetch.end
             size = metrics.responseSize ?? command.size
         } else {
             resourceStartTime = resourceLoadingStartTime
-            resourceDuration = command.time.timeIntervalSince(resourceLoadingStartTime)
+            resourceEndTime = command.time
             size = command.size
         }
+        let resourceDuration = resourceEndTime.timeIntervalSince(resourceStartTime)
+
+        // FLASHCAT FORK - while the app is suspended in the background, a response that arrives is
+        // only processed once the app resumes, so the measured interval includes the suspended time.
+        // Such a resource is still reported, but without a duration, so it does not skew duration
+        // statistics. Same foreground rule as the Time-to-Network-Settled metric (`TNSMetric`).
+        let spannedBackground = context.applicationStateHistory.containsState(
+            during: min(resourceStartTime, resourceEndTime)...max(resourceStartTime, resourceEndTime)
+        ) { !$0.isRunningInForeground }
 
         // Write resource event
         let resourceEvent = RUMResourceEvent(
@@ -221,7 +230,7 @@ internal class RUMResourceScope: RUMScope {
                         start: metric.start.timeIntervalSince(resourceStartTime).dd.toInt64Nanoseconds
                     )
                 },
-                duration: resolveResourceDuration(resourceDuration),
+                duration: spannedBackground ? nil : resolveResourceDuration(resourceDuration),
                 encodedBodySize: nil,
                 firstByte: resourceMetrics?.firstByte.map { metric in
                     .init(
@@ -276,7 +285,7 @@ internal class RUMResourceScope: RUMScope {
             writer.write(value: event)
             onResourceEvent(true)
             networkSettledMetric.trackResourceEnd(
-                at: resourceMetrics?.fetch.end ?? command.time,
+                at: resourceEndTime,
                 resourceID: resourceUUID,
                 resourceDuration: resourceDuration
             )

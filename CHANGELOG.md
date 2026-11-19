@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- A RUM resource whose request spans a period with the app in the background (including one started while the app is in the background) is reported without `resource.duration`: a response that arrives while the app is suspended is only processed once the app resumes, so the measured time includes the suspended time. Everything else on the resource (URL, method, status code, size, timing phases, trace ids) is unchanged; `inactive` counts as foreground, as for the Time-to-Network-Settled metric.
+
 ### Fixed
 
 - `DDRUMConfiguration.beforeSampling` (Objective-C) now leaves the incoming rate in place when the block returns an object that is not an `NSNumber`. Objective-C does not check the declared return type, so such a block crashed session creation (for example an `NSArray`) or, for an `NSString`, was read as its numeric value, `@"abc"` as 0, which stopped collection.
