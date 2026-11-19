@@ -22,6 +22,29 @@ env:
   XCODE_VERSION: "16.4"
 
 jobs:
+  release-notes:
+    name: Prepare Release Notes
+    runs-on: ubuntu-latest
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Extract release notes
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+.][0-9A-Za-z.-]+)*$ ]] || { echo "::error::Invalid version tag: $TAG"; exit 1; }
+          bash .github/scripts/extract-release-notes.sh --changelog CHANGELOG.md --version "${TAG#v}" --level 2 --output release-notes.md
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+
   unit-tests:
     name: Unit Tests (iOS)
     runs-on: macos-15
@@ -163,9 +186,9 @@ jobs:
   publish-cocoapods-internal:
     name: Publish CocoaPods (Internal)
     runs-on: macos-15
-    needs: [unit-tests, validate-internal, validate-core, validate-modules]
+    needs: [unit-tests, validate-internal, validate-core, validate-modules, release-notes]
     # Only run on tag push or manual workflow dispatch (not on publish-new branch push)
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -199,7 +222,7 @@ jobs:
     name: Publish CocoaPods (Core)
     runs-on: macos-15
     needs: publish-cocoapods-internal
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -227,7 +250,7 @@ jobs:
     name: Publish CocoaPods (Modules)
     runs-on: macos-15
     needs: publish-cocoapods-core
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
     strategy:
       matrix:
         module:
@@ -262,6 +285,31 @@ jobs:
         run: |
           ./tools/release/trunk-push-if-missing.sh ${{ matrix.module }}.podspec
 
+  github-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: [publish-cocoapods-modules, release-notes]
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+    steps:
+      - name: Download release notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file release-notes.md --verify-tag
+          fi
+
   summary:
     name: Release Summary
     runs-on: ubuntu-latest
@@ -271,9 +319,11 @@ jobs:
         validate-internal,
         validate-core,
         validate-modules,
+        release-notes,
         publish-cocoapods-internal,
         publish-cocoapods-core,
         publish-cocoapods-modules,
+        github-release,
       ]
     if: always()
     steps:
@@ -285,6 +335,10 @@ jobs:
           echo "- Validation Internal: ${{ needs.validate-internal.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Validation Core: ${{ needs.validate-core.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Validation Modules: ${{ needs.validate-modules.result }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.release-notes.result }}" != "skipped" ]; then
+            echo "- Release Notes: ${{ needs.release-notes.result }}" >> $GITHUB_STEP_SUMMARY
+            echo "- GitHub Release: ${{ needs.github-release.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
           if [ "${{ needs.publish-cocoapods-internal.result }}" != "skipped" ]; then
             echo "- FlashcatInternal: ${{ needs.publish-cocoapods-internal.result }}" >> $GITHUB_STEP_SUMMARY
             echo "- FlashcatCore: ${{ needs.publish-cocoapods-core.result }}" >> $GITHUB_STEP_SUMMARY
@@ -301,8 +355,9 @@ jobs:
         publish-cocoapods-internal,
         publish-cocoapods-core,
         publish-cocoapods-modules,
+        github-release,
       ]
-    if: ${{ success() && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) }}
+    if: ${{ success() && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) }}
     steps:
       - name: Notify deployment success
         uses: zcong1993/actions-ding@master
@@ -343,11 +398,13 @@ jobs:
         validate-internal,
         validate-core,
         validate-modules,
+        release-notes,
         publish-cocoapods-internal,
         publish-cocoapods-core,
         publish-cocoapods-modules,
+        github-release,
       ]
-    if: ${{ failure() && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) }}
+    if: ${{ failure() && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) }}
     steps:
       - name: Notify deployment failure
         uses: zcong1993/actions-ding@master
