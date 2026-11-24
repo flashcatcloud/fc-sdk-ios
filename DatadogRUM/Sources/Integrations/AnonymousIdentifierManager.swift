@@ -34,6 +34,10 @@ internal class AnonymousIdentifierManager: AnonymousIdentifierManaging {
                     self?.featureScope.set(anonymousId: anonymousId)
                 }
             }
+            // RUM starts its session and the "ApplicationLaunch" view right after this returns. Wait for the
+            // read above so the identifier is already in the SDK context when those first events are written;
+            // otherwise a view that ends before the read completes never carries it.
+            featureScope.dataStore.flush()
         } else {
             featureScope.rumDataStore.removeValue(forKey: .anonymousId)
             featureScope.set(anonymousId: nil)
